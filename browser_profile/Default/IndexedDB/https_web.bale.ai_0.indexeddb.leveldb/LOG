@@ -1,0 +1,7 @@
+2026/09/12-14:07:15.880 2c5307 Reusing MANIFEST /root/bale_sender/browser_profile/Default/IndexedDB/https_web.bale.ai_0.indexeddb.leveldb/MANIFEST-000001
+2026/09/12-14:07:15.880 2c5307 Recovering log #4
+2026/09/12-14:07:15.886 2c5307 Reusing old log /root/bale_sender/browser_profile/Default/IndexedDB/https_web.bale.ai_0.indexeddb.leveldb/000004.log 
+2026/09/12-14:07:16.012 2c530a Level-0 table #8: started
+2026/09/12-14:07:16.029 2c530a Level-0 table #8: 26003 bytes OK
+2026/09/12-14:07:16.040 2c530a Delete type=0 #4
+2026/09/12-14:07:16.040 2c5307 Manual compaction at level-0 from '\x00\x06\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x07\x00\x00\x00' @ 0 : 0; will stop at (end)

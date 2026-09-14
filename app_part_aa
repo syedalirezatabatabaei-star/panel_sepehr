@@ -1,0 +1,250 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Sepher Management Panel — Application Core
+   ═══════════════════════════════════════════════════════════════════ */
+
+// ─── Current Logged-in User ────────────────────────────────────────
+let CURRENT_USER = {
+  id: 0,
+  firstName: '',
+  lastName: '',
+  username: '',
+  email: '',
+  phone: '',
+  role: '',
+  level: 0,
+  status: '',
+  lastLogin: '',
+  lastLoginTimestamp: null,
+  avatar: null,
+  createdAt: '',
+  customPermissions: [],
+};
+
+const API_BASE = "http://95.38.187.123:8005";
+
+// ─── Load Current User From API ────────────────────────────────────
+async function loadCurrentUser() {
+  try {
+    const response = await fetch(
+      "http://95.38.187.123:8005/api/auth/me",
+      {
+        method: "GET",
+        credentials: "include"
+      }
+    );
+    const data = await response.json();
+    console.log("ME API RESPONSE:", data);
+    if (data.success) {
+      CURRENT_USER = {
+        id: data.user.id,
+        firstName: data.user.first_name,
+        lastName: data.user.last_name,
+        username: data.user.username,
+        level: data.user.access_level,
+        status: data.user.is_active ? "active" : "inactive"
+      };
+
+      updateUserUI();
+      console.log("CURRENT_USER LOADED:", CURRENT_USER);
+    }
+  } catch (error) {
+    console.error("LOAD CURRENT USER ERROR:", error);
+  }
+}
+
+// ─── Update UI with Current User Info ──────────────────────────────
+function updateUserUI() {
+  const fullName = `${CURRENT_USER.firstName} ${CURRENT_USER.lastName}`.trim();
+  const username = CURRENT_USER.username;
+  const level = CURRENT_USER.level;
+
+  // Sidebar
+  const sidebarName = document.querySelector('.sidebar-user .user-name');
+  if (sidebarName) {
+    sidebarName.textContent = fullName || username;
+  }
+  const sidebarRole = document.querySelector('.sidebar-user .user-role');
+  if (sidebarRole) {
+    sidebarRole.textContent = username.toUpperCase();
+  }
+
+  // Header
+  const headerName = document.querySelector('.header-user .name');
+  if (headerName) {
+    headerName.textContent = fullName || username;
+  }
+  const headerRole = document.querySelector('.header-user .role-badge');
+  if (headerRole) {
+    headerRole.textContent = `${username} · سطح ${level}`;
+  }
+
+  // Avatar initials
+  const initials = `${CURRENT_USER.firstName?.charAt(0) || ''} ${CURRENT_USER.lastName?.charAt(0) || ''}`.trim();
+  document
+    .querySelectorAll('.sidebar-user .avatar, .header-user .avatar')
+    .forEach(avatar => {
+      avatar.textContent = initials || 'کاربر';
+    });
+
+  console.log("CURRENT USER UI UPDATED:", {
+    id: CURRENT_USER.id,
+    name: fullName,
+    username: username,
+    level: level
+  });
+}
+
+// ─── Application State ─────────────────────────────────────────────
+const AppState = {
+  currentPage: 'overview',
+  selectedUserId: null,
+  selectedRoleId: null,
+  userSearch: '',
+  userFilter: 'all',
+  auditSearch: '',
+  auditFilter: 'all',
+  activityFilter: 'all',
+  notificationSearch: '',
+  notificationFilter: 'all',
+  permSearch: '',
+  currentPageUsers: 1,
+  currentPageLogs: 1,
+  currentPageNotifs: 1,
+  usersPerPage: 10,
+  logsPerPage: 10,
+  notifsPerPage: 8,
+};
+//--------------------golvaje*---------------
+function closeSettingsNav() {
+
+    const settingsNav =
+        document.querySelector('.settings-nav');
+
+    if(settingsNav){
+        settingsNav.classList.remove('open');
+    }
+
+}
+// ─── Navigation ────────────────────────────────────────────────────
+function navigateTo(page, data) {
+  AppState.currentPage = page;
+  closeSettingsNav();
+  if (data) {
+    if (data.userId !== undefined) AppState.selectedUserId = data.userId;
+    if (data.roleId !== undefined) AppState.selectedRoleId = data.roleId;
+  }
+  
+  // Update settings nav
+  document.querySelectorAll('.settings-nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page || 
+      (page === 'user-permissions' && el.dataset.page === 'users') ||
+      (page === 'role-permissions' && el.dataset.page === 'roles') ||
+      (page === 'user-details' && el.dataset.page === 'users') ||
+      (page === 'edit-user' && el.dataset.page === 'users')
+    );
+  });
+
+  // Update header title
+  const titles = {
+    'overview': 'تنظیمات سیستم',
+    'users': 'مدیریت کاربران',
+    'user-details': 'مشاهده کاربر',
+    'user-permissions': 'مدیریت دسترسی کاربر',
+    'edit-user': 'ویرایش کاربر',
+    'roles': 'مدیریت نقش‌ها',
+    'role-permissions': 'ویرایش نقش',
+    'notifications': 'مدیریت اعلان‌ها',
+    'audit-logs': 'لاگ‌های سیستم',
+    'activities': 'فعالیت کاربران',
+    'security': 'امنیت',
+    'my-account': 'حساب من',
+    'system-settings': 'تنظیمات سیستم',
+  };
+  document.getElementById('headerTitle').textContent = titles[page] || 'تنظیمات';
+  renderPage(page);
+}
+
+function renderPage(page) {
+  const content = document.getElementById('settingsContent');
+  const renderers = {
+    'overview': renderOverview,
+    'users': renderUsers,
+    'user-details': renderUserDetails,
+    'user-permissions': renderUserPermissions,
+    'edit-user': renderEditUser,
+    'roles': renderRoles,
+    'role-permissions': renderRolePermissions,
+    'notifications': renderNotifications,
+    'audit-logs': renderAuditLogs,
+    'activities': renderActivities,
+    'security': renderSecurity,
+    'my-account': renderMyAccount,
+    'system-settings': renderSystemSettings,
+  };
+  const renderer = renderers[page];
+  if (renderer) {
+    content.innerHTML = renderer();
+    initPageInteractions();
+  }
+}
+
+function initPageInteractions() {
+  // Init perm group toggles
+  document.querySelectorAll('.perm-group-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const group = header.parentElement;
+      group.classList.toggle('open');
+    });
+  });
+}
+
+// ─── Helper: Avatar Colors ─────────────────────────────────────────
+function avatarColor(id) {
+  const colors = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#16a34a', '#0891b2', '#4f46e5'];
+  return colors[id % colors.length];
+}
+
+function renderAvatar(user, size = 'md') {
+  const initials = user.firstName.charAt(0) + ' ' + user.lastName.charAt(0);
+  return `<div class="avatar ${size}" style="background: ${avatarColor(user.id)}">${initials}</div>`;
+}
+
+// ─── Helper: Status Badge ──────────────────────────────────────────
+function statusBadge(status) {
+  if (status === 'active') return '<span class="badge badge-success">فعال</span>';
+  return '<span class="badge badge-danger">غیرفعال</span>';
+}
+
+function levelBadge(level) {
+  const colors = { 1: 'badge-gray', 2: 'badge-info', 3: 'badge-danger' };
+  return `<span class="badge ${colors[level] || 'badge-gray'}">سطح ${level}</span>`;
+}
+
+// ─── Helper: Pagination ────────────────────────────────────────────
+function renderPagination(currentPage, totalPages, onPageChange) {
+  if (totalPages <= 1) return '';
+  let html = '<div class="pagination-btns">';
+  html += `<button class="pagination-btn" onclick="${onPageChange}(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>›</button>`;
+  for (let i = 1; i <= totalPages; i++) {
+    if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - currentPage) > 1) {
+      if (i === 3 || i === totalPages - 2) html += '<span style="padding: 0 4px; color: var(--gray-400)">...</span>';
+      continue;
+    }
+    html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="${onPageChange}(${i})">${i}</button>`;
+  }
+  html += `<button class="pagination-btn" onclick="${onPageChange}(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>‹</button>`;
+  html += '</div>';
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PAGE: Overview
+// ═══════════════════════════════════════════════════════════════════
+function renderOverview() {
+  const activeUsers = USERS.filter(u => u.status === 'active').length;
+  const inactiveUsers = USERS.filter(u => u.status === 'inactive').length;
+  const totalPerms = PERMISSIONS.length;
+  const recentActivities = ACTIVITIES.slice(0, 5);
+  const recentPermChanges = AUDIT_LOGS.filter(l => l.action === 'permission_change' || l.action === 'change_role').slice(0, 4);
+  const securityAlerts = AUDIT_LOGS.filter(l => l.action === 'login_failed').slice(0, 3);
+

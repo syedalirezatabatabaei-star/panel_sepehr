@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تأیید هویت | سپهر</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ============================================
+       CSS VARIABLES
+       ============================================ */
+    :root {
+      --blue-50: #eff6ff;
+      --blue-100: #dbeafe;
+      --blue-200: #bfdbfe;
+      --blue-300: #93c5fd;
+      --blue-400: #60a5fa;
+      --blue-500: #3b82f6;
+      --blue-600: #2563eb;
+      --blue-700: #1d4ed8;
+      --blue-800: #1e40af;
+      --blue-900: #1e3a8a;
+
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-300: #cbd5e1;
+      --gray-400: #94a3b8;
+      --gray-500: #64748b;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --gray-900: #0f172a;
+
+      --red-50: #fef2f2;
+      --red-100: #fee2e2;
+      --red-400: #f87171;
+      --red-500: #ef4444;
+      --red-600: #dc2626;
+
+      --green-50: #f0fdf4;
+      --green-100: #dcfce7;
+      --green-500: #22c55e;
+      --green-600: #16a34a;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,0.1);
+      --shadow-xl: 0 20px 60px rgba(0,0,0,0.12);
+
+      --transition: all 0.2s ease;
+    }
+
+    /* ============================================
+       RESET & BASE
+       ============================================ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--gray-100);
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(37,99,235,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.04) 0%, transparent 50%);
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    /* ============================================
+       CARD
+       ============================================ */
+    .card {
+      background: #fff;
+      border-radius: var(--radius-xl);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: var(--shadow-xl);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--blue-700), var(--blue-500), var(--blue-400));
+    }
+
+    /* ============================================
+       LOGO
+       ============================================ */
+    .logo-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    .logo-placeholder {
+      width: 80px;
+      height: 80px;
+      border-radius: var(--radius-lg);
+      background: var(--blue-50);
+      border: 2px solid var(--blue-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--blue-600);
+      text-align: center;
+      line-height: 1.4;
+      letter-spacing: -0.3px;
+    }
+
+    /* ============================================
+       TYPOGRAPHY
+       ============================================ */
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--gray-800);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--gray-500);
+      text-align: center;
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+
+    /* ============================================
+       OTP INPUT CONTAINER
+       ============================================ */
+    .otp-wrapper {
+      direction: ltr;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .otp-input {
+      width: 52px;
+      height: 60px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      font-family: 'Vazirmatn', system-ui, sans-serif;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      background: var(--gray-50);
+      color: var(--gray-800);
+      transition: var(--transition);
+      outline: none;
+      caret-color: var(--blue-600);
+    }
+
+    .otp-input::placeholder {
+      color: var(--gray-300);
+      font-weight: 400;
+    }
+
+    .otp-input:focus {
+      border-color: var(--blue-500);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    .otp-input.filled {
+      border-color: var(--blue-200);
+      background: var(--blue-50);
+    }
+
+    .otp-input.error {
+      border-color: var(--red-400);
+      background: var(--red-50);
+      animation: shake 0.4s ease;
+    }
+
+    .otp-input.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-5px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(3px); }
+    }
+
+    /* ============================================
+       BUTTONS
+       ============================================ */
+    .btn-primary {
+      width: 100%;
+      height: 52px;
+      font-family: 'Vazirmatn', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue-700), var(--blue-600));
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--blue-800), var(--blue-700));
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(30,64,175,0.25);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ============================================
+       COUNTDOWN & RESEND
+       ============================================ */
+    .resend-area {
+      text-align: center;
+      margin-top: 24px;
+      min-height: 40px;
+    }
+
+    .countdown-text {
+      font-size: 13px;
+      color: var(--gray-400);
+    }
+
+    .countdown-text strong {
+      color: var(--gray-600);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .resend-btn {
+      font-family: 'Vazirmatn', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--blue-600);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+    }
+
+    .resend-btn:hover {
+      background: var(--blue-50);
+      color: var(--blue-700);
+    }
+
+    .resend-btn:disabled {
+      color: var(--gray-400);
+      cursor: not-allowed;
+    }
+
+    .resend-btn:disabled:hover {
+      background: none;
+    }
+
+    /* ============================================
+       MESSAGES
+       ============================================ */
+    .message {
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.6;
+      display: none;
+      animation: fadeSlideIn 0.3s ease;
+    }
+
+    .message.show { display: flex; align-items: flex-start; gap: 8px; }
+
+    .message.info {
+      background: var(--blue-50);
+      color: var(--blue-700);
+      border: 1px solid var(--blue-200);
+    }
+
+    .message.success {
+      background: var(--green-50);
+      color: var(--green-600);
+      border: 1px solid var(--green-100);
+    }
+
+    .message.warning {
+      background: #fffbeb;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .message.error {
+      background: var(--red-50);
+      color: var(--red-600);
+      border: 1px solid var(--red-100);
+    }
+
+    .message-icon {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      margin-top: 1px;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================
+       LOCKOUT OVERLAY
+       ============================================ */
+    .lockout-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(4px);
+      border-radius: var(--radius-xl);
+      z-index: 10;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 32px;
+      text-align: center;
+    }
+
+    .lockout-overlay.show { display: flex; }
+
+    .lockout-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--red-50);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .lockout-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 8px;
+    }
+
+    .lockout-message {
+      font-size: 14px;
+      color: var(--gray-500);
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+
+    .lockout-timer {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--blue-600);
+      font-variant-numeric: tabular-nums;
+      direction: ltr;
+      margin-bottom: 24px;
+    }
+
+    .lockout-btn {
+      font-family: 'Vazirmatn', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--blue-600);
+      background: var(--blue-50);
+      border: 1px solid var(--blue-200);
+      border-radius: var(--radius-md);
+      padding: 10px 28px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .lockout-btn:hover {
+      background: var(--blue-100);
+    }
+
+    /* ============================================
+       FOOTER
+       ============================================ */
+    .card-footer {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--gray-100);
+      text-align: center;
+    }
+
+    .footer-link {
+      font-size: 13px;
+      color: var(--gray-400);
+      text-decoration: none;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .footer-link:hover {
+      color: var(--blue-600);
+    }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+
+      .card {
+        padding: 32px 24px;
+        border-radius: var(--radius-lg);
+      }
+
+      .logo-placeholder {
+        width: 68px;
+        height: 68px;
+        font-size: 10px;
+      }
+
+      .title { font-size: 20px; }
+      .subtitle { font-size: 13px; }
+
+      .otp-wrapper { gap: 6px; }
+
+      .otp-input {
+        width: 46px;
+        height: 54px;
+        font-size: 20px;
+        border-radius: var(--radius-sm);
+      }
+
+      .btn-primary {
+        height: 48px;
+        font-size: 14px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .otp-wrapper { gap: 4px; }
+      .otp-input {
+        width: 42px;
+        height: 50px;
+        font-size: 18px;
+      }
+    }
+
+    /* ============================================
+       ACCESSIBILITY: REDUCED MOTION
+       ============================================ */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ============================================
+       FOCUS VISIBLE (KEYBOARD ONLY)
+       ============================================ */
+    .otp-input:focus-visible,
+    .btn-primary:focus-visible,
+    .resend-btn:focus-visible,
+    .footer-link:focus-visible {
+      outline: 2px solid var(--blue-500);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card" role="main">
+
+    <!-- ===== LOCKOUT OVERLAY ===== -->
+    <div class="lockout-overlay" id="lockoutOverlay" role="alert" aria-live="assertive">
+      <div class="lockout-icon">
+        <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+        </svg>
+      </div>
+      <div class="lockout-title">تعداد تلاش‌ها به حد مجاز رسیده</div>
+      <div class="lockout-message">
+        شما از حداکثر تعداد مجاز تلاش (۵ بار) عبور کرده‌اید.
+        <br />لطفاً پس از پایان زمان زیر دوباره تلاش کنید.
+      </div>
+      <div class="lockout-timer" id="lockoutTimer">20:00</div>
+      <button class="lockout-btn" id="lockoutBtn" onclick="resetAfterLockout()">بازگشت به صفحه ورود</button>
+    </div>
+
+    <!-- ===== LOGO ===== -->
+    <div class="logo-area">
+      <img class="logo-placeholder"aria-label="logo sepeh" src="img/images.jpg"  >
+    </div>
+
+    <!-- ===== TITLE ===== -->
+    <h1 class="title">تأیید هویت</h1>
+    <p class="subtitle">
+      کد تأیید ارسال‌شده به حساب بله شما را وارد کنید.
+    </p>
+
+    <!-- ===== OTP INPUT ===== -->
+    <div class="otp-wrapper" role="group" aria-label="کد تأیید شش رقمی">
+      <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="رقم اول" autocomplete="one-time-code" />
+      <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="رقم دوم" />
+      <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="رقم سوم" />
+      <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="رقم چهارم" />
+      <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="رقم پنجم" />
+      <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="رقم ششم" />
+    </div>
+
+    <!-- ===== VERIFY BUTTON ===== -->
+    <button class="btn-primary" id="verifyBtn" disabled aria-label="تأیید کد و ورود">
+      <span id="verifyBtnText">تأیید و ورود</span>
+      <div class="spinner" id="verifyBtnSpinner" style="display:none"></div>
+    </button>
+
+    <!-- ===== RESEND / COUNTDOWN ===== -->
+    <div class="resend-area" aria-live="polite">
+      <span class="countdown-text" id="countdownText" style="display:none">
+        ارسال مجدد تا <strong id="countdownValue">60</strong> ثانیه دیگر
+      </span>
+      <button class="resend-btn" id="resendBtn" style="display:none" aria-label="ارسال مجدد کد تأیید">
+        ارسال مجدد کد
+      </button>
+    </div>
+
+    <!-- ===== MESSAGE ===== -->
+    <div class="message" id="messageBox" role="status" aria-live="polite">
+      <svg class="message-icon" id="messageIcon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"></svg>
+      <span id="messageText"></span>
+    </div>
+
+    <!-- ===== FOOTER ===== -->
+    <div class="card-footer">
+      <a href="#" class="footer-link" id="backLink">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+        </svg>
+        بازگشت به صفحه ورود
+      </a>
+    </div>
+
+  </div>
+
+  <script>
+    /* ============================================
+       CONFIG — Webhook URLs for n8n
+       ============================================ */
+    const API_BASE = "http://95.38.187.123:8005";
+
+    const API_CONFIG = {
+      verifyOtp: `${API_BASE}/api/auth/verify-otp`,
+      resendOtp: `${API_BASE}/api/auth/resend-otp`, 
+    };
+
+    /* ============================================
+       STATE
+       ============================================ */
+    const State = {
+      username: "",             // از صفحه قبل دریافت می‌شود
+      requestId: "",           // از نیم‌بک ارسال OTP دریافت می‌شود
+      attempts: 0,
+      maxAttempts: 5,
+      isLocked: false,
+      lockoutDuration: 20 * 60,  // 20 دقیقه به ثانیه
+      lockoutRemaining: 0,
+      countdownDuration: 60,
+      countdownRemaining: 0,
+      isLoading: false,
+    };
+
+    /* ============================================
+       DOM REFS
+       ============================================ */
+    const DOM = {
+      inputs:          document.querySelectorAll(".otp-input"),
+      verifyBtn:       document.getElementById("verifyBtn"),
+      verifyBtnText:   document.getElementById("verifyBtnText"),
+      verifyBtnSpinner:document.getElementById("verifyBtnSpinner"),
+      countdownText:   document.getElementById("countdownText"),
+      countdownValue:  document.getElementById("countdownValue"),
+      resendBtn:       document.getElementById("resendBtn"),
+      messageBox:      document.getElementById("messageBox"),
+      messageIcon:     document.getElementById("messageIcon"),
+      messageText:     document.getElementById("messageText"),
+      lockoutOverlay:  document.getElementById("lockoutOverlay"),
+      lockoutTimer:    document.getElementById("lockoutTimer"),
+      lockoutBtn:      document.getElementById("lockoutBtn"),
+      backLink:        document.getElementById("backLink"),
+    };
+
+    /* ============================================
+       INITIALIZE
+       ============================================ */
+    function init() {
+      // خواندن username از URL یا sessionStorage
+      State.username = new URLSearchParams(window.location.search).get("username")
+        || sessionStorage.getItem("otp_username")
+        || "";
+
+      State.requestId = sessionStorage.getItem("otp_request_id") || "";
+
+      setupOtpInputs();
+      focusFirstInput();
+      startResendCountdown();
+
+      DOM.backLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        window.location.href = "/login";
+      });
+    }
+
+    /* ============================================
+       OTP INPUT MANAGEMENT
+       ============================================ */
+    function setupOtpInputs() {
+      DOM.inputs.forEach((input, index) => {
+
+        // فقط عدد
+        input.addEventListener("input", (e) => {
+          const val = e.target.value.replace(/\D/g, "");
+          e.target.value = val.slice(0, 1);
+
+          if (val) {
+            e.target.classList.add("filled");
+            if (index < DOM.inputs.length - 1) {
+              DOM.inputs[index + 1].focus();
+            }
+          } else {
+            e.target.classList.remove("filled");
+          }
+          updateVerifyButton();
+        });
+
+        // Backspace
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Backspace") {
+            if (!input.value && index > 0) {
+              DOM.inputs[index - 1].focus();
+              DOM.inputs[index - 1].value = "";
+              DOM.inputs[index - 1].classList.remove("filled");
+            } else {
+              input.classList.remove("filled");
+            }
+            updateVerifyButton();
+          }
+
+          // Enter برای تایید سریع
+          if (e.key === "Enter" && !DOM.verifyBtn.disabled) {
+            handleVerify();
+          }
+        });
+
+        // Paste
+        input.addEventListener("paste", (e) => {
+          e.preventDefault();
+          const pasted = (e.clipboardData || window.clipboardData)
+            .getData("text")
+            .replace(/\D/g, "")
+            .slice(0, 6);
+
+          pasted.split("").forEach((char, i) => {
+            if (index + i < 6) {
+              DOM.inputs[index + i].value = char;
+              DOM.inputs[index + i].classList.add("filled");
+            }
+          });
+
+          const focusIdx = Math.min(index + pasted.length, 5);
+          DOM.inputs[focusIdx].focus();
+          updateVerifyButton();
+        });
+      });
+    }
+
+    function getOtpValue() {
+      return [...DOM.inputs].map(i => i.value).join("");
+    }
+
+    function resetOtpInputs() {
+      DOM.inputs.forEach(i => {
+        i.value = "";
+        i.classList.remove("filled", "error");
+        i.disabled = false;
+      });
+      updateVerifyButton();
+    }
+
+    function markOtpError() {
+      DOM.inputs.forEach(i => i.classList.add("error"));
+      setTimeout(() => {
+        DOM.inputs.forEach(i => i.classList.remove("error", "filled"));
+        DOM.inputs[0].focus();
+      }, 500);
+    }
+
+    function setOtpDisabled(disabled) {
+      DOM.inputs.forEach(i => { i.disabled = disabled; });
+    }
+
+    function focusFirstInput() {
+      setTimeout(() => DOM.inputs[0].focus(), 100);
+    }
+
+    function updateVerifyButton() {
+      const allFilled = getOtpValue().length === 6;
+      DOM.verifyBtn.disabled = allFilled === false || State.isLoading || State.isLocked;
+    }
+
+    /* ============================================
+       MESSAGES
+       ============================================ */
+    const ICONS = {
+      info:    '<path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />',
+      success: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+      warning: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />',
+      error:   '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />',
+    };
+
+    function showMessage(type, text) {
+      DOM.messageIcon.innerHTML = ICONS[type] || ICONS.info;
+      DOM.messageText.textContent = text;
+      DOM.messageBox.className = "message show " + type;
+    }
+
+    function hideMessage() {
+      DOM.messageBox.className = "message";
+    }
+
+    /* ============================================
+       LOADING STATE
+       ============================================ */
+    function setLoading(loading) {
+      State.isLoading = loading;
+      DOM.verifyBtn.disabled = loading;
+      DOM.verifyBtnText.style.display = loading ? "none" : "";
+      DOM.verifyBtnSpinner.style.display = loading ? "" : "none";
+      setOtpDisabled(loading);
+      if (!loading) updateVerifyButton();
+    }
+
+    /* ============================================
+       COUNTDOWN — RESEND OTP
+       ============================================ */
+     let resendInterval = null;
+
+function startResendCountdown(seconds = State.countdownDuration) {
+
+  clearInterval(resendInterval);
+
+  State.countdownRemaining = seconds;
+
+  DOM.countdownText.style.display = "inline";
+  DOM.resendBtn.style.display = "none";
+  DOM.resendBtn.disabled = false;
+
+  DOM.countdownValue.textContent =
+    State.countdownRemaining;
+
+  resendInterval = setInterval(() => {
+
+    State.countdownRemaining--;
+
+    DOM.countdownValue.textContent =
+      State.countdownRemaining;
+
+    if (State.countdownRemaining <= 0) {
+
+      clearInterval(resendInterval);
+
+      DOM.countdownText.style.display = "none";
+      DOM.resendBtn.style.display = "inline-block";
+      DOM.resendBtn.disabled = false;
+
+      DOM.countdownValue.textContent = "0";
+    }
+
+  }, 1000);
+}
+
+    /* ============================================
+       LOCKOUT — 5 ATTEMPTS IN 20 MIN
+       ============================================ */
+    let lockoutInterval = null;
+
+    function triggerLockout(retryAfterSeconds) {
+      State.isLocked = true;
+      const dur = retryAfterSeconds || State.lockoutDuration;
+      State.lockoutRemaining = dur;
+
+      DOM.lockoutOverlay.classList.add("show");
+      updateLockoutTimer();
+
+      lockoutInterval = setInterval(() => {
+        State.lockoutRemaining--;
+        updateLockoutTimer();
+
+        if (State.lockoutRemaining <= 0) {
+          clearInterval(lockoutInterval);
+          State.isLocked = false;
+          State.attempts = 0;
+          DOM.lockoutOverlay.classList.remove("show");
+          resetOtpInputs();
+          hideMessage();
+          focusFirstInput();
+          startResendCountdown(10); // ۱۰ ثانیه فرصت ارسال مجدد
+        }
+      }, 1000);
+    }
+
+    function updateLockoutTimer() {
+      const m = Math.floor(State.lockoutRemaining / 60);
+      const s = State.lockoutRemaining % 60;
+      DOM.lockoutTimer.textContent =
+        String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    }
+
+    function resetAfterLockout() {
+      clearInterval(lockoutInterval);
+      State.isLocked = false;
+      State.attempts = 0;
+      DOM.lockoutOverlay.classList.remove("show");
+      // ریدایرکت به صفحه ورود
+      window.location.href = "/login";
+    }
+
+    /* ============================================
+       HANDLE VERIFY OTP
+       ============================================ */
+    async function handleVerify() {
+  if (State.isLoading || State.isLocked) return;
+
+  const code = getOtpValue();
+  if (code.length !== 6) return;
+
+  setLoading(true);
+  hideMessage();
+
+  try {
+    const response = await fetch(API_CONFIG.verifyOtp, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: State.username,
+        otp: code,
+        request_id: State.requestId,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showMessage("success", "تأیید هویت با موفقیت انجام شد.");
+
+      setTimeout(() => {
+        const redirect = data.redirect || "/dashboard/index.html";
+        window.location.href = redirect;
+      }, 800);
+
+      return;
+    }
+
+    switch (data.error) {
+      case "INVALID_OTP": {
+        State.attempts++;
+
+        const remaining =
+          data.remaining_attempts ??
+          (State.maxAttempts - State.attempts);
+
+        if (
+          remaining <= 0 ||
+          State.attempts >= State.maxAttempts
+        ) {
+          showMessage(
+            "error",
+            "تعداد تلاش‌های شما به حد مجاز رسیده است."
+          );
+
+          setTimeout(
+            () => triggerLockout(data.retry_after),
+            1200
+          );
+        } else {
+          showMessage(
+            "error",
+            `کد وارد شده صحیح نیست. ${remaining} تلاش باقی مانده.`
+          );
+
+          markOtpError();
+        }
+
+        break;
+      }
+
+      case "OTP_EXPIRED":
+        showMessage(
+          "warning",
+          "این کد منقضی شده است. لطفاً کد جدید دریافت کنید."
+        );
+
+        markOtpError();
+        break;
+
+      case "TOO_MANY_ATTEMPTS":
+        showMessage(
+          "error",
+          "تعداد تلاش‌های شما به حد مجاز رسیده است."
+        );
+
+        setTimeout(
+          () => triggerLockout(data.retry_after),
+          1200
+        );
+
+        break;
+
+      default:
+        showMessage(
+          "error",
+          data.message || "خطای غیرمنتظره‌ای رخ داد."
+        );
+
+        markOtpError();
+    }
+
+  } catch (err) {
+
+    console.error("VERIFY OTP ERROR:", err);
+
+    showMessage(
+      "error",
+      "ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید."
+    );
+
+    markOtpError();
+
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+
+
+
+  /* ============================================
+       HANDLE RESEND OTP
+       ============================================ */
+    async function handleResend() {
+
+  if (State.isLoading || State.isLocked) {
+    return;
+  }
+
+  DOM.resendBtn.disabled = true;
+  DOM.resendBtn.textContent = "در حال ارسال...";
+  hideMessage();
+
+  try {
+
+    console.log("RESEND REQUEST:", {
+      username: State.username,
+      request_id: State.requestId
+    });
+
+    const response = await fetch(API_CONFIG.resendOtp, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: State.username,
+        request_id: State.requestId
+      })
+    });
+
+    console.log("RESEND HTTP STATUS:", response.status);
+
+    const data = await response.json();
+
+    console.log("RESEND RESPONSE:", data);
+
+    if (data.success) {
+
+      /*
+       * اگر n8n / بک‌اند request_id جدید داد
+       */
+      if (data.request_id) {
+
+        State.requestId = String(data.request_id);
+
+        sessionStorage.setItem(
+          "otp_request_id",
+          State.requestId
+        );
+
+      }
+
+      showMessage(
+        "success",
+        "کد تأیید با موفقیت ارسال شد."
+      );
+
+      resetOtpInputs();
+      focusFirstInput();
+
+      /*
+       * شروع دوباره تایمر
+       */
+      startResendCountdown(
+        data.countdown || State.countdownDuration
+      );
+
+    } else {
+
+      showMessage(
+        "error",
+        data.message || "خطا در ارسال مجدد کد."
+      );
+
+      /*
+       * اگر ارسال ناموفق بود،
+       * دوباره دکمه ارسال مجدد را فعال کن
+       */
+      DOM.resendBtn.disabled = false;
+      DOM.resendBtn.textContent = "ارسال مجدد کد";
+    }
+
+  } catch (err) {
+
+    console.error("RESEND OTP ERROR:", err);
+
+    showMessage(
+      "error",
+      "ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید."
+    );
+
+    DOM.resendBtn.disabled = false;
+    DOM.resendBtn.textContent = "ارسال مجدد کد";
+  }
+}
+
+    /* ============================================
+       EVENT LISTENERS
+       ============================================ */
+    DOM.verifyBtn.addEventListener("click", handleVerify);
+    DOM.resendBtn.addEventListener("click", handleResend);
+
+    /* ============================================
+       START
+       ============================================ */
+    init();
+  </script>
+
+</body>
+</html>

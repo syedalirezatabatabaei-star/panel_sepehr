@@ -1,0 +1,1286 @@
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
+
+class BalePage:
+
+    def __init__(self, page):
+        self.page = page
+
+    # =========================================================
+    # OPEN BALE
+    # =========================================================
+
+    def open_bale(self):
+        print("\nOpening Bale...")
+
+        self.page.goto(
+            "https://web.bale.ai/chat",
+            wait_until="domcontentloaded"
+        )
+
+        self.page.wait_for_timeout(3000)
+
+        print("\nURL:")
+        print(self.page.url)
+
+    # =========================================================
+    # CHECK AUTHENTICATION
+    # =========================================================
+    def is_authenticated(self):
+
+        try:
+    
+            current_url = self.page.url
+    
+            print(
+                "[BALE AUTH] Checking authentication..."
+            )
+    
+            print(
+                "[BALE AUTH] Current URL:",
+                current_url
+            )
+    
+            # اگر هنوز صفحه login است
+            if "/login" in current_url:
+    
+                print(
+                    "[BALE AUTH] Still on login page."
+                )
+    
+                return False
+    
+            # بعد از ورود موفق، Bale به /chat می‌رود
+            if "/chat" in current_url:
+    
+                print(
+                    "[BALE AUTH] Bale chat page detected."
+                )
+    
+                return True
+    
+            # fallback
+            try:
+    
+                self.page.locator(
+                    'svg[aria-label="Chat-icon"]'
+                ).first.wait_for(
+                    state="visible",
+                    timeout=3000
+                )
+    
+                print(
+                    "[BALE AUTH] Chat icon detected."
+                )
+    
+                return True
+    
+            except Exception:
+    
+                print(
+                    "[BALE AUTH] Chat icon not detected."
+                )
+    
+            return False
+    
+        except Exception as e:
+    
+            print(
+                "[BALE AUTH] Authentication check error:",
+                type(e).__name__,
+                str(e)
+            )
+    
+            return False
+    # =========================================================
+    # OPEN CONTACTS
+    # =========================================================
+
+    def open_contacts(self):
+
+        print("\nOpening Contacts...")
+
+        try:
+
+            contacts_icon = self.page.locator(
+                'svg[aria-label="Contacts-icon"]'
+            ).first
+
+            contacts_icon.wait_for(
+                state="visible",
+                timeout=10000
+            )
+
+            try:
+
+                contacts_icon.click(
+                    timeout=5000
+                )
+
+                print(
+                    "Contacts opened with normal click."
+                )
+
+            except Exception:
+
+                print(
+                    "Normal click failed. "
+                    "Trying force click..."
+                )
+
+                contacts_icon.click(
+                    force=True,
+                    timeout=5000
+                )
+
+                print(
+                    "Contacts opened with force click."
+                )
+
+            self.page.wait_for_timeout(1500)
+
+            print(
+                "Contacts URL:",
+                self.page.url
+            )
+
+            return True
+
+        except Exception as e:
+
+            print(
+                "\n[CONTACTS ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return False
+
+    # =========================================================
+    # OPEN ADD CONTACT
+    # =========================================================
+
+    def open_add_contact(self):
+
+        print("\nOpening Add Contact...")
+
+        try:
+
+            add_user = self.page.locator(
+                'svg[aria-label="AddUser-icon"]'
+            ).first
+
+            add_user.wait_for(
+                state="visible",
+                timeout=10000
+            )
+
+            try:
+
+                add_user.click(
+                    timeout=5000
+                )
+
+            except Exception:
+
+                add_user.click(
+                    force=True,
+                    timeout=5000
+                )
+
+            self.page.wait_for_timeout(1000)
+
+            # بررسی فرم
+            phone_input = self.page.locator(
+                'input[aria-label="شماره همراه"]'
+            ).first
+
+            phone_input.wait_for(
+                state="visible",
+                timeout=10000
+            )
+
+            print(
+                "Add Contact form opened."
+            )
+
+            return True
+
+        except Exception as e:
+
+            print(
+                "\n[ADD CONTACT FORM ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return False
+
+    # =========================================================
+    # ADD CONTACT
+    # =========================================================
+
+    def add_contact(self, phone, name):
+
+        try:
+
+            if not self.open_add_contact():
+                return {
+                    "success": False,
+                    "message": "فرم افزودن مخاطب باز نشد"
+                }
+
+            # -------------------------------------------------
+            # PHONE
+            # -------------------------------------------------
+
+            phone_input = self.page.locator(
+                'input[aria-label="شماره همراه"]'
+            ).first
+
+            phone_input.wait_for(
+                state="visible",
+                timeout=10000
+            )
+
+            # شماره را بدون صفر وارد می‌کنیم
+            phone = str(phone).strip()
+
+            if phone.startswith("+98"):
+                phone = phone[3:]
+
+            elif phone.startswith("98"):
+                phone = phone[2:]
+
+            elif phone.startswith("0"):
+                phone = phone[1:]
+
+            phone_input.fill(phone)
+
+            # -------------------------------------------------
+            # NAME
+            # -------------------------------------------------
+
+            name_input = self.page.locator(
+                'input[aria-label="نام"]'
+            ).first
+
+            name_input.wait_for(
+                state="visible",
+                timeout=10000
+            )
+
+            name_input.fill(str(name))
+
+            self.page.wait_for_timeout(500)
+
+            # -------------------------------------------------
+            # ADD BUTTON
+            # -------------------------------------------------
+
+            add_button = self.page.get_by_text(
+                "افزودن",
+                exact=True
+            ).last
+
+            try:
+
+                add_button.wait_for(
+                    state="visible",
+                    timeout=5000
+                )
+
+                add_button.click(
+                    timeout=5000
+                )
+
+            except Exception:
+
+                # اگر دکمه معمولی توسط overlay گرفته شد
+                add_button.click(
+                    force=True,
+                    timeout=5000
+                )
+
+            self.page.wait_for_timeout(1500)
+
+            # -------------------------------------------------
+            # CHECK RESULT
+            # -------------------------------------------------
+
+            body_text = self.page.locator(
+                "body"
+            ).inner_text()
+
+            # پیام‌های احتمالی عدم موفقیت
+            not_registered_messages = [
+                "کاربری با این شماره پیدا نشد",
+                "این شماره در بله ثبت نشده",
+                "کاربر پیدا نشد",
+                "وجود ندارد",
+                "ثبت نشده",
+                "یافت نشد"
+            ]
+
+            for msg in not_registered_messages:
+
+                if msg in body_text:
+
+                    print(
+                        f"[NOT REGISTERED] "
+                        f"{phone} - {name}"
+                    )
+
+                    return {
+                        "success": False,
+                        "status": "not_registered",
+                        "message": msg
+                    }
+
+            # اگر فرم بسته شده یا صفحه به حالت قبلی برگشته
+            try:
+
+                phone_input.wait_for(
+                    state="hidden",
+                    timeout=3000
+                )
+
+                print(
+                    f"[SUCCESS] "
+                    f"{phone} - {name}"
+                )
+
+                return {
+                    "success": True,
+                    "status": "success",
+                    "message": "اضافه شد"
+                }
+
+            except Exception:
+                pass
+
+            # بررسی وجود نام در صفحه
+            if str(name) in body_text:
+
+                print(
+                    f"[SUCCESS] "
+                    f"{phone} - {name}"
+                )
+
+                return {
+                    "success": True,
+                    "status": "success",
+                    "message": "اضافه شد"
+                }
+
+            # اگر خطای مشخصی پیدا نشد
+            print(
+                f"[UNKNOWN] "
+                f"{phone} - {name}"
+            )
+
+            return {
+                "success": False,
+                "status": "unknown",
+                "message": "نتیجه افزودن مشخص نیست"
+            }
+
+        except PlaywrightTimeoutError as e:
+
+            print(
+                f"\n[ADD CONTACT TIMEOUT] "
+                f"{phone} - {name}"
+            )
+
+            print(e)
+
+            return {
+                "success": False,
+                "status": "error",
+                "message": "Timeout"
+            }
+
+        except Exception as e:
+
+            print(
+                f"\n[ADD CONTACT ERROR] "
+                f"{phone} - {name}"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return {
+                "success": False,
+                "status": "error",
+                "message": str(e)
+            }
+
+    # =========================================================
+    # OPEN SEARCH
+    # =========================================================
+
+    def open_search(self):
+
+        print("\nOpening Bale Search...")
+
+        try:
+
+            search_icon = self.page.locator(
+                'svg[aria-label="Search-icon"]'
+            ).first
+
+            print(
+                "Search icon count:",
+                self.page.locator(
+                    'svg[aria-label="Search-icon"]'
+                ).count()
+            )
+
+            search_icon.wait_for(
+                state="visible",
+                timeout=10000
+            )
+
+            try:
+
+                search_icon.click(
+                    timeout=5000
+                )
+
+                print(
+                    "Search opened with normal click."
+                )
+
+            except Exception as e:
+
+                print(
+                    "Normal click failed."
+                )
+
+                print(
+                    "Trying force click..."
+                )
+
+                print(
+                    f"Reason: {type(e).__name__}"
+                )
+
+                search_icon.click(
+                    force=True,
+                    timeout=5000
+                )
+
+                print(
+                    "Search opened with force click."
+                )
+
+            self.page.wait_for_timeout(1000)
+
+            return True
+
+        except Exception as e:
+
+            print(
+                "\n[SEARCH ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return False
+
+    # =========================================================
+    # SEARCH CONTACT
+    # =========================================================
+
+    def search_contact(self, phone):
+
+        print("\n================================")
+        print("SEARCH CONTACT")
+        print("================================")
+
+        original_phone = str(phone).strip()
+
+        search_phone = original_phone
+
+        if not search_phone.startswith("0"):
+            search_phone = "0" + search_phone
+
+        print(
+            "Original phone:",
+            original_phone
+        )
+
+        print(
+            "Search phone:",
+            search_phone
+        )
+
+        try:
+
+            if not self.open_search():
+                return False
+
+            search_input = self.page.locator(
+                'input[type="search"]'
+            ).first
+
+            search_input.wait_for(
+                state="visible",
+                timeout=10000
+            )
+
+            print(
+                "Search input found."
+            )
+
+            search_input.fill(
+                search_phone
+            )
+
+            print(
+                "Phone entered into search."
+            )
+
+            self.page.wait_for_timeout(2000)
+
+            print(
+                "\nSearch results loaded."
+            )
+
+            print(
+                "URL:",
+                self.page.url
+            )
+
+            body_text = self.page.locator(
+                "body"
+            ).inner_text()
+
+            print(
+                "\nSEARCH RESULT TEXT:"
+            )
+
+            print(
+                "--------------------------------"
+            )
+
+            print(body_text)
+
+            print(
+                "--------------------------------"
+            )
+
+            if "نتیجه‌ای پیدا نشد" in body_text:
+
+                print(
+                    "[NOT FOUND]"
+                )
+
+                return False
+
+            return True
+
+        except Exception as e:
+
+            print(
+                "\n[SEARCH ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return False
+
+    # =========================================================
+    # OPEN DIALOG BY NAME
+    # =========================================================
+
+    def open_dialog_by_name(self, name):
+
+        print(
+            f"\nOpening dialog: {name}"
+        )
+
+        try:
+
+            # ابتدا گفتگوهای قابل مشاهده
+            dialog = self.page.locator(
+                '[aria-label="dialog-item"]'
+            )
+
+            count = dialog.count()
+
+            print(
+                "Dialog count:",
+                count
+            )
+
+            for i in range(count):
+
+                item = dialog.nth(i)
+
+                try:
+
+                    if not item.is_visible():
+                        continue
+
+                    text = item.inner_text()
+
+                    if str(name) in text:
+
+                        item.click(
+                            timeout=5000
+                        )
+
+                        self.page.wait_for_timeout(
+                            1000
+                        )
+
+                        print(
+                            "Dialog opened."
+                        )
+
+                        return True
+
+                except Exception:
+                    continue
+
+            # روش دوم
+            text_locator = self.page.get_by_text(
+                str(name),
+                exact=True
+            )
+
+            if text_locator.count() > 0:
+
+                for i in range(
+                    text_locator.count()
+                ):
+
+                    item = text_locator.nth(i)
+
+                    try:
+
+                        if item.is_visible():
+
+                            item.click(
+                                timeout=5000
+                            )
+
+                            self.page.wait_for_timeout(
+                                1000
+                            )
+
+                            print(
+                                "Dialog opened."
+                            )
+
+                            return True
+
+                    except Exception:
+                        continue
+
+            print(
+                "[ERROR] Dialog not found."
+            )
+
+            return False
+
+        except Exception as e:
+
+            print(
+                "\n[DIALOG ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return False
+
+    # =========================================================
+    # OPEN FIRST DIALOG
+    # =========================================================
+
+    def open_first_dialog(self):
+
+        print(
+            "\nOpening first dialog..."
+        )
+
+        try:
+
+            dialogs = self.page.locator(
+                '[aria-label="dialog-item"]'
+            )
+
+            count = dialogs.count()
+
+            print(
+                "Dialog count:",
+                count
+            )
+
+            if count == 0:
+                return False
+
+            for i in range(count):
+
+                item = dialogs.nth(i)
+
+                try:
+
+                    if item.is_visible():
+
+                        item.click(
+                            timeout=5000
+                        )
+
+                        self.page.wait_for_timeout(
+                            1000
+                        )
+
+                        print(
+                            "First dialog opened."
+                        )
+
+                        return True
+
+                except Exception:
+                    continue
+
+            return False
+
+        except Exception as e:
+
+            print(
+                "\n[FIRST DIALOG ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return False
+
+    # =========================================================
+    # SEND MESSAGE
+    # =========================================================
+
+    def send_message(self, message):
+
+        print(
+            "\nSending message..."
+        )
+
+        try:
+
+            # -------------------------------------------------
+            # FIND MESSAGE BOX
+            # -------------------------------------------------
+
+            message_box = self.page.locator(
+                '[aria-label="editable-message-text"]'
+            ).first
+
+            message_box.wait_for(
+                state="visible",
+                timeout=10000
+            )
+
+            print(
+                "Message box found."
+            )
+
+            # -------------------------------------------------
+            # ENTER MESSAGE
+            # -------------------------------------------------
+
+            message_box.click()
+
+            message_box.press(
+                "Control+A"
+            )
+
+            message_box.press(
+                "Backspace"
+            )
+
+            message_box.fill(
+                str(message)
+            )
+
+            print(
+                "Message entered."
+            )
+
+            self.page.wait_for_timeout(
+                500
+            )
+
+            # -------------------------------------------------
+            # SEND BUTTON
+            # -------------------------------------------------
+
+            send_button = self.page.locator(
+                '[aria-label="send-button"]'
+            ).first
+
+            if send_button.count() > 0:
+
+                try:
+
+                    send_button.wait_for(
+                        state="visible",
+                        timeout=3000
+                    )
+
+                    if send_button.is_enabled():
+
+                        send_button.click(
+                            timeout=5000
+                        )
+
+                        self.page.wait_for_timeout(
+                            1000
+                        )
+
+                        print(
+                            "Message sent with send button."
+                        )
+
+                        return True
+
+                except Exception as e:
+
+                    print(
+                        "[INFO] "
+                        "Send button unavailable."
+                    )
+
+                    print(
+                        f"Reason: {type(e).__name__}"
+                    )
+
+            # -------------------------------------------------
+            # FALLBACK: ENTER
+            # -------------------------------------------------
+
+            print(
+                "Trying Enter key..."
+            )
+
+            message_box.press(
+                "Enter"
+            )
+
+            self.page.wait_for_timeout(
+                1000
+            )
+
+            print(
+                "Message sent with Enter."
+            )
+
+            return True
+
+        except PlaywrightTimeoutError as e:
+
+            print(
+                "\n[MESSAGE ERROR]"
+            )
+
+            print(
+                "Locator timeout:"
+            )
+
+            print(e)
+
+            return False
+
+        except Exception as e:
+
+            print(
+                "\n[MESSAGE ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return False
+
+    # =========================================================
+    # INSPECT CURRENT PAGE
+    # =========================================================
+
+    def inspect_page(self):
+
+        print(
+            "\n================================"
+        )
+
+        print(
+            "BALE PAGE INSPECTION"
+        )
+
+        print(
+            "================================"
+        )
+
+        print(
+            "\nURL:"
+        )
+
+        print(
+            self.page.url
+        )
+
+        print(
+            "\nTITLE:"
+        )
+
+        print(
+            self.page.title()
+        )
+
+        # -----------------------------------------------------
+        # INPUTS
+        # -----------------------------------------------------
+
+        print(
+            "\nINPUT ELEMENTS:"
+        )
+
+        print(
+            "--------------------------------"
+        )
+
+        inputs = self.page.locator(
+            "input"
+        )
+
+        print(
+            "Input count:",
+            inputs.count()
+        )
+
+        for i in range(inputs.count()):
+
+            item = inputs.nth(i)
+
+            try:
+
+                print(
+                    f"[INPUT {i}] "
+                    f"type={item.get_attribute('type')} "
+                    f"placeholder={item.get_attribute('placeholder')} "
+                    f"aria-label={item.get_attribute('aria-label')} "
+                    f"testid={item.get_attribute('data-testid')} "
+                    f"value={item.input_value()}"
+                )
+
+            except Exception:
+                pass
+
+        # -----------------------------------------------------
+        # TEXTAREA
+        # -----------------------------------------------------
+
+        print(
+            "\nTEXTAREA ELEMENTS:"
+        )
+
+        print(
+            "--------------------------------"
+        )
+
+        textareas = self.page.locator(
+            "textarea"
+        )
+
+        print(
+            "Textarea count:",
+            textareas.count()
+        )
+
+        # -----------------------------------------------------
+        # CONTENTEDITABLE
+        # -----------------------------------------------------
+
+        print(
+            "\nCONTENTEDITABLE ELEMENTS:"
+        )
+
+        print(
+            "--------------------------------"
+        )
+
+        editable = self.page.locator(
+            '[contenteditable="true"]'
+        )
+
+        print(
+            "Contenteditable count:",
+            editable.count()
+        )
+
+        for i in range(
+            editable.count()
+        ):
+
+            item = editable.nth(i)
+
+            try:
+
+                print(
+                    f"[CONTENTEDITABLE {i}] "
+                    f"tag={item.evaluate('(e) => e.tagName')} "
+                    f"role={item.get_attribute('role')} "
+                    f"aria-label={item.get_attribute('aria-label')} "
+                    f"placeholder={item.get_attribute('placeholder')} "
+                    f"testid={item.get_attribute('data-testid')} "
+                    f"class={item.get_attribute('class')}"
+                )
+
+            except Exception:
+                pass
+
+        # -----------------------------------------------------
+        # ARIA
+        # -----------------------------------------------------
+
+        print(
+            "\nARIA LABEL ELEMENTS:"
+        )
+
+        print(
+            "--------------------------------"
+        )
+
+        aria_elements = self.page.locator(
+            "[aria-label]"
+        )
+
+        print(
+            "ARIA element count:",
+            aria_elements.count()
+        )
+
+        for i in range(
+            min(aria_elements.count(), 150)
+        ):
+
+            item = aria_elements.nth(i)
+
+            try:
+
+                print(
+                    f"[ARIA {i}] "
+                    f"tag={item.evaluate('(e) => e.tagName')} "
+                    f"aria-label={item.get_attribute('aria-label')} "
+                    f"class={item.get_attribute('class')} "
+                    f"testid={item.get_attribute('data-testid')}"
+                )
+
+            except Exception:
+                pass
+
+        # -----------------------------------------------------
+        # DATA TESTID
+        # -----------------------------------------------------
+
+        print(
+            "\nDATA-TESTID ELEMENTS:"
+        )
+
+        print(
+            "--------------------------------"
+        )
+
+        testids = self.page.locator(
+            "[data-testid]"
+        )
+
+        print(
+            "TestID element count:",
+            testids.count()
+        )
+
+        for i in range(
+            testids.count()
+        ):
+
+            item = testids.nth(i)
+
+            try:
+
+                print(
+                    f"[TESTID {i}] "
+                    f"tag={item.evaluate('(e) => e.tagName')} "
+                    f"testid={item.get_attribute('data-testid')} "
+                    f"aria-label={item.get_attribute('aria-label')} "
+                    f"class={item.get_attribute('class')}"
+                )
+
+            except Exception:
+                pass
+
+        # -----------------------------------------------------
+        # BODY TEXT
+        # -----------------------------------------------------
+
+        print(
+            "\nBODY TEXT:"
+        )
+
+        print(
+            "--------------------------------"
+        )
+
+        try:
+
+            print(
+                self.page.locator(
+                    "body"
+                ).inner_text()
+            )
+
+        except Exception:
+            pass
+        # =========================================================
+    # OPEN CONTACT CHAT
+    # =========================================================
+
+    def open_contact_chat(self, name):
+
+        print(
+            f"\nOpening contact chat: {name}"
+        )
+
+        try:
+
+            # ابتدا دنبال dialog-item می‌گردیم
+            dialogs = self.page.locator(
+                '[aria-label="dialog-item"]'
+            )
+
+            count = dialogs.count()
+
+            print(
+                "Dialog count:",
+                count
+            )
+
+            for i in range(count):
+
+                item = dialogs.nth(i)
+
+                try:
+
+                    if not item.is_visible():
+                        continue
+
+                    text = item.inner_text()
+
+                    if str(name) in text:
+
+                        print(
+                            f"Found contact: {name}"
+                        )
+
+                        item.click(
+                            timeout=5000
+                        )
+
+                        self.page.wait_for_timeout(
+                            1000
+                        )
+
+                        print(
+                            "Contact chat opened."
+                        )
+
+                        print(
+                            "URL:",
+                            self.page.url
+                        )
+
+                        return True
+
+                except Exception:
+                    continue
+
+            # -------------------------------------------------
+            # روش دوم: پیدا کردن خود نام
+            # -------------------------------------------------
+
+            name_locator = self.page.get_by_text(
+                str(name),
+                exact=True
+            )
+
+            count = name_locator.count()
+
+            print(
+                "Name locator count:",
+                count
+            )
+
+            for i in range(count):
+
+                item = name_locator.nth(i)
+
+                try:
+
+                    if not item.is_visible():
+                        continue
+
+                    item.click(
+                        timeout=5000
+                    )
+
+                    self.page.wait_for_timeout(
+                        1000
+                    )
+
+                    print(
+                        "Contact chat opened."
+                    )
+
+                    print(
+                        "URL:",
+                        self.page.url
+                    )
+
+                    return True
+
+                except Exception:
+                    continue
+
+            print(
+                f"[ERROR] Contact chat not found: {name}"
+            )
+
+            return False
+
+        except Exception as e:
+
+            print(
+                "\n[OPEN CONTACT CHAT ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            return False

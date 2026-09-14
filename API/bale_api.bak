@@ -1,0 +1,635 @@
+import io
+import random
+import time
+import threading
+import uuid
+	
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    UploadFile,
+    File,
+    Form
+)
+
+from pydantic import BaseModel
+
+from openpyxl import load_workbook
+
+from bale_backend import (
+    bale_backend,
+    run_bale
+)
+
+router = APIRouter(
+    prefix="/api/bale",
+    tags=["Bale"]
+)
+class BaleLoginRequest(BaseModel):
+    phone: str
+
+
+class BaleOtpRequest(BaseModel):
+    otp: str
+
+
+@router.post("/login")
+def bale_login(data: BaleLoginRequest):
+
+    phone = data.phone.strip()
+
+    if not phone:
+        raise HTTPException(
+            status_code=400,
+            detail="شماره موبایل وارد نشده است."
+        )
+
+    print(
+        f"[BALE API] Login request: {phone}"
+    )
+
+    try:
+
+        run_bale(
+            bale_backend.start_login,
+            phone
+        )
+
+        return {
+            "success": True,
+            "message": "کد تایید ارسال شد."
+        }
+
+    except Exception as e:
+
+        print(
+            f"[BALE API] Login error: {e}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="خطا در ورود به بله."
+        )
+
+@router.post("/verify")
+def bale_verify(data: BaleOtpRequest):
+
+    otp = data.otp.strip()
+
+    if not otp:
+
+        raise HTTPException(
+            status_code=400,
+            detail="کد تایید وارد نشده است."
+        )
+
+    print(
+        "[BALE API] OTP verification request"
+    )
+
+    try:
+
+        authenticated = run_bale(
+            bale_backend.verify_otp,
+            otp
+        )
+
+        if not authenticated:
+
+            raise HTTPException(
+                status_code=401,
+                detail="ورود به بله انجام نشد."
+            )
+
+        return {
+            "success": True,
+            "message": "ورود با موفقیت انجام شد."
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        print(
+            f"[BALE API] OTP error: {e}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="خطا در تایید کد ورود."
+        )
+# ============================================================
+# JOB STORAGE
+# ============================================================
+
+bale_jobs = {}
+
+bale_jobs_lock = threading.Lock()
+
+
+# ============================================================
+# EXCEL
+# ============================================================
+
+def normalize_phone(phone):
+
+    if phone is None:
+        return ""
+
+    phone = str(phone).strip()
+
+    phone = phone.replace(" ", "")
+    phone = phone.replace("-", "")
+
+    if phone.startswith("+98"):
+        phone = "0" + phone[3:]
+
+    elif phone.startswith("98"):
+        phone = "0" + phone[2:]
+
+    elif phone.startswith("9"):
+        phone = "0" + phone
+
+    return phone
+
+
+def read_excel_contacts(file_bytes):
+
+    workbook = load_workbook(
+        filename=io.BytesIO(file_bytes),
+        read_only=True,
+        data_only=True
+    )
+
+    sheet = workbook.active
+
+    rows = list(
+        sheet.iter_rows(
+            values_only=True
+        )
+    )
+
+    if not rows:
+        workbook.close()
+
+        raise ValueError(
+            "فایل Excel خالی است."
+        )
+
+    headers = []
+
+    for value in rows[0]:
+
+        if value is None:
+            headers.append("")
+
+        else:
+            headers.append(
+                str(value).strip().lower()
+            )
+
+    phone_index = None
+    name_index = None
+
+    phone_names = [
+        "phone",
+        "mobile",
+        "number",
+        "شماره",
+        "شماره موبایل",
+        "شماره همراه",
+        "موبایل"
+    ]
+
+    name_names = [
+        "name",
+        "نام",
+        "نام مشتری",
+        "نام و نام خانوادگی"
+    ]
+
+    for index, header in enumerate(headers):
+
+        if header in phone_names:
+            phone_index = index
+
+        if header in name_names:
+            name_index = index
+
+    # اگر هدر شماره پیدا نشد
+    if phone_index is None:
+        phone_index = 0
+
+    contacts = []
+
+    for row in rows[1:]:
+
+        if not row:
+            continue
+
+        phone = ""
+
+        if phone_index < len(row):
+            phone = normalize_phone(
+                row[phone_index]
+            )
+
+        if not phone:
+            continue
+
+        name = ""
+
+        if (
+            name_index is not None
+            and name_index < len(row)
+            and row[name_index] is not None
+        ):
+            name = str(
+                row[name_index]
+            ).strip()
+
+        contacts.append({
+            "phone": phone,
+            "name": name
+        })
+
+    workbook.close()
+
+    if not contacts:
+        raise ValueError(
+            "هیچ شماره‌ای در فایل Excel پیدا نشد."
+        )
+
+    return contacts
+
+
+# ============================================================
+# SEND WORKER
+# ============================================================
+def send_job_worker(
+    job_id,
+    contacts,
+    message
+):
+
+    print(
+        f"[BALE JOB] Started: {job_id}"
+    )
+
+    total = len(contacts)
+
+    with bale_jobs_lock:
+
+        bale_jobs[job_id] = {
+            "status": "running",
+            "total": total,
+            "current": 0,
+            "results": [],
+            "error": None
+        }
+
+
+    def process_job():
+
+        for index, contact in enumerate(
+            contacts,
+            start=1
+        ):
+
+            phone = contact["phone"]
+            name = contact.get("name") or phone
+
+            result = {
+                "phone": phone,
+                "name": name,
+                "status": "failed",
+                "success": False
+            }
+
+            try:
+
+                print("\n================================")
+                print("SEARCH CONTACT")
+                print("================================")
+                print(
+                    f"Original phone: {phone}"
+                )
+
+                print(
+                    f"Search phone: {phone}"
+                )
+
+
+                # -----------------------------------------
+                # Search
+                # -----------------------------------------
+
+                found = bale_backend.search_contact(
+                    phone
+                )
+
+
+                if not found:
+
+                    result["error"] = (
+                        "مخاطب پیدا نشد."
+                    )
+
+                    with bale_jobs_lock:
+
+                        bale_jobs[job_id][
+                            "results"
+                        ].append(result)
+
+                        bale_jobs[job_id][
+                            "current"
+                        ] = index
+
+                    continue
+
+
+                # -----------------------------------------
+                # Open chat
+                # -----------------------------------------
+
+                opened = (
+                    bale_backend.open_contact_chat(
+                        name
+                    )
+                )
+
+
+                if not opened:
+
+                    result["error"] = (
+                        "امکان باز کردن چت وجود نداشت."
+                    )
+
+                    with bale_jobs_lock:
+
+                        bale_jobs[job_id][
+                            "results"
+                        ].append(result)
+
+                        bale_jobs[job_id][
+                            "current"
+                        ] = index
+
+                    continue
+
+
+                # -----------------------------------------
+                # Send
+                # -----------------------------------------
+
+                sent = (
+                    bale_backend.send_message(
+                        message
+                    )
+                )
+
+
+                if not sent:
+
+                    result["error"] = (
+                        "ارسال پیام انجام نشد."
+                    )
+
+                    with bale_jobs_lock:
+
+                        bale_jobs[job_id][
+                            "results"
+                        ].append(result)
+
+                        bale_jobs[job_id][
+                            "current"
+                        ] = index
+
+                    continue
+
+
+                # -----------------------------------------
+                # Success
+                # -----------------------------------------
+
+                result["status"] = "success"
+                result["success"] = True
+
+
+                print(
+                    f"[BALE JOB] SUCCESS → {phone}"
+                )
+
+
+            except Exception as e:
+
+                print(
+                    f"[BALE JOB] ERROR → {phone}: {e}"
+                )
+
+                result["error"] = str(e)
+
+
+            finally:
+
+                with bale_jobs_lock:
+
+                    bale_jobs[job_id][
+                        "results"
+                    ].append(result)
+
+                    bale_jobs[job_id][
+                        "current"
+                    ] = index
+
+
+                # -----------------------------------------
+                # Delay between messages
+                # -----------------------------------------
+
+                if index < total:
+
+                    delay = random.uniform(
+                        2.5,
+                        5.0
+                    )
+
+                    print(
+                        f"[BALE JOB] Sleeping "
+                        f"{delay:.2f}s"
+                    )
+
+                    time.sleep(delay)
+
+
+    try:
+
+        # =================================================
+        # تمام Playwright در یک thread ثابت
+        # =================================================
+
+        run_bale(
+            process_job
+        )
+
+
+        with bale_jobs_lock:
+
+            bale_jobs[job_id][
+                "current"
+            ] = total
+
+            bale_jobs[job_id][
+                "status"
+            ] = "completed"
+
+
+        print(
+            f"[BALE JOB] Completed: {job_id}"
+        )
+
+
+    except Exception as e:
+
+        print(
+            f"[BALE JOB] FATAL ERROR: {e}"
+        )
+
+
+        with bale_jobs_lock:
+
+            bale_jobs[job_id][
+                "status"
+            ] = "failed"
+
+            bale_jobs[job_id][
+                "error"
+            ] = str(e)
+
+
+
+# ============================================================
+# START SEND
+# ============================================================
+
+@router.post("/send")
+async def bale_send_messages(
+    file: UploadFile = File(...),
+    message: str = Form(...)
+):
+
+    if not message.strip():
+
+        raise HTTPException(
+            status_code=400,
+            detail="متن پیام وارد نشده است."
+        )
+
+    if not file.filename:
+
+        raise HTTPException(
+            status_code=400,
+            detail="فایل Excel انتخاب نشده است."
+        )
+
+    if not file.filename.lower().endswith(
+        (".xlsx", ".xlsm")
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="فقط فایل Excel مجاز است."
+        )
+
+    try:
+
+        file_bytes = await file.read()
+
+        contacts = read_excel_contacts(
+            file_bytes
+        )
+
+    except ValueError as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    except Exception as e:
+
+        print(
+            f"[BALE API] Excel error: {e}"
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail="خطا در خواندن فایل Excel."
+        )
+
+    # ساخت Job
+    job_id = str(
+        uuid.uuid4()
+    )
+
+    with bale_jobs_lock:
+
+        bale_jobs[job_id] = {
+            "job_id": job_id,
+            "status": "starting",
+            "total": len(contacts),
+            "processed": 0,
+            "successful": 0,
+            "failed": 0,
+            "progress": 0,
+            "current": None,
+            "results": []
+        }
+
+    # اجرای ارسال در Thread
+    worker = threading.Thread(
+        target=send_job_worker,
+        args=(
+            job_id,
+            contacts,
+            message.strip()
+        ),
+        daemon=True
+    )
+
+    worker.start()
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "total": len(contacts),
+        "message": "ارسال شروع شد."
+    }
+
+
+# ============================================================
+# SEND STATUS
+# ============================================================
+@router.get("/send/status/{job_id}")
+def bale_send_status(job_id: str):
+
+    with bale_jobs_lock:
+
+        job = bale_jobs.get(job_id)
+
+        if not job:
+
+            raise HTTPException(
+                status_code=404,
+                detail="عملیات ارسال پیدا نشد."
+            )
+
+        return {
+            "success": True,
+            "status": job["status"],
+            "total": job["total"],
+            "current": job["current"],
+            "results": job["results"],
+            "error": job.get("error")
+        }
