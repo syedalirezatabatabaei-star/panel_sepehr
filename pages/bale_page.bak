@@ -109,61 +109,361 @@ class BalePage:
 
         try:
 
+            print(
+                "[DEBUG] Current URL:",
+                self.page.url
+            )
+
+            print(
+                "[DEBUG] Page title:",
+                self.page.title()
+            )
+
+            self.page.wait_for_timeout(1000)
+
+            # =================================================
+            # DEBUG - BODY
+            # =================================================
+
+            try:
+
+                body_text = self.page.locator(
+                    "body"
+                ).inner_text()
+
+                print(
+                    "\n[DEBUG] BODY TEXT:"
+                )
+
+                print(
+                    "--------------------------------"
+                )
+
+                print(
+                    body_text[:10000]
+                )
+
+                print(
+                    "--------------------------------"
+                )
+
+            except Exception as e:
+
+                print(
+                    "[DEBUG] Could not read body:"
+                )
+
+                print(
+                    f"{type(e).__name__}: {e}"
+                )
+
+            # =================================================
+            # DEBUG - BUTTONS
+            # =================================================
+
+            try:
+
+                buttons = self.page.locator(
+                    "button"
+                )
+
+                button_count = buttons.count()
+
+                print(
+                    "\n[DEBUG] BUTTON COUNT:",
+                    button_count
+                )
+
+                for i in range(
+                    min(button_count, 100)
+                ):
+
+                    try:
+
+                        button = buttons.nth(i)
+
+                        print(
+                            f"[DEBUG] BUTTON {i}: "
+                            f"TEXT={repr(button.inner_text())} "
+                            f"ARIA={repr(button.get_attribute('aria-label'))} "
+                            f"TITLE={repr(button.get_attribute('title'))} "
+                            f"TYPE={repr(button.get_attribute('type'))} "
+                            f"CLASS={repr(button.get_attribute('class'))}"
+                        )
+
+                    except Exception:
+                        continue
+
+            except Exception as e:
+
+                print(
+                    "[DEBUG] Could not inspect buttons:"
+                )
+
+                print(
+                    f"{type(e).__name__}: {e}"
+                )
+
+            # =================================================
+            # DEBUG - SVG
+            # =================================================
+
+            try:
+
+                svgs = self.page.locator(
+                    "svg"
+                )
+
+                svg_count = svgs.count()
+
+                print(
+                    "\n[DEBUG] SVG COUNT:",
+                    svg_count
+                )
+
+                for i in range(
+                    min(svg_count, 150)
+                ):
+
+                    try:
+
+                        svg = svgs.nth(i)
+
+                        print(
+                            f"[DEBUG] SVG {i}: "
+                            f"ARIA={repr(svg.get_attribute('aria-label'))} "
+                            f"TITLE={repr(svg.get_attribute('title'))} "
+                            f"CLASS={repr(svg.get_attribute('class'))}"
+                        )
+
+                    except Exception:
+                        continue
+
+            except Exception as e:
+
+                print(
+                    "[DEBUG] Could not inspect SVGs:"
+                )
+
+                print(
+                    f"{type(e).__name__}: {e}"
+                )
+
+            # =================================================
+            # CURRENT CONTACTS SELECTOR
+            # =================================================
+
             contacts_icon = self.page.locator(
                 'svg[aria-label="Contacts-icon"]'
             ).first
 
             print(
-                "Contacts icon count:",
+                "\nContacts icon count:",
                 self.page.locator(
                     'svg[aria-label="Contacts-icon"]'
                 ).count()
             )
 
-            contacts_icon.wait_for(
-                state="visible",
-                timeout=10000
-            )
-
             try:
 
-                contacts_icon.click(
+                contacts_icon.wait_for(
+                    state="visible",
                     timeout=5000
                 )
 
                 print(
-                    "Contacts opened with normal click."
+                    "[CONTACTS] Existing selector found."
                 )
+
+                try:
+
+                    contacts_icon.click(
+                        timeout=5000
+                    )
+
+                    print(
+                        "Contacts opened with normal click."
+                    )
+
+                except Exception:
+
+                    print(
+                        "Normal Contacts click failed."
+                    )
+
+                    contacts_icon.click(
+                        force=True,
+                        timeout=5000
+                    )
+
+                    print(
+                        "Contacts opened with force click."
+                    )
+
+                self.page.wait_for_timeout(
+                    1500
+                )
+
+                print(
+                    "Contacts URL:",
+                    self.page.url
+                )
+
+                return True
 
             except Exception:
 
                 print(
-                    "Normal Contacts click failed."
+                    "[CONTACTS] Existing selector not found."
                 )
 
-                print(
-                    "Trying force click..."
-                )
+            # =================================================
+            # FALLBACK SELECTORS
+            # =================================================
 
-                contacts_icon.click(
-                    force=True,
-                    timeout=5000
-                )
+            fallback_selectors = [
 
-                print(
-                    "Contacts opened with force click."
-                )
+                '[aria-label="Contacts-icon"]',
 
-            self.page.wait_for_timeout(
-                1500
-            )
+                '[aria-label*="Contacts"]',
+
+                '[aria-label*="contacts"]',
+
+                '[title="Contacts"]',
+
+                '[title*="Contacts"]',
+
+                '[title*="contacts"]',
+
+                'button[aria-label*="Contacts"]',
+
+                'button[aria-label*="contacts"]',
+
+                '[role="button"][aria-label*="Contacts"]',
+
+                '[role="button"][aria-label*="contacts"]',
+
+                'button[title*="Contacts"]',
+
+                'button[title*="contacts"]'
+
+            ]
 
             print(
-                "Contacts URL:",
-                self.page.url
+                "\n[CONTACTS] Trying fallback selectors..."
             )
 
-            return True
+            for selector in fallback_selectors:
+
+                try:
+
+                    locator = self.page.locator(
+                        selector
+                    )
+
+                    count = locator.count()
+
+                    print(
+                        f"[CONTACTS] "
+                        f"Selector={selector} "
+                        f"| count={count}"
+                    )
+
+                    if count == 0:
+                        continue
+
+                    for index in range(count):
+
+                        candidate = locator.nth(
+                            index
+                        )
+
+                        try:
+
+                            if not candidate.is_visible():
+                                continue
+
+                            print(
+                                f"[CONTACTS] "
+                                f"Visible candidate found: "
+                                f"{selector} "
+                                f"index={index}"
+                            )
+
+                            try:
+
+                                candidate.click(
+                                    timeout=5000
+                                )
+
+                            except Exception:
+
+                                candidate.click(
+                                    force=True,
+                                    timeout=5000
+                                )
+
+                            self.page.wait_for_timeout(
+                                1500
+                            )
+
+                            print(
+                                "[CONTACTS] "
+                                "Fallback selector clicked."
+                            )
+
+                            print(
+                                "[CONTACTS] Current URL:",
+                                self.page.url
+                            )
+
+                            return True
+
+                        except Exception as e:
+
+                            print(
+                                f"[CONTACTS] "
+                                f"Candidate click failed: "
+                                f"{type(e).__name__}"
+                            )
+
+                            continue
+
+                except Exception as e:
+
+                    print(
+                        f"[CONTACTS] "
+                        f"Selector error: "
+                        f"{selector} -> "
+                        f"{type(e).__name__}"
+                    )
+
+                    continue
+
+            # =================================================
+            # DEBUG SCREENSHOT
+            # =================================================
+
+            try:
+
+                self.page.screenshot(
+                    path="/tmp/bale_contacts_selector_error.png",
+                    full_page=True
+                )
+
+                print(
+                    "[DEBUG] Screenshot saved:"
+                    " /tmp/bale_contacts_selector_error.png"
+                )
+
+            except Exception:
+                pass
+
+            print(
+                "[CONTACTS] No working Contacts selector found."
+            )
+
+            return False
 
         except PlaywrightTimeoutError as e:
 
@@ -184,6 +484,21 @@ class BalePage:
             print(
                 f"{type(e).__name__}: {e}"
             )
+
+            try:
+
+                self.page.screenshot(
+                    path="/tmp/bale_contacts_error.png",
+                    full_page=True
+                )
+
+                print(
+                    "[DEBUG] Error screenshot saved:"
+                    " /tmp/bale_contacts_error.png"
+                )
+
+            except Exception:
+                pass
 
             return False
 
@@ -1047,10 +1362,6 @@ class BalePage:
 
         try:
 
-            # -------------------------------------------------
-            # FIRST TRY DIALOG ITEM
-            # -------------------------------------------------
-
             dialog_items = self.page.locator(
                 '[aria-label="dialog-item"]'
             )
@@ -1129,10 +1440,6 @@ class BalePage:
 
                     continue
 
-            # -------------------------------------------------
-            # FALLBACK BY EXACT TEXT
-            # -------------------------------------------------
-
             print(
                 "Trying exact text fallback..."
             )
@@ -1189,10 +1496,6 @@ class BalePage:
                 )
 
                 return True
-
-            # -------------------------------------------------
-            # DEBUG
-            # -------------------------------------------------
 
             print(
                 "[ERROR] Contact chat not found:",
@@ -1435,10 +1738,6 @@ class BalePage:
                 len(message_text)
             )
 
-            # -------------------------------------------------
-            # WAIT FOR CHAT
-            # -------------------------------------------------
-
             self.page.wait_for_timeout(
                 1000
             )
@@ -1447,10 +1746,6 @@ class BalePage:
                 "[BALE] Current URL before message:",
                 self.page.url
             )
-
-            # -------------------------------------------------
-            # FIND MESSAGE INPUT
-            # -------------------------------------------------
 
             message_input = self._find_message_input()
 
@@ -1489,10 +1784,6 @@ class BalePage:
 
                 return False
 
-            # -------------------------------------------------
-            # FOCUS INPUT
-            # -------------------------------------------------
-
             try:
 
                 message_input.click(
@@ -1505,10 +1796,6 @@ class BalePage:
                     force=True,
                     timeout=5000
                 )
-
-            # -------------------------------------------------
-            # CLEAR OLD MESSAGE
-            # -------------------------------------------------
 
             try:
 
@@ -1528,10 +1815,6 @@ class BalePage:
 
                 except Exception:
                     pass
-
-            # -------------------------------------------------
-            # ENTER MESSAGE
-            # -------------------------------------------------
 
             try:
 
@@ -1582,10 +1865,6 @@ class BalePage:
                 "[BALE] Message entered successfully."
             )
 
-            # -------------------------------------------------
-            # VERIFY MESSAGE INPUT
-            # -------------------------------------------------
-
             try:
 
                 current_value = message_input.input_value()
@@ -1612,10 +1891,6 @@ class BalePage:
             self.page.wait_for_timeout(
                 500
             )
-
-            # -------------------------------------------------
-            # FIND SEND BUTTON
-            # -------------------------------------------------
 
             send_button = self._find_send_button()
 
@@ -1671,10 +1946,6 @@ class BalePage:
 
             else:
 
-                # -------------------------------------------------
-                # ENTER FALLBACK
-                # -------------------------------------------------
-
                 print(
                     "[BALE] Send button not found."
                 )
@@ -1690,10 +1961,6 @@ class BalePage:
                 print(
                     "[BALE] Enter pressed."
                 )
-
-            # -------------------------------------------------
-            # WAIT FOR SEND
-            # -------------------------------------------------
 
             self.page.wait_for_timeout(
                 1500
