@@ -1,4 +1,3 @@
-
 import os
 import shutil
 from concurrent.futures import ThreadPoolExecutor
@@ -7,7 +6,7 @@ from playwright.sync_api import sync_playwright
 from pages.bale_page import BalePage
 from pages.login_page import LoginPage
 
-#shger
+
 BALE_EXECUTOR = ThreadPoolExecutor(
     max_workers=1,
     thread_name_prefix="bale-playwright"
@@ -15,9 +14,6 @@ BALE_EXECUTOR = ThreadPoolExecutor(
 
 
 def run_bale(func, *args, **kwargs):
-    """
-    اجرای تمام عملیات Playwright روی یک thread ثابت.
-    """
     future = BALE_EXECUTOR.submit(
         func,
         *args,
@@ -25,9 +21,7 @@ def run_bale(func, *args, **kwargs):
     )
 
     return future.result()
-# =========================================================
-# Paths
-# =========================================================
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,19 +30,13 @@ BROWSER_PROFILE = os.path.join(
     "browser_profile"
 )
 
-# Chromium installed inside Docker
 CHROMIUM_PATH = "/usr/bin/chromium"
 
-
-# =========================================================
-# Bale Backend
-# =========================================================
 
 class BaleBackend:
 
     def __init__(self):
 
-        # Playwright is NOT started here.
         self.playwright = None
         self.context = None
         self.page = None
@@ -58,18 +46,12 @@ class BaleBackend:
 
         print("[BALE] Backend initialized.")
 
+
     # =====================================================
     # Session
     # =====================================================
 
     def clear_bale_session(self):
-
-        """
-        Delete previous Bale browser profile.
-
-        This method must only be called when
-        browser/context is not running.
-        """
 
         if self.context is not None:
             raise RuntimeError(
@@ -78,30 +60,19 @@ class BaleBackend:
 
         if os.path.exists(BROWSER_PROFILE):
 
-            try:
+            shutil.rmtree(
+                BROWSER_PROFILE
+            )
 
-                shutil.rmtree(BROWSER_PROFILE)
-
-                print(
-                    "[BALE] Previous browser session deleted."
-                )
-
-            except Exception as e:
-
-                print(
-                    f"[BALE] Failed to delete browser session: {e}"
-                )
-
-                raise
+            print(
+                "[BALE] Previous browser session deleted."
+            )
 
         os.makedirs(
             BROWSER_PROFILE,
             exist_ok=True
         )
 
-        print(
-            "[BALE] New browser session ready."
-        )
 
     # =====================================================
     # Browser
@@ -109,27 +80,20 @@ class BaleBackend:
 
     def start_browser(self):
 
-        """
-        Start Playwright + Chromium.
-        """
-
         if self.context is not None:
-
-            print(
-                "[BALE] Browser is already running."
-            )
-
             return
 
-        print(
-            "[BALE] Starting Playwright..."
+
+        os.makedirs(
+            BROWSER_PROFILE,
+            exist_ok=True
         )
+
+
+        print("[BALE] Starting Playwright...")
 
         self.playwright = sync_playwright().start()
 
-        print(
-            f"[BALE] Starting Chromium: {CHROMIUM_PATH}"
-        )
 
         self.context = (
             self.playwright.chromium.launch_persistent_context(
@@ -144,7 +108,7 @@ class BaleBackend:
             )
         )
 
-        # Use existing page if available
+
         if self.context.pages:
 
             self.page = self.context.pages[0]
@@ -153,7 +117,8 @@ class BaleBackend:
 
             self.page = self.context.new_page()
 
-        # Page Objects
+
+
         self.bale = BalePage(
             self.page
         )
@@ -162,9 +127,12 @@ class BaleBackend:
             self.page
         )
 
+
         print(
-            "[BALE] Browser started successfully."
+            "[BALE] Browser started."
         )
+
+
 
     # =====================================================
     # Open Bale
@@ -174,15 +142,9 @@ class BaleBackend:
 
         self.start_browser()
 
-        print(
-            "[BALE] Opening Bale..."
-        )
-
         self.bale.open_bale()
 
-        print(
-            "[BALE] Bale opened."
-        )
+
 
     # =====================================================
     # Authentication
@@ -193,43 +155,31 @@ class BaleBackend:
         if self.bale is None:
             return False
 
+
         try:
 
             return self.bale.is_authenticated()
 
+
         except Exception as e:
 
-            print(
-                f"[BALE] Authentication check error: {e}"
-            )
+            print(e)
 
             return False
+
+
 
     # =====================================================
     # Login
     # =====================================================
 
-    def start_login(self, phone: str):
-
-        """
-        Start Bale login process.
-
-        Flow:
-
-        Browser
-            ↓
-        Bale Login
-            ↓
-        Click Login
-            ↓
-        Enter Phone
-            ↓
-        Submit Phone
-            ↓
-        OTP Requested
-        """
+    def start_login(
+        self,
+        phone: str
+    ):
 
         phone = phone.strip()
+
 
         if not phone:
 
@@ -237,71 +187,39 @@ class BaleBackend:
                 "Phone number is empty."
             )
 
-        print(
-            f"[BALE] Starting login for: {phone}"
-        )
 
-        # Start browser
         self.start_browser()
 
-        print(
-            "[BALE] Opening login page..."
-        )
 
         self.login.open()
-        print("[DEBUG] URL:", self.page.url)
-        print("[DEBUG] TITLE:", self.page.title())
 
-        self.page.screenshot(
-            path="/tmp/bale_login.png",
-            full_page=True
-        )
-
-        print(
-            self.page.locator("body").inner_text()[:5000]
-        )
-        print(
-            "[BALE] Clicking login..."
-        )
 
         self.login.click_login()
 
-        self.page.wait_for_timeout(1000)
-
-        print(
-            "[BALE] Entering phone..."
-        )
 
         self.login.enter_phone(
             phone
         )
 
-        print(
-            "[BALE] Submitting phone..."
-        )
 
         self.login.submit_phone()
 
-        print(
-            "[BALE] OTP requested."
-        )
 
         return True
+
+
 
     # =====================================================
     # OTP
     # =====================================================
 
-    def verify_otp(self, otp: str):
-
-        """
-        Verify Bale OTP.
-
-        The SAME browser/context/page created during
-        start_login() is used.
-        """
+    def verify_otp(
+        self,
+        otp: str
+    ):
 
         otp = otp.strip()
+
 
         if not otp:
 
@@ -309,130 +227,35 @@ class BaleBackend:
                 "OTP is empty."
             )
 
-        if self.context is None:
-
-            raise RuntimeError(
-                "Bale browser session is not running."
-            )
-
-        if self.page is None:
-
-            raise RuntimeError(
-                "Bale page is not initialized."
-            )
 
         if self.login is None:
 
             raise RuntimeError(
-                "Bale login session is not initialized."
+                "Login not initialized."
             )
 
-        print(
-            "[BALE] Verifying OTP..."
-        )
-
-        print(
-            "[BALE] Current URL before OTP:",
-            self.page.url
-        )
-
-        # -------------------------------------------------
-        # Enter OTP
-        # -------------------------------------------------
-
-        print(
-            "[BALE] Entering OTP..."
-        )
 
         self.login.enter_otp(
             otp
         )
 
-        print(
-            "[BALE] OTP entered."
-        )
-
-        # -------------------------------------------------
-        # Submit OTP
-        # -------------------------------------------------
-
-        print(
-            "[BALE] Submitting OTP..."
-        )
 
         self.login.submit_otp()
 
-        # -------------------------------------------------
-        # Wait for navigation / application state
-        # -------------------------------------------------
 
         self.page.wait_for_timeout(
             3000
         )
 
-        print(
-            "[BALE] URL after OTP:",
-            self.page.url
-        )
-
-        print(
-            "[BALE] Page title:",
-            self.page.title()
-        )
-
-        # -------------------------------------------------
-        # Recreate BalePage
-        # -------------------------------------------------
 
         self.bale = BalePage(
             self.page
         )
 
-        # -------------------------------------------------
-        # Authentication check
-        # -------------------------------------------------
 
-        authenticated = self.is_authenticated()
+        return self.is_authenticated()
 
-        print(
-            "[BALE] Authentication result:",
-            authenticated
-        )
 
-        # -------------------------------------------------
-        # If authentication failed, dump page information
-        # -------------------------------------------------
-
-        if not authenticated:
-
-            print(
-                "[BALE] Authentication failed."
-            )
-
-            try:
-
-                body_text = (
-                    self.page
-                    .locator("body")
-                    .inner_text()
-                )
-
-                print(
-                    "[BALE] PAGE BODY:"
-                )
-
-                print(
-                    body_text[:5000]
-                )
-
-            except Exception as e:
-
-                print(
-                    "[BALE] Could not read page body:",
-                    type(e).__name__
-                )
-
-        return authenticated
 
     # =====================================================
     # Contacts
@@ -443,311 +266,253 @@ class BaleBackend:
         if self.bale is None:
 
             raise RuntimeError(
-                "Bale browser is not initialized."
+                "Bale not initialized."
             )
 
+
         return self.bale.open_contacts()
-    
-# =====================================================
-# ADD CONTACT
-# =====================================================
+
+
+
+    # =====================================================
+    # Add Contact
+    # =====================================================
 
     def add_contact(
         self,
         phone: str,
         name: str
     ):
-    
-        print("\n================================")
-        print("BACKEND ADD CONTACT")
-        print("================================")
-        print("PHONE:", phone)
-        print("NAME:", name)
-    
+
+
         if self.bale is None:
+
             raise RuntimeError(
-                "Bale browser is not initialized."
+                "Bale not initialized."
             )
-    
-    
-        result = self.bale.add_contact(
+
+
+        return self.bale.add_contact(
             phone,
             name
         )
-    
-    
-        print(
-            "[BACKEND ADD RESULT]",
-            result
+
+
+
+    # =====================================================
+    # Search Contact
+    # =====================================================
+
+    def search_contact(
+        self,
+        phone
+    ):
+
+
+        original_phone = str(phone).strip()
+
+
+        search_phone = original_phone
+
+
+        if not search_phone.startswith("0"):
+
+            search_phone = "0" + search_phone
+
+
+
+        self.page.goto(
+            "https://web.bale.ai/contacts",
+            wait_until="domcontentloaded"
         )
-    
-    
-        return result
-    
-        # =====================================================
-        # Search
-        # =====================================================
-        def search_contact(self, phone):
-            print("\n================================")
-            print("SEARCH CONTACT")
-            print("================================")
-        
-            original_phone = str(phone).strip()
-        
-            search_phone = original_phone
-            if not search_phone.startswith("0"):
-                search_phone = "0" + search_phone
-        
-            print("Original phone:", original_phone)
-            print("Search phone:", search_phone)
-        
-            try:
-                # ---------------------------------------------
-                # رفتن به Contacts
-                # ---------------------------------------------
-                self.page.goto(
-                    "https://web.bale.ai/contacts",
-                    wait_until="domcontentloaded"
-                )
-        
-                self.page.wait_for_timeout(1500)
-        
-                print("Contacts URL:", self.page.url)
-        
-                # ---------------------------------------------
-                # باز کردن Search
-                # ---------------------------------------------
-                search_icon = self.page.locator(
-                    'svg[aria-label="Search-icon"]'
-                ).first
-        
-                search_icon.wait_for(
-                    state="visible",
-                    timeout=10000
-                )
-        
-                try:
-                    search_icon.click(timeout=5000)
-                except Exception:
-                    search_icon.click(
-                        force=True,
-                        timeout=5000
-                    )
-        
-                self.page.wait_for_timeout(1000)
-        
-                # ---------------------------------------------
-                # Search input
-                # ---------------------------------------------
-                search_input = self.page.locator(
-                    'input[type="search"]'
-                ).first
-        
-                search_input.wait_for(
-                    state="visible",
-                    timeout=10000
-                )
-        
-                print("Search input found.")
-        
-                # ---------------------------------------------
-                # وارد کردن شماره
-                # ---------------------------------------------
-                search_input.fill(search_phone)
-        
-                print(
-                    "Phone entered into Contacts search:",
-                    search_phone
-                )
-        
-                # مهم:
-                # بعد از وارد کردن شماره Enter می‌زنیم
-                search_input.press("Enter")
-        
-                print("Search submitted.")
-        
-                # ---------------------------------------------
-                # صبر برای نتیجه
-                # ---------------------------------------------
-                self.page.wait_for_timeout(3000)
-        
-                print(
-                    "URL after search:",
-                    self.page.url
-                )
-        
-                # ---------------------------------------------
-                # گرفتن متن صفحه
-                # ---------------------------------------------
-                body_text = self.page.locator(
-                    "body"
-                ).inner_text()
-        
-                print("\nCONTACT SEARCH RESULT:")
-                print("--------------------------------")
-                print(body_text[:5000])
-        
-                # ---------------------------------------------
-                # بررسی شماره
-                # ---------------------------------------------
-                if search_phone in body_text:
-                    print("[SUCCESS] Contact found.")
-                    return True
-        
-                if original_phone in body_text:
-                    print("[SUCCESS] Contact found.")
-                    return True
-        
-                # ---------------------------------------------
-                # ذخیره Screenshot برای بررسی
-                # ---------------------------------------------
-                self.page.screenshot(
-                    path="/tmp/bale_contact_search.png",
-                    full_page=True
-                )
-        
-                print(
-                    "[DEBUG] Screenshot saved:"
-                    " /tmp/bale_contact_search.png"
-                )
-        
-                print("[ERROR] Contact not found.")
-        
-                return False
-        
-            except Exception as e:
-        
-                print("\n[CONTACT SEARCH ERROR]")
-                print(
-                    f"{type(e).__name__}: {e}"
-                )
-        
-                try:
-                    self.page.screenshot(
-                        path="/tmp/bale_contact_search_error.png",
-                        full_page=True
-                    )
-        
-                    print(
-                        "[DEBUG] Error screenshot saved:"
-                        " /tmp/bale_contact_search_error.png"
-                    )
-        
-                except Exception:
-                    pass
-        
-                return False
-        # =====================================================
-        # Chat
-        # =====================================================
-    
-        def open_contact_chat(
-            self,
-            name: str
-        ):
-    
-            if self.bale is None:
-    
-                raise RuntimeError(
-                    "Bale browser is not initialized."
-                )
-    
-            return self.bale.open_contact_chat(
-                name
+
+
+        self.page.wait_for_timeout(
+            1500
+        )
+
+
+        search_icon = self.page.locator(
+            'svg[aria-label="Search-icon"]'
+        ).first
+
+
+        search_icon.wait_for(
+            state="visible",
+            timeout=10000
+        )
+
+
+        try:
+
+            search_icon.click()
+
+        except:
+
+            search_icon.click(
+                force=True
             )
-    
-        # =====================================================
-        # Send Message
-        # =====================================================
-    
-        def send_message(
-            self,
-            message: str
-        ):
-    
-            if self.bale is None:
-    
-                raise RuntimeError(
-                    "Bale browser is not initialized."
-                )
-    
-            message = message.strip()
-    
-            if not message:
-    
-                raise ValueError(
-                    "Message is empty."
-                )
-    
-            return self.bale.send_message(
-                message
+
+
+
+        search_input = self.page.locator(
+            'input[type="search"]'
+        ).first
+
+
+        search_input.wait_for(
+            state="visible",
+            timeout=10000
+        )
+
+
+        search_input.fill(
+            search_phone
+        )
+
+
+        search_input.press(
+            "Enter"
+        )
+
+
+        self.page.wait_for_timeout(
+            3000
+        )
+
+
+        body = self.page.locator(
+            "body"
+        ).inner_text()
+
+
+
+        if search_phone in body:
+
+            return True
+
+
+        if original_phone in body:
+
+            return True
+
+
+
+        return False
+
+
+
+    # =====================================================
+    # Chat
+    # =====================================================
+
+    def open_contact_chat(
+        self,
+        name: str
+    ):
+
+        if self.bale is None:
+
+            raise RuntimeError(
+                "Bale not initialized."
             )
-    
-        # =====================================================
-        # Close
-        # =====================================================
-    
-        def close(self):
-    
-            """
-            Completely close Bale browser
-            and Playwright.
-            """
-    
-            print(
-                "[BALE] Closing browser..."
+
+
+        return self.bale.open_contact_chat(
+            name
+        )
+
+
+
+    # =====================================================
+    # Send Message
+    # =====================================================
+
+    def send_message(
+        self,
+        message: str
+    ):
+
+
+        if self.bale is None:
+
+            raise RuntimeError(
+                "Bale not initialized."
             )
-    
-            # -------------------------------------------------
-            # Close browser context
-            # -------------------------------------------------
-    
-            try:
-    
-                if self.context is not None:
-    
-                    self.context.close()
-    
-            except Exception as e:
-    
-                print(
-                    f"[BALE] Context close error: {e}"
-                )
-    
-            finally:
-    
-                self.context = None
-                self.page = None
-                self.bale = None
-                self.login = None
-    
-            # -------------------------------------------------
-            # Stop Playwright
-            # -------------------------------------------------
-    
-            try:
-    
-                if self.playwright is not None:
-    
-                    self.playwright.stop()
-    
-            except Exception as e:
-    
-                print(
-                    f"[BALE] Playwright stop error: {e}"
-                )
-    
-            finally:
-    
-                self.playwright = None
-    
-            print(
-                "[BALE] Browser closed."
+
+
+        message = message.strip()
+
+
+        if not message:
+
+            raise ValueError(
+                "Message is empty."
             )
-    
-    
-    # =========================================================
-    # Global Bale Backend
-    # =========================================================
-    
-    bale_backend = BaleBackend()
+
+
+
+        return self.bale.send_message(
+            message
+        )
+
+
+
+    # =====================================================
+    # Close
+    # =====================================================
+
+    def close(self):
+
+        print(
+            "[BALE] Closing..."
+        )
+
+
+        try:
+
+            if self.context:
+
+                self.context.close()
+
+
+        except Exception as e:
+
+            print(e)
+
+
+        self.context = None
+        self.page = None
+        self.bale = None
+        self.login = None
+
+
+
+        try:
+
+            if self.playwright:
+
+                self.playwright.stop()
+
+
+        except Exception as e:
+
+            print(e)
+
+
+
+        self.playwright = None
+
+
+
+        print(
+            "[BALE] Closed."
+        )
+
+
+
+# =========================================================
+# Global Backend
+# =========================================================
+
+bale_backend = BaleBackend()
