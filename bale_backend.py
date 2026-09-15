@@ -447,230 +447,307 @@ class BaleBackend:
             )
 
         return self.bale.open_contacts()
+    
+# =====================================================
+# ADD CONTACT
+# =====================================================
 
     def add_contact(
         self,
         phone: str,
         name: str
     ):
-
+    
+        print("\n================================")
+        print("BACKEND ADD CONTACT")
+        print("================================")
+        print("PHONE:", phone)
+        print("NAME:", name)
+    
         if self.bale is None:
-
             raise RuntimeError(
                 "Bale browser is not initialized."
             )
-
-        return self.bale.add_contact(
+    
+    
+        result = self.bale.add_contact(
             phone,
             name
         )
-
-    # =====================================================
-    # Search
-    # =====================================================
-
-    def search_contact(self, phone):
-        print("\n================================")
-        print("SEARCH CONTACT")
-        print("================================")
-
-        original_phone = str(phone).strip()
-
-        search_phone = original_phone
-        if not search_phone.startswith("0"):
-           search_phone = "0" + search_phone
-
-        print("Original phone:", original_phone)
-        print("Search phone:", search_phone)
-
-        try:
-            # ---------------------------------------------
-            # رفتن مستقیم به Contacts
-            # ---------------------------------------------
-            self.page.goto(
-                "https://web.bale.ai/contacts",
-                wait_until="domcontentloaded"
-            )
     
-            self.page.wait_for_timeout(1500)
     
-            print("Contacts URL:", self.page.url)
+        print(
+            "[BACKEND ADD RESULT]",
+            result
+        )
     
-            # ---------------------------------------------
-            # پیدا کردن Search در Contacts
-            # ---------------------------------------------
-            search_icon = self.page.locator(
-                'svg[aria-label="Search-icon"]'
-            ).first
     
-            search_icon.wait_for(
-                state="visible",
-                timeout=10000
-            )
+        return result
     
+        # =====================================================
+        # Search
+        # =====================================================
+        def search_contact(self, phone):
+            print("\n================================")
+            print("SEARCH CONTACT")
+            print("================================")
+        
+            original_phone = str(phone).strip()
+        
+            search_phone = original_phone
+            if not search_phone.startswith("0"):
+                search_phone = "0" + search_phone
+        
+            print("Original phone:", original_phone)
+            print("Search phone:", search_phone)
+        
             try:
-                search_icon.click(timeout=5000)
-            except Exception:
-                search_icon.click(
-                    force=True,
-                    timeout=5000
+                # ---------------------------------------------
+                # رفتن به Contacts
+                # ---------------------------------------------
+                self.page.goto(
+                    "https://web.bale.ai/contacts",
+                    wait_until="domcontentloaded"
+                )
+        
+                self.page.wait_for_timeout(1500)
+        
+                print("Contacts URL:", self.page.url)
+        
+                # ---------------------------------------------
+                # باز کردن Search
+                # ---------------------------------------------
+                search_icon = self.page.locator(
+                    'svg[aria-label="Search-icon"]'
+                ).first
+        
+                search_icon.wait_for(
+                    state="visible",
+                    timeout=10000
+                )
+        
+                try:
+                    search_icon.click(timeout=5000)
+                except Exception:
+                    search_icon.click(
+                        force=True,
+                        timeout=5000
+                    )
+        
+                self.page.wait_for_timeout(1000)
+        
+                # ---------------------------------------------
+                # Search input
+                # ---------------------------------------------
+                search_input = self.page.locator(
+                    'input[type="search"]'
+                ).first
+        
+                search_input.wait_for(
+                    state="visible",
+                    timeout=10000
+                )
+        
+                print("Search input found.")
+        
+                # ---------------------------------------------
+                # وارد کردن شماره
+                # ---------------------------------------------
+                search_input.fill(search_phone)
+        
+                print(
+                    "Phone entered into Contacts search:",
+                    search_phone
+                )
+        
+                # مهم:
+                # بعد از وارد کردن شماره Enter می‌زنیم
+                search_input.press("Enter")
+        
+                print("Search submitted.")
+        
+                # ---------------------------------------------
+                # صبر برای نتیجه
+                # ---------------------------------------------
+                self.page.wait_for_timeout(3000)
+        
+                print(
+                    "URL after search:",
+                    self.page.url
+                )
+        
+                # ---------------------------------------------
+                # گرفتن متن صفحه
+                # ---------------------------------------------
+                body_text = self.page.locator(
+                    "body"
+                ).inner_text()
+        
+                print("\nCONTACT SEARCH RESULT:")
+                print("--------------------------------")
+                print(body_text[:5000])
+        
+                # ---------------------------------------------
+                # بررسی شماره
+                # ---------------------------------------------
+                if search_phone in body_text:
+                    print("[SUCCESS] Contact found.")
+                    return True
+        
+                if original_phone in body_text:
+                    print("[SUCCESS] Contact found.")
+                    return True
+        
+                # ---------------------------------------------
+                # ذخیره Screenshot برای بررسی
+                # ---------------------------------------------
+                self.page.screenshot(
+                    path="/tmp/bale_contact_search.png",
+                    full_page=True
+                )
+        
+                print(
+                    "[DEBUG] Screenshot saved:"
+                    " /tmp/bale_contact_search.png"
+                )
+        
+                print("[ERROR] Contact not found.")
+        
+                return False
+        
+            except Exception as e:
+        
+                print("\n[CONTACT SEARCH ERROR]")
+                print(
+                    f"{type(e).__name__}: {e}"
+                )
+        
+                try:
+                    self.page.screenshot(
+                        path="/tmp/bale_contact_search_error.png",
+                        full_page=True
+                    )
+        
+                    print(
+                        "[DEBUG] Error screenshot saved:"
+                        " /tmp/bale_contact_search_error.png"
+                    )
+        
+                except Exception:
+                    pass
+        
+                return False
+        # =====================================================
+        # Chat
+        # =====================================================
+    
+        def open_contact_chat(
+            self,
+            name: str
+        ):
+    
+            if self.bale is None:
+    
+                raise RuntimeError(
+                    "Bale browser is not initialized."
                 )
     
-            self.page.wait_for_timeout(1000)
-    
-            # ---------------------------------------------
-            # Search input
-            # ---------------------------------------------
-            search_input = self.page.locator(
-                'input[type="search"]'
-            ).first
-    
-            search_input.wait_for(
-                state="visible",
-                timeout=10000
+            return self.bale.open_contact_chat(
+                name
             )
     
-            search_input.fill(search_phone)
+        # =====================================================
+        # Send Message
+        # =====================================================
     
-            print("Phone entered into Contacts search.")
+        def send_message(
+            self,
+            message: str
+        ):
     
-            self.page.wait_for_timeout(2000)
+            if self.bale is None:
     
-            # ---------------------------------------------
-            # بررسی نتیجه
-            # ---------------------------------------------
-            body_text = self.page.locator(
-                "body"
-            ).inner_text()
+                raise RuntimeError(
+                    "Bale browser is not initialized."
+                )
     
-            print("\nCONTACT SEARCH RESULT:")
-            print("--------------------------------")
-            print(body_text)
+            message = message.strip()
     
-            # اگر شماره یا مخاطب در صفحه وجود داشت
-            if search_phone in body_text or original_phone in body_text:
-                print("[SUCCESS] Contact found.")
-                return True
+            if not message:
     
-            print("[ERROR] Contact not found.")
-            return False
+                raise ValueError(
+                    "Message is empty."
+                )
     
-        except Exception as e:
-            print("\n[CONTACT SEARCH ERROR]")
-            print(f"{type(e).__name__}: {e}")
-            return False
-
-    # =====================================================
-    # Chat
-    # =====================================================
-
-    def open_contact_chat(
-        self,
-        name: str
-    ):
-
-        if self.bale is None:
-
-            raise RuntimeError(
-                "Bale browser is not initialized."
+            return self.bale.send_message(
+                message
             )
-
-        return self.bale.open_contact_chat(
-            name
-        )
-
-    # =====================================================
-    # Send Message
-    # =====================================================
-
-    def send_message(
-        self,
-        message: str
-    ):
-
-        if self.bale is None:
-
-            raise RuntimeError(
-                "Bale browser is not initialized."
-            )
-
-        message = message.strip()
-
-        if not message:
-
-            raise ValueError(
-                "Message is empty."
-            )
-
-        return self.bale.send_message(
-            message
-        )
-
-    # =====================================================
-    # Close
-    # =====================================================
-
-    def close(self):
-
-        """
-        Completely close Bale browser
-        and Playwright.
-        """
-
-        print(
-            "[BALE] Closing browser..."
-        )
-
-        # -------------------------------------------------
-        # Close browser context
-        # -------------------------------------------------
-
-        try:
-
-            if self.context is not None:
-
-                self.context.close()
-
-        except Exception as e:
-
+    
+        # =====================================================
+        # Close
+        # =====================================================
+    
+        def close(self):
+    
+            """
+            Completely close Bale browser
+            and Playwright.
+            """
+    
             print(
-                f"[BALE] Context close error: {e}"
+                "[BALE] Closing browser..."
             )
-
-        finally:
-
-            self.context = None
-            self.page = None
-            self.bale = None
-            self.login = None
-
-        # -------------------------------------------------
-        # Stop Playwright
-        # -------------------------------------------------
-
-        try:
-
-            if self.playwright is not None:
-
-                self.playwright.stop()
-
-        except Exception as e:
-
+    
+            # -------------------------------------------------
+            # Close browser context
+            # -------------------------------------------------
+    
+            try:
+    
+                if self.context is not None:
+    
+                    self.context.close()
+    
+            except Exception as e:
+    
+                print(
+                    f"[BALE] Context close error: {e}"
+                )
+    
+            finally:
+    
+                self.context = None
+                self.page = None
+                self.bale = None
+                self.login = None
+    
+            # -------------------------------------------------
+            # Stop Playwright
+            # -------------------------------------------------
+    
+            try:
+    
+                if self.playwright is not None:
+    
+                    self.playwright.stop()
+    
+            except Exception as e:
+    
+                print(
+                    f"[BALE] Playwright stop error: {e}"
+                )
+    
+            finally:
+    
+                self.playwright = None
+    
             print(
-                f"[BALE] Playwright stop error: {e}"
+                "[BALE] Browser closed."
             )
-
-        finally:
-
-            self.playwright = None
-
-        print(
-            "[BALE] Browser closed."
-        )
-
-
-# =========================================================
-# Global Bale Backend
-# =========================================================
-
-bale_backend = BaleBackend()
+    
+    
+    # =========================================================
+    # Global Bale Backend
+    # =========================================================
+    
+    bale_backend = BaleBackend()
