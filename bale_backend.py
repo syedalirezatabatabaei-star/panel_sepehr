@@ -106,12 +106,21 @@ class BaleBackend:
         print(
             "[BALE] Backend initialized."
         )
+    @staticmethod
+    def _normalize_phone(phone):
+        phone = str(phone).strip()
 
+        digits = "".join(char for char in phone if char.isdigit())
 
+        if digits.startswith("98"):
+            digits = "0" + digits[2:]
+        elif digits.startswith("9"):
+            digits = "0" + digits
+        elif not digits.startswith("0"):
+            digits = "0" + digits
 
-
-
-    # =====================================================
+        return digits
+   # =====================================================
     # CLEAR SESSION
     # =====================================================
 
@@ -248,7 +257,6 @@ class BaleBackend:
         print(
             "[BALE] Browser started."
         )
-
 
 
 
@@ -455,6 +463,39 @@ class BaleBackend:
             result
         )
 
+
+        return result
+
+    # =====================================================
+    # OPEN CONTACTS
+    # =====================================================
+
+    def open_contacts(self):
+
+        print(
+            "\n================================"
+        )
+
+        print(
+            "[BALE BACKEND] OPEN CONTACTS"
+        )
+
+        print(
+            "================================"
+        )
+
+        if self.bale is None:
+
+            raise RuntimeError(
+                "Bale browser is not initialized."
+            )
+
+        result = self.bale.open_contacts()
+
+        print(
+            "[BALE BACKEND] Contacts opened:",
+            result
+        )
 
         return result
     # =====================================================
