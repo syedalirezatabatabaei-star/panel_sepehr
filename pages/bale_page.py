@@ -1246,63 +1246,45 @@ class BalePage:
     # =========================================================
     # SEARCH CONTACT
     # =========================================================
-
-    def search_contact(
-        self,
-        query
-    ):
-
+   
+    def search_contact(self, query):
 
         print("\n================================")
         print("SEARCH CONTACT")
         print("================================")
 
-
-        search_text = str(
-            query
-        ).strip()
-
+        search_text = str(query).strip()
 
         print(
             "Searching:",
             search_text
         )
 
-
         try:
 
+            # -------------------------------------------------
+            # اول برگردیم به صفحه اصلی Bale
+            # تا Search-icon در UI وجود داشته باشد
+            # -------------------------------------------------
 
-            # اطمینان از صفحه contacts
-
-            if "/contacts" not in self.page.url:
-
+            if "/chat" not in self.page.url:
 
                 print(
-                    "[SEARCH] Opening contacts page..."
+                    "[SEARCH] Returning to Bale chat..."
                 )
-
 
                 self.page.goto(
-
-                    "https://web.bale.ai/contacts",
-
+                    "https://web.bale.ai/chat",
                     wait_until="domcontentloaded"
-
                 )
-
 
                 self.page.wait_for_timeout(
                     2000
                 )
 
-
-
-            print(
-                "[SEARCH] Current URL:",
-                self.page.url
-            )
-
-
+            # -------------------------------------------------
+            # OPEN SEARCH
+            # -------------------------------------------------
 
             if not self.open_search():
 
@@ -1312,12 +1294,11 @@ class BalePage:
 
                 return False
 
-
-
-            # پیدا کردن input
+            # -------------------------------------------------
+            # FIND SEARCH INPUT
+            # -------------------------------------------------
 
             search_input = None
-
 
             possible_inputs = [
 
@@ -1331,10 +1312,7 @@ class BalePage:
 
             ]
 
-
-
             for selector in possible_inputs:
-
 
                 try:
 
@@ -1342,15 +1320,11 @@ class BalePage:
                         selector
                     )
 
-
                     count = locator.count()
-
 
                     for i in range(count):
 
-
                         item = locator.nth(i)
-
 
                         if item.is_visible():
 
@@ -1363,76 +1337,70 @@ class BalePage:
 
                             break
 
-
                     if search_input:
 
                         break
-
 
                 except Exception:
 
                     continue
 
-
-
             if search_input is None:
-
 
                 print(
                     "[SEARCH ERROR] Input not found"
                 )
 
-
                 return False
 
-
-
-            # پاک کردن سرچ قبلی
+            # -------------------------------------------------
+            # ENTER SEARCH
+            # -------------------------------------------------
 
             try:
 
-                search_input.fill(
-                    ""
-                )
+                search_input.fill("")
 
             except Exception:
+
                 pass
-
-
 
             search_input.fill(
                 search_text
             )
-
 
             print(
                 "[SEARCH] Text entered:",
                 search_text
             )
 
+            self.page.wait_for_timeout(
+                1000
+            )
 
+            # -------------------------------------------------
+            # ENTER
+            # -------------------------------------------------
 
             search_input.press(
                 "Enter"
             )
 
-
             print(
                 "[SEARCH] Enter pressed"
             )
 
-
             self.page.wait_for_timeout(
-                3000
+                2500
             )
 
-
+            # -------------------------------------------------
+            # RESULT
+            # -------------------------------------------------
 
             body = self.page.locator(
                 "body"
             ).inner_text()
-
-
 
             print(
                 "\n[SEARCH RESULT]"
@@ -1450,22 +1418,18 @@ class BalePage:
                 "----------------------------"
             )
 
-
-
-            # نتیجه پیدا شد
+            # -------------------------------------------------
+            # CHECK RESULT
+            # -------------------------------------------------
 
             if search_text in body:
-
 
                 print(
                     "[SEARCH SUCCESS]",
                     search_text
                 )
 
-
                 return True
-
-
 
             no_result = [
 
@@ -1479,69 +1443,53 @@ class BalePage:
 
             ]
 
-
             for msg in no_result:
 
-
                 if msg in body:
-
 
                     print(
                         "[SEARCH NOT FOUND]",
                         msg
                     )
 
-
                     return False
-
-
-
 
             print(
                 "[SEARCH UNKNOWN RESULT]"
             )
 
-
-            self.page.screenshot(
-
-                path="/tmp/bale_search_unknown.png",
-
-                full_page=True
-
-            )
-
-
-            return False
-
-
-
-        except Exception as e:
-
-
-            print(
-                "\n[SEARCH CONTACT ERROR]"
-            )
-
-
-            print(
-                f"{type(e).__name__}: {e}"
-            )
-
-
             try:
 
                 self.page.screenshot(
-
-                    path="/tmp/bale_search_exception.png",
-
+                    path="/tmp/bale_search_unknown.png",
                     full_page=True
-
                 )
 
             except Exception:
 
                 pass
 
+            return False
 
+        except Exception as e:
+
+            print(
+                "\n[SEARCH CONTACT ERROR]"
+            )
+
+            print(
+                f"{type(e).__name__}: {e}"
+            )
+
+            try:
+
+                self.page.screenshot(
+                    path="/tmp/bale_search_exception.png",
+                    full_page=True
+                )
+
+            except Exception:
+
+                pass
 
             return False
