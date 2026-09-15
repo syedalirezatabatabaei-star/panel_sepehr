@@ -60,12 +60,10 @@ os.makedirs(
 # ============================================================
 
 class BaleLoginRequest(BaseModel):
-
     phone: str
 
 
 class BaleOtpRequest(BaseModel):
-
     otp: str
 
 
@@ -81,7 +79,6 @@ def bale_login(
     phone = data.phone.strip()
 
     if not phone:
-
         raise HTTPException(
             status_code=400,
             detail="شماره موبایل وارد نشده است."
@@ -127,7 +124,6 @@ def bale_verify(
     otp = data.otp.strip()
 
     if not otp:
-
         raise HTTPException(
             status_code=400,
             detail="کد تایید وارد نشده است."
@@ -157,7 +153,6 @@ def bale_verify(
         }
 
     except HTTPException:
-
         raise
 
     except Exception as e:
@@ -188,53 +183,26 @@ bale_jobs_lock = threading.Lock()
 def normalize_phone(phone):
 
     if phone is None:
-
         return ""
 
-    phone = str(
-        phone
-    ).strip()
+    phone = str(phone).strip()
 
-    phone = phone.replace(
-        " ",
-        ""
-    )
-
-    phone = phone.replace(
-        "-",
-        ""
-    )
-
-    phone = phone.replace(
-        "(",
-        ""
-    )
-
-    phone = phone.replace(
-        ")",
-        ""
-    )
+    phone = phone.replace(" ", "")
+    phone = phone.replace("-", "")
+    phone = phone.replace("(", "")
+    phone = phone.replace(")", "")
 
     if phone.startswith("+98"):
 
-        phone = (
-            "0"
-            + phone[3:]
-        )
+        phone = "0" + phone[3:]
 
     elif phone.startswith("98"):
 
-        phone = (
-            "0"
-            + phone[2:]
-        )
+        phone = "0" + phone[2:]
 
     elif phone.startswith("9"):
 
-        phone = (
-            "0"
-            + phone
-        )
+        phone = "0" + phone
 
     return phone
 
@@ -275,9 +243,7 @@ def read_excel_contacts(
     try:
 
         workbook = load_workbook(
-            filename=io.BytesIO(
-                file_bytes
-            ),
+            filename=io.BytesIO(file_bytes),
             read_only=True,
             data_only=True
         )
@@ -286,9 +252,7 @@ def read_excel_contacts(
             "[BALE API] Excel opened successfully."
         )
 
-        sheet_names = (
-            workbook.sheetnames
-        )
+        sheet_names = workbook.sheetnames
 
         print(
             f"[BALE API] Sheet names: "
@@ -356,14 +320,8 @@ def read_excel_contacts(
 
                 header = (
                     header
-                    .replace(
-                        " ",
-                        ""
-                    )
-                    .replace(
-                        "_",
-                        ""
-                    )
+                    .replace(" ", "")
+                    .replace("_", "")
                 )
 
                 headers.append(
@@ -410,19 +368,14 @@ def read_excel_contacts(
         }
 
         phone_index = None
-
         name_index = None
 
-        for index, header in enumerate(
-            headers
-        ):
+        for index, header in enumerate(headers):
 
             if header in phone_names:
-
                 phone_index = index
 
             if header in name_names:
-
                 name_index = index
 
         print(
@@ -436,7 +389,7 @@ def read_excel_contacts(
         )
 
         # ====================================================
-        # DO NOT FALLBACK TO COLUMN 0
+        # PHONE COLUMN REQUIRED
         # ====================================================
 
         if phone_index is None:
@@ -449,9 +402,7 @@ def read_excel_contacts(
                 "[BALE API] Available columns:"
             )
 
-            for index, header in enumerate(
-                headers
-            ):
+            for index, header in enumerate(headers):
 
                 print(
                     f"    Column {index}: "
@@ -474,16 +425,12 @@ def read_excel_contacts(
         ):
 
             if not row:
-
                 continue
 
             raw_phone = ""
 
             if phone_index < len(row):
-
-                raw_phone = (
-                    row[phone_index]
-                )
+                raw_phone = row[phone_index]
 
             print(
                 f"[BALE API] "
@@ -497,7 +444,6 @@ def read_excel_contacts(
             )
 
             if not phone:
-
                 continue
 
             name = ""
@@ -582,9 +528,7 @@ def send_job_worker(
         f"[BALE JOB] Started: {job_id}"
     )
 
-    total = len(
-        contacts
-    )
+    total = len(contacts)
 
     # ========================================================
     # INITIAL JOB STATE
@@ -621,14 +565,217 @@ def send_job_worker(
 
     def process_job():
 
+        # ====================================================
+        # STEP 1
+        # OPEN BALE
+        # ====================================================
+
+        print(
+            "\n================================"
+        )
+
+        print(
+            "[BALE JOB] STEP 1 - OPEN BALE"
+        )
+
+        print(
+            "================================"
+        )
+
+        bale_backend.open_bale()
+
+        # ====================================================
+        # STEP 2
+        # CHECK AUTHENTICATION
+        # ====================================================
+
+        print(
+            "\n================================"
+        )
+
+        print(
+            "[BALE JOB] STEP 2 - CHECK AUTHENTICATION"
+        )
+
+        print(
+            "================================"
+        )
+
+        authenticated = (
+            bale_backend.is_authenticated()
+        )
+
+        print(
+            f"[BALE JOB] Authenticated: "
+            f"{authenticated}"
+        )
+
+        if not authenticated:
+
+            raise RuntimeError(
+                "حساب بله وارد نشده است."
+            )
+
+        # ====================================================
+        # STEP 3
+        # OPEN CONTACTS
+        # ====================================================
+
+        print(
+            "\n================================"
+        )
+
+        print(
+            "[BALE JOB] STEP 3 - OPEN CONTACTS"
+        )
+
+        print(
+            "================================"
+        )
+
+        opened_contacts = (
+            bale_backend.open_contacts()
+        )
+
+        print(
+            f"[BALE JOB] Contacts opened: "
+            f"{opened_contacts}"
+        )
+
+        if opened_contacts is False:
+
+            raise RuntimeError(
+                "امکان ورود به بخش مخاطبین بله وجود نداشت."
+            )
+
+        # ====================================================
+        # STEP 4
+        # ADD ALL CONTACTS
+        # ====================================================
+
+        print(
+            "\n================================"
+        )
+
+        print(
+            "[BALE JOB] STEP 4 - ADD CONTACTS"
+        )
+
+        print(
+            "================================"
+        )
+
+        print(
+            f"[BALE JOB] Total contacts to add: "
+            f"{total}"
+        )
+
+        for contact_index, contact in enumerate(
+            contacts,
+            start=1
+        ):
+
+            phone = contact["phone"]
+
+            name = (
+                contact.get("name")
+                or phone
+            )
+
+            print(
+                "\n--------------------------------"
+            )
+
+            print(
+                f"[BALE JOB] ADD CONTACT "
+                f"{contact_index}/{total}"
+            )
+
+            print(
+                f"[BALE JOB] Phone: {phone}"
+            )
+
+            print(
+                f"[BALE JOB] Name: {name}"
+            )
+
+            try:
+
+                add_result = (
+                    bale_backend.add_contact(
+                        phone,
+                        name
+                    )
+                )
+
+                print(
+                    f"[BALE JOB] ADD RESULT: "
+                    f"{add_result}"
+                )
+
+                if add_result is False:
+
+                    print(
+                        f"[BALE JOB] "
+                        f"Contact add returned False: "
+                        f"{phone}"
+                    )
+
+            except Exception as e:
+
+                print(
+                    f"[BALE JOB] "
+                    f"ADD CONTACT ERROR → "
+                    f"{phone}: {e}"
+                )
+
+                # اگر افزودن مخاطب شکست خورد،
+                # اجرای ارسال متوقف نمی‌شود.
+                # ممکن است مخاطب از قبل وجود داشته باشد.
+                # مرحله SEARCH بعداً مشخص می‌کند قابل دسترسی هست یا نه.
+
+            # =================================================
+            # SMALL DELAY BETWEEN CONTACTS
+            # =================================================
+
+            if contact_index < total:
+
+                delay = random.uniform(
+                    1.0,
+                    2.0
+                )
+
+                print(
+                    f"[BALE JOB] "
+                    f"Sleeping after add "
+                    f"{delay:.2f}s"
+                )
+
+                time.sleep(delay)
+
+        # ====================================================
+        # STEP 5
+        # SEND MESSAGES
+        # ====================================================
+
+        print(
+            "\n================================"
+        )
+
+        print(
+            "[BALE JOB] STEP 5 - SEND MESSAGES"
+        )
+
+        print(
+            "================================"
+        )
+
         for index, contact in enumerate(
             contacts,
             start=1
         ):
 
-            phone = contact[
-                "phone"
-            ]
+            phone = contact["phone"]
 
             name = (
                 contact.get("name")
@@ -650,12 +797,16 @@ def send_job_worker(
 
             try:
 
+                # =================================================
+                # SEARCH
+                # =================================================
+
                 print(
                     "\n================================"
                 )
 
                 print(
-                    "SEARCH CONTACT"
+                    "[BALE JOB] SEARCH CONTACT"
                 )
 
                 print(
@@ -663,18 +814,17 @@ def send_job_worker(
                 )
 
                 print(
-                    f"Original phone: "
-                    f"{phone}"
+                    f"[BALE JOB] "
+                    f"Contact {index}/{total}"
                 )
 
                 print(
-                    f"Search phone: "
-                    f"{phone}"
+                    f"Original phone: {phone}"
                 )
 
-                # =================================================
-                # SEARCH
-                # =================================================
+                print(
+                    f"Search phone: {phone}"
+                )
 
                 found = (
                     bale_backend.search_contact(
@@ -684,9 +834,7 @@ def send_job_worker(
 
                 if not found:
 
-                    result[
-                        "error"
-                    ] = (
+                    result["error"] = (
                         "مخاطب پیدا نشد."
                     )
 
@@ -694,27 +842,40 @@ def send_job_worker(
 
                         bale_jobs[
                             job_id
-                        ][
-                            "failed"
-                        ] += 1
+                        ]["failed"] += 1
 
                     continue
+
+                print(
+                    f"[BALE JOB] "
+                    f"Contact found: {phone}"
+                )
 
                 # =================================================
                 # OPEN CHAT
                 # =================================================
 
-                opened = (
+                print(
+                    "\n================================"
+                )
+
+                print(
+                    "[BALE JOB] OPEN CONTACT CHAT"
+                )
+
+                print(
+                    "================================"
+                )
+
+                opened_chat = (
                     bale_backend.open_contact_chat(
                         name
                     )
                 )
 
-                if not opened:
+                if not opened_chat:
 
-                    result[
-                        "error"
-                    ] = (
+                    result["error"] = (
                         "امکان باز کردن چت وجود نداشت."
                     )
 
@@ -722,15 +883,25 @@ def send_job_worker(
 
                         bale_jobs[
                             job_id
-                        ][
-                            "failed"
-                        ] += 1
+                        ]["failed"] += 1
 
                     continue
 
                 # =================================================
-                # SEND
+                # SEND MESSAGE
                 # =================================================
+
+                print(
+                    "\n================================"
+                )
+
+                print(
+                    "[BALE JOB] SEND MESSAGE"
+                )
+
+                print(
+                    "================================"
+                )
 
                 sent = (
                     bale_backend.send_message(
@@ -740,9 +911,7 @@ def send_job_worker(
 
                 if not sent:
 
-                    result[
-                        "error"
-                    ] = (
+                    result["error"] = (
                         "ارسال پیام انجام نشد."
                     )
 
@@ -750,9 +919,7 @@ def send_job_worker(
 
                         bale_jobs[
                             job_id
-                        ][
-                            "failed"
-                        ] += 1
+                        ]["failed"] += 1
 
                     continue
 
@@ -760,13 +927,9 @@ def send_job_worker(
                 # SUCCESS
                 # =================================================
 
-                result[
-                    "status"
-                ] = "success"
+                result["status"] = "success"
 
-                result[
-                    "success"
-                ] = True
+                result["success"] = True
 
                 print(
                     f"[BALE JOB] SUCCESS → "
@@ -777,9 +940,7 @@ def send_job_worker(
 
                     bale_jobs[
                         job_id
-                    ][
-                        "successful"
-                    ] += 1
+                    ]["successful"] += 1
 
             except Exception as e:
 
@@ -788,17 +949,13 @@ def send_job_worker(
                     f"{phone}: {e}"
                 )
 
-                result[
-                    "error"
-                ] = str(e)
+                result["error"] = str(e)
 
                 with bale_jobs_lock:
 
                     bale_jobs[
                         job_id
-                    ][
-                        "failed"
-                    ] += 1
+                    ]["failed"] += 1
 
             finally:
 
@@ -851,9 +1008,7 @@ def send_job_worker(
                         f"{delay:.2f}s"
                     )
 
-                    time.sleep(
-                        delay
-                    )
+                    time.sleep(delay)
 
     # ========================================================
     # RUN PLAYWRIGHT JOB
@@ -875,27 +1030,19 @@ def send_job_worker(
 
             bale_jobs[
                 job_id
-            ][
-                "current"
-            ] = None
+            ]["current"] = None
 
             bale_jobs[
                 job_id
-            ][
-                "processed"
-            ] = total
+            ]["processed"] = total
 
             bale_jobs[
                 job_id
-            ][
-                "progress"
-            ] = 100
+            ]["progress"] = 100
 
             bale_jobs[
                 job_id
-            ][
-                "status"
-            ] = "completed"
+            ]["status"] = "completed"
 
         print(
             f"[BALE JOB] Completed: "
@@ -915,15 +1062,11 @@ def send_job_worker(
 
                 bale_jobs[
                     job_id
-                ][
-                    "status"
-                ] = "failed"
+                ]["status"] = "failed"
 
                 bale_jobs[
                     job_id
-                ][
-                    "error"
-                ] = str(e)
+                ]["error"] = str(e)
 
 
 # ============================================================
@@ -1169,9 +1312,7 @@ async def bale_send_messages(
 
             "status": "starting",
 
-            "total": len(
-                contacts
-            ),
+            "total": len(contacts),
 
             "processed": 0,
 
@@ -1255,72 +1396,48 @@ async def bale_send_messages(
 
         "job_id": job_id,
 
-        "total": len(
-            contacts
-        ),
+        "total": len(contacts),
 
         "message": "ارسال شروع شد.",
 
         "file": {
 
-            "original_name": (
-                file.filename
-            ),
+            "original_name": file.filename,
 
-            "content_type": (
-                file.content_type
-            ),
+            "content_type": file.content_type,
 
-            "size": len(
-                file_bytes
-            ),
+            "size": len(file_bytes),
 
-            "saved_path": (
-                saved_path
-            ),
+            "saved_path": saved_path,
 
-            "exists_on_server": (
-                file_exists
-            ),
+            "exists_on_server": file_exists,
 
-            "size_on_disk": (
-                file_size_on_disk
-            )
+            "size_on_disk": file_size_on_disk
         },
 
         "excel": {
 
             "sheet_names": (
-                excel_data[
-                    "sheet_names"
-                ]
+                excel_data["sheet_names"]
             ),
 
             "active_sheet": (
-                excel_data[
-                    "active_sheet"
-                ]
+                excel_data["active_sheet"]
             ),
 
             "headers": (
-                excel_data[
-                    "headers"
-                ]
+                excel_data["headers"]
             ),
 
             "rows_count": (
-                excel_data[
-                    "rows_count"
-                ]
+                excel_data["rows_count"]
             ),
 
             "contacts_count": (
                 len(contacts)
             ),
 
-            "preview": (
-                contacts[:10]
-            )
+            "preview": contacts[:10]
         }
     }
 
@@ -1356,43 +1473,23 @@ def bale_send_status(
 
             "success": True,
 
-            "job_id": job[
-                "job_id"
-            ],
+            "job_id": job["job_id"],
 
-            "status": job[
-                "status"
-            ],
+            "status": job["status"],
 
-            "total": job[
-                "total"
-            ],
+            "total": job["total"],
 
-            "processed": job[
-                "processed"
-            ],
+            "processed": job["processed"],
 
-            "successful": job[
-                "successful"
-            ],
+            "successful": job["successful"],
 
-            "failed": job[
-                "failed"
-            ],
+            "failed": job["failed"],
 
-            "progress": job[
-                "progress"
-            ],
+            "progress": job["progress"],
 
-            "current": job[
-                "current"
-            ],
+            "current": job["current"],
 
-            "results": job[
-                "results"
-            ],
+            "results": job["results"],
 
-            "error": job.get(
-                "error"
-            )
+            "error": job.get("error")
         }
