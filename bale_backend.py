@@ -120,6 +120,23 @@ class BaleBackend:
             digits = "0" + digits
 
         return digits
+    # ADD CONTACT
+    def add_contact(self, phone, name):
+        if self.bale is None:
+            raise RuntimeError("Bale browser is not initialized.")
+
+        phone = self._normalize_phone(phone)
+        name = str(name).strip()
+
+        print(
+            f"[BALE BACKEND] ADD CONTACT → "
+            f"{phone} | {name}"
+        )
+
+        return self.bale.add_contact(
+            phone,
+            name
+        )
    # =====================================================
     # CLEAR SESSION
     # =====================================================
