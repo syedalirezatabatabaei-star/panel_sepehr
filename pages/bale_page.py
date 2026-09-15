@@ -1281,7 +1281,10 @@ class BalePage:
                 self.page.wait_for_timeout(
                     2000
                 )
-
+                print (
+                    "[SEARCH]Current URL:"
+                    self.page.url
+                )
             # -------------------------------------------------
             # OPEN SEARCH
             # -------------------------------------------------
@@ -1350,8 +1353,16 @@ class BalePage:
                 print(
                     "[SEARCH ERROR] Input not found"
                 )
+                try:
+                    self.page.screenshot(
+                        path="/tmp/bale_search_input_not_found.png",
+                        full_page=True
+                    )
+                except Exception:
+                    pass
 
                 return False
+                
 
             # -------------------------------------------------
             # ENTER SEARCH
