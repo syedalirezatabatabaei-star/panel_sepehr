@@ -61,10 +61,6 @@ class BalePage:
 
                 return True
 
-            # -------------------------------------------------
-            # CHECK LOGIN PAGE
-            # -------------------------------------------------
-
             if "/login" in current_url:
 
                 print(
@@ -72,10 +68,6 @@ class BalePage:
                 )
 
                 return False
-
-            # -------------------------------------------------
-            # CHECK BODY
-            # -------------------------------------------------
 
             body_text = self.page.locator(
                 "body"
@@ -205,10 +197,6 @@ class BalePage:
 
         try:
 
-            # -------------------------------------------------
-            # MAKE SURE WE ARE IN CONTACTS
-            # -------------------------------------------------
-
             if "/contacts" not in self.page.url:
 
                 print(
@@ -222,10 +210,6 @@ class BalePage:
                     )
 
                     return False
-
-            # -------------------------------------------------
-            # ADD USER ICON
-            # -------------------------------------------------
 
             add_user = self.page.locator(
                 'svg[aria-label="AddUser-icon"]'
@@ -279,10 +263,6 @@ class BalePage:
             self.page.wait_for_timeout(
                 1000
             )
-
-            # -------------------------------------------------
-            # CHECK PHONE INPUT
-            # -------------------------------------------------
 
             phone_input = self.page.locator(
                 'input[aria-label="شماره همراه"]'
@@ -347,10 +327,6 @@ class BalePage:
 
         try:
 
-            # -------------------------------------------------
-            # OPEN ADD CONTACT FORM
-            # -------------------------------------------------
-
             if not self.open_add_contact():
 
                 print(
@@ -362,10 +338,6 @@ class BalePage:
                     "status": "error",
                     "message": "فرم افزودن مخاطب باز نشد"
                 }
-
-            # -------------------------------------------------
-            # NORMALIZE PHONE
-            # -------------------------------------------------
 
             original_phone = str(
                 phone
@@ -395,10 +367,6 @@ class BalePage:
                 normalized_phone
             )
 
-            # -------------------------------------------------
-            # PHONE INPUT
-            # -------------------------------------------------
-
             phone_input = self.page.locator(
                 'input[aria-label="شماره همراه"]'
             ).first
@@ -415,10 +383,6 @@ class BalePage:
             print(
                 "Phone entered."
             )
-
-            # -------------------------------------------------
-            # NAME INPUT
-            # -------------------------------------------------
 
             name_input = self.page.locator(
                 'input[aria-label="نام"]'
@@ -445,10 +409,6 @@ class BalePage:
             self.page.wait_for_timeout(
                 500
             )
-
-            # -------------------------------------------------
-            # ADD BUTTON
-            # -------------------------------------------------
 
             add_button = self.page.get_by_text(
                 "افزودن",
@@ -493,17 +453,9 @@ class BalePage:
                     "[BALE] Add button force-clicked."
                 )
 
-            # -------------------------------------------------
-            # WAIT
-            # -------------------------------------------------
-
             self.page.wait_for_timeout(
                 2000
             )
-
-            # -------------------------------------------------
-            # READ PAGE
-            # -------------------------------------------------
 
             body_text = self.page.locator(
                 "body"
@@ -525,24 +477,14 @@ class BalePage:
                 "--------------------------------"
             )
 
-            # -------------------------------------------------
-            # CHECK NOT REGISTERED
-            # -------------------------------------------------
-
             not_registered_messages = [
 
                 "کاربری با این شماره پیدا نشد",
-
                 "این شماره در بله ثبت نشده",
-
                 "کاربر پیدا نشد",
-
                 "کاربر یافت نشد",
-
                 "وجود ندارد",
-
                 "ثبت نشده",
-
                 "یافت نشد"
 
             ]
@@ -561,10 +503,6 @@ class BalePage:
                         "status": "not_registered",
                         "message": msg
                     }
-
-            # -------------------------------------------------
-            # CHECK FORM CLOSED
-            # -------------------------------------------------
 
             try:
 
@@ -588,10 +526,6 @@ class BalePage:
 
                 pass
 
-            # -------------------------------------------------
-            # CHECK NAME IN PAGE
-            # -------------------------------------------------
-
             if clean_name and clean_name in body_text:
 
                 print(
@@ -604,10 +538,6 @@ class BalePage:
                     "status": "success",
                     "message": "مخاطب اضافه شد"
                 }
-
-            # -------------------------------------------------
-            # UNKNOWN RESULT
-            # -------------------------------------------------
 
             print(
                 f"[ADD CONTACT UNKNOWN] "
@@ -716,7 +646,7 @@ class BalePage:
             return False
 
     # =========================================================
-    # SEARCH CONTACT BY NAME
+    # SEARCH CONTACT BY NAME / PHONE
     # =========================================================
 
     def search_contact(
@@ -739,10 +669,6 @@ class BalePage:
 
         try:
 
-            # -------------------------------------------------
-            # OPEN CONTACTS PAGE
-            # -------------------------------------------------
-
             self.page.goto(
                 "https://web.bale.ai/contacts",
                 wait_until="domcontentloaded"
@@ -757,10 +683,6 @@ class BalePage:
                 self.page.url
             )
 
-            # -------------------------------------------------
-            # OPEN SEARCH
-            # -------------------------------------------------
-
             if not self.open_search():
 
                 print(
@@ -768,10 +690,6 @@ class BalePage:
                 )
 
                 return False
-
-            # -------------------------------------------------
-            # SEARCH INPUT
-            # -------------------------------------------------
 
             search_input = self.page.locator(
                 'input[type="search"]'
@@ -808,10 +726,6 @@ class BalePage:
                 self.page.url
             )
 
-            # -------------------------------------------------
-            # READ RESULT
-            # -------------------------------------------------
-
             body_text = self.page.locator(
                 "body"
             ).inner_text()
@@ -832,18 +746,11 @@ class BalePage:
                 "--------------------------------"
             )
 
-            # -------------------------------------------------
-            # NO RESULT
-            # -------------------------------------------------
-
             no_result_messages = [
 
                 "نتیجه‌ای پیدا نشد",
-
                 "نتیجه ای پیدا نشد",
-
                 "موردی پیدا نشد",
-
                 "پیدا نشد"
 
             ]
@@ -859,10 +766,6 @@ class BalePage:
 
                     return False
 
-            # -------------------------------------------------
-            # CHECK NAME
-            # -------------------------------------------------
-
             if search_name in body_text:
 
                 print(
@@ -871,10 +774,6 @@ class BalePage:
                 )
 
                 return True
-
-            # -------------------------------------------------
-            # SCREENSHOT
-            # -------------------------------------------------
 
             self.page.screenshot(
                 path="/tmp/bale_contact_search.png",
@@ -995,10 +894,6 @@ class BalePage:
                 except Exception:
 
                     continue
-
-            # -------------------------------------------------
-            # FALLBACK
-            # -------------------------------------------------
 
             exact_text = self.page.get_by_text(
                 target_name,
@@ -1130,13 +1025,25 @@ class BalePage:
     ):
 
         print(
-            "\nOpening contact chat:",
-            name
+            "\n================================"
+        )
+
+        print(
+            "OPEN CONTACT CHAT"
+        )
+
+        print(
+            "================================"
         )
 
         target_name = str(
             name
         ).strip()
+
+        print(
+            "Target contact:",
+            target_name
+        )
 
         try:
 
@@ -1165,11 +1072,15 @@ class BalePage:
                         timeout=2000
                     )
 
+                    print(
+                        f"Dialog {i + 1}:",
+                        repr(text)
+                    )
+
                     if target_name in text:
 
                         print(
-                            "Contact chat found:",
-                            text
+                            "Matching contact dialog found."
                         )
 
                         try:
@@ -1178,26 +1089,53 @@ class BalePage:
                                 timeout=5000
                             )
 
-                        except Exception:
+                            print(
+                                "Contact dialog clicked."
+                            )
+
+                        except Exception as e:
+
+                            print(
+                                "Normal dialog click failed:",
+                                type(e).__name__
+                            )
 
                             item.click(
                                 force=True,
                                 timeout=5000
                             )
 
+                            print(
+                                "Contact dialog force-clicked."
+                            )
+
                         self.page.wait_for_timeout(
-                            1500
+                            2000
+                        )
+
+                        print(
+                            "Current URL after opening chat:",
+                            self.page.url
                         )
 
                         return True
 
-                except Exception:
+                except Exception as e:
+
+                    print(
+                        f"Dialog {i + 1} inspection error:",
+                        type(e).__name__
+                    )
 
                     continue
 
             # -------------------------------------------------
             # FALLBACK BY EXACT TEXT
             # -------------------------------------------------
+
+            print(
+                "Trying exact text fallback..."
+            )
 
             exact_contact = self.page.get_by_text(
                 target_name,
@@ -1211,33 +1149,70 @@ class BalePage:
                     timeout=5000
                 )
 
+                print(
+                    "Exact contact text found."
+                )
+
                 try:
 
                     exact_contact.click(
                         timeout=5000
                     )
 
-                except Exception:
+                    print(
+                        "Exact contact clicked."
+                    )
+
+                except Exception as e:
+
+                    print(
+                        "Normal exact text click failed:",
+                        type(e).__name__
+                    )
 
                     exact_contact.click(
                         force=True,
                         timeout=5000
                     )
 
+                    print(
+                        "Exact contact force-clicked."
+                    )
+
                 self.page.wait_for_timeout(
-                    1500
+                    2000
                 )
 
                 print(
-                    "Contact chat opened using text."
+                    "Current URL after opening chat:",
+                    self.page.url
                 )
 
                 return True
+
+            # -------------------------------------------------
+            # DEBUG
+            # -------------------------------------------------
 
             print(
                 "[ERROR] Contact chat not found:",
                 target_name
             )
+
+            try:
+
+                self.page.screenshot(
+                    path="/tmp/bale_open_chat_error.png",
+                    full_page=True
+                )
+
+                print(
+                    "[DEBUG] Screenshot saved:"
+                    " /tmp/bale_open_chat_error.png"
+                )
+
+            except Exception:
+                pass
 
             return False
 
@@ -1251,7 +1226,174 @@ class BalePage:
                 f"{type(e).__name__}: {e}"
             )
 
+            try:
+
+                self.page.screenshot(
+                    path="/tmp/bale_open_chat_exception.png",
+                    full_page=True
+                )
+
+                print(
+                    "[DEBUG] Exception screenshot saved:"
+                    " /tmp/bale_open_chat_exception.png"
+                )
+
+            except Exception:
+                pass
+
             return False
+
+    # =========================================================
+    # FIND MESSAGE INPUT
+    # =========================================================
+
+    def _find_message_input(self):
+
+        selectors = [
+
+            '[aria-label="editable-message-text"]',
+
+            '[contenteditable="true"]',
+
+            'div[contenteditable="true"]',
+
+            'textarea',
+
+            'textarea[placeholder*="پیام"]',
+
+            'textarea[placeholder*="پیام خود را"]',
+
+            'input[placeholder*="پیام"]'
+
+        ]
+
+        print(
+            "\n[BALE] Searching for message input..."
+        )
+
+        for selector in selectors:
+
+            try:
+
+                locator = self.page.locator(
+                    selector
+                )
+
+                count = locator.count()
+
+                print(
+                    f"[BALE] Selector: {selector} "
+                    f"| count: {count}"
+                )
+
+                if count == 0:
+                    continue
+
+                for index in range(count):
+
+                    candidate = locator.nth(
+                        index
+                    )
+
+                    try:
+
+                        if candidate.is_visible():
+
+                            print(
+                                f"[BALE] Message input found: "
+                                f"{selector} "
+                                f"(index={index})"
+                            )
+
+                            return candidate
+
+                    except Exception:
+                        continue
+
+            except Exception as e:
+
+                print(
+                    f"[BALE] Selector error: "
+                    f"{selector} -> "
+                    f"{type(e).__name__}"
+                )
+
+        return None
+
+    # =========================================================
+    # FIND SEND BUTTON
+    # =========================================================
+
+    def _find_send_button(self):
+
+        selectors = [
+
+            '[aria-label="send-button"]',
+
+            '[aria-label="Send-button"]',
+
+            'button[aria-label*="ارسال"]',
+
+            'button[title*="ارسال"]',
+
+            '[role="button"][aria-label*="ارسال"]',
+
+            'button[type="submit"]'
+
+        ]
+
+        print(
+            "\n[BALE] Searching for send button..."
+        )
+
+        for selector in selectors:
+
+            try:
+
+                locator = self.page.locator(
+                    selector
+                )
+
+                count = locator.count()
+
+                print(
+                    f"[BALE] Send selector: "
+                    f"{selector} | count={count}"
+                )
+
+                if count == 0:
+                    continue
+
+                for index in range(count):
+
+                    candidate = locator.nth(
+                        index
+                    )
+
+                    try:
+
+                        if candidate.is_visible():
+
+                            print(
+                                f"[BALE] Send button found: "
+                                f"{selector} "
+                                f"(index={index})"
+                            )
+
+                            return candidate
+
+                    except Exception:
+                        continue
+
+            except Exception as e:
+
+                print(
+                    f"[BALE] Send selector error: "
+                    f"{selector} -> "
+                    f"{type(e).__name__}"
+                )
+
+        return None
 
     # =========================================================
     # SEND MESSAGE
@@ -1262,50 +1404,226 @@ class BalePage:
         message
     ):
 
-        print(
-            "\nSending message..."
-        )
+        print("\n================================")
+        print("SEND MESSAGE")
+        print("================================")
 
         try:
 
             message_text = str(
                 message
-            )
+            ).strip()
 
-            # -------------------------------------------------
-            # MESSAGE INPUT
-            # -------------------------------------------------
+            if not message_text:
 
-            message_input = self.page.locator(
-                '[aria-label="editable-message-text"]'
-            ).first
+                print(
+                    "[BALE] Message is empty."
+                )
 
-            message_input.wait_for(
-                state="visible",
-                timeout=10000
-            )
+                return False
 
-            message_input.fill(
-                message_text
+            print(
+                "[BALE] Message received from API:"
             )
 
             print(
-                "Message entered."
+                repr(message_text)
             )
+
+            print(
+                "[BALE] Message length:",
+                len(message_text)
+            )
+
+            # -------------------------------------------------
+            # WAIT FOR CHAT
+            # -------------------------------------------------
+
+            self.page.wait_for_timeout(
+                1000
+            )
+
+            print(
+                "[BALE] Current URL before message:",
+                self.page.url
+            )
+
+            # -------------------------------------------------
+            # FIND MESSAGE INPUT
+            # -------------------------------------------------
+
+            message_input = self._find_message_input()
+
+            if message_input is None:
+
+                print(
+                    "[BALE ERROR] Message input not found."
+                )
+
+                try:
+
+                    body_text = self.page.locator(
+                        "body"
+                    ).inner_text()
+
+                    print(
+                        "[BALE] CURRENT PAGE:"
+                    )
+
+                    print(
+                        body_text[:5000]
+                    )
+
+                    self.page.screenshot(
+                        path="/tmp/bale_message_input_error.png",
+                        full_page=True
+                    )
+
+                    print(
+                        "[DEBUG] Screenshot saved:"
+                        " /tmp/bale_message_input_error.png"
+                    )
+
+                except Exception:
+                    pass
+
+                return False
+
+            # -------------------------------------------------
+            # FOCUS INPUT
+            # -------------------------------------------------
+
+            try:
+
+                message_input.click(
+                    timeout=5000
+                )
+
+            except Exception:
+
+                message_input.click(
+                    force=True,
+                    timeout=5000
+                )
+
+            # -------------------------------------------------
+            # CLEAR OLD MESSAGE
+            # -------------------------------------------------
+
+            try:
+
+                message_input.fill("")
+
+            except Exception:
+
+                try:
+
+                    message_input.press(
+                        "Control+A"
+                    )
+
+                    message_input.press(
+                        "Backspace"
+                    )
+
+                except Exception:
+                    pass
+
+            # -------------------------------------------------
+            # ENTER MESSAGE
+            # -------------------------------------------------
+
+            try:
+
+                message_input.fill(
+                    message_text
+                )
+
+            except Exception as fill_error:
+
+                print(
+                    "[BALE] fill() failed:"
+                )
+
+                print(
+                    f"{type(fill_error).__name__}: "
+                    f"{fill_error}"
+                )
+
+                try:
+
+                    message_input.press(
+                        "Control+A"
+                    )
+
+                    message_input.press(
+                        "Backspace"
+                    )
+
+                    message_input.type(
+                        message_text,
+                        delay=10
+                    )
+
+                except Exception as type_error:
+
+                    print(
+                        "[BALE] type() also failed:"
+                    )
+
+                    print(
+                        f"{type(type_error).__name__}: "
+                        f"{type_error}"
+                    )
+
+                    return False
+
+            print(
+                "[BALE] Message entered successfully."
+            )
+
+            # -------------------------------------------------
+            # VERIFY MESSAGE INPUT
+            # -------------------------------------------------
+
+            try:
+
+                current_value = message_input.input_value()
+
+                print(
+                    "[BALE] Input value after typing:",
+                    repr(current_value)
+                )
+
+            except Exception:
+
+                try:
+
+                    current_text = message_input.inner_text()
+
+                    print(
+                        "[BALE] Input text after typing:",
+                        repr(current_text)
+                    )
+
+                except Exception:
+                    pass
 
             self.page.wait_for_timeout(
                 500
             )
 
             # -------------------------------------------------
-            # SEND BUTTON
+            # FIND SEND BUTTON
             # -------------------------------------------------
 
-            send_button = self.page.locator(
-                '[aria-label="send-button"]'
-            ).first
+            send_button = self._find_send_button()
 
-            if send_button.count() > 0:
+            if send_button is not None:
+
+                print(
+                    "[BALE] Clicking send button..."
+                )
 
                 try:
 
@@ -1314,19 +1632,42 @@ class BalePage:
                     )
 
                     print(
-                        "Message sent using send button."
+                        "[BALE] Send button clicked."
                     )
 
-                except Exception:
+                except Exception as e:
 
-                    send_button.click(
-                        force=True,
-                        timeout=5000
+                    print(
+                        "[BALE] Normal send click failed:"
                     )
 
                     print(
-                        "Message sent using force click."
+                        f"{type(e).__name__}: {e}"
                     )
+
+                    try:
+
+                        send_button.click(
+                            force=True,
+                            timeout=5000
+                        )
+
+                        print(
+                            "[BALE] Send button force-clicked."
+                        )
+
+                    except Exception as force_error:
+
+                        print(
+                            "[BALE] Force send click failed:"
+                        )
+
+                        print(
+                            f"{type(force_error).__name__}: "
+                            f"{force_error}"
+                        )
+
+                        return False
 
             else:
 
@@ -1334,19 +1675,60 @@ class BalePage:
                 # ENTER FALLBACK
                 # -------------------------------------------------
 
+                print(
+                    "[BALE] Send button not found."
+                )
+
+                print(
+                    "[BALE] Trying Enter..."
+                )
+
                 message_input.press(
                     "Enter"
                 )
 
                 print(
-                    "Message sent using Enter."
+                    "[BALE] Enter pressed."
                 )
 
+            # -------------------------------------------------
+            # WAIT FOR SEND
+            # -------------------------------------------------
+
             self.page.wait_for_timeout(
-                1000
+                1500
+            )
+
+            print(
+                "[BALE] Message send operation completed."
             )
 
             return True
+
+        except PlaywrightTimeoutError as e:
+
+            print(
+                "\n[SEND MESSAGE TIMEOUT]"
+            )
+
+            print(e)
+
+            try:
+
+                self.page.screenshot(
+                    path="/tmp/bale_send_message_timeout.png",
+                    full_page=True
+                )
+
+                print(
+                    "[DEBUG] Screenshot saved:"
+                    " /tmp/bale_send_message_timeout.png"
+                )
+
+            except Exception:
+                pass
+
+            return False
 
         except Exception as e:
 
@@ -1357,6 +1739,21 @@ class BalePage:
             print(
                 f"{type(e).__name__}: {e}"
             )
+
+            try:
+
+                self.page.screenshot(
+                    path="/tmp/bale_send_message_error.png",
+                    full_page=True
+                )
+
+                print(
+                    "[DEBUG] Screenshot saved:"
+                    " /tmp/bale_send_message_error.png"
+                )
+
+            except Exception:
+                pass
 
             return False
 
