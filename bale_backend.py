@@ -101,7 +101,7 @@ class BaleBackend:
         self.context = None
 
         self.page = None
-
+        self.current_login_phone = None
 
         self.bale = None
 
@@ -464,6 +464,8 @@ class BaleBackend:
 
         phone = str(phone).strip()
 
+        self.current_login_phone = phone
+
         if not phone:
             raise ValueError(
                 "Phone empty"
@@ -550,7 +552,11 @@ class BaleBackend:
             result
         )
 
+        if result:
 
+            self.save_account(
+                self.current_login_phone
+            )
         return result
 
     # =====================================================
