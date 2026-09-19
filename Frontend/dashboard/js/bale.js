@@ -19,13 +19,124 @@ function baleSetHeaderTitle(title) {
     }
 }
 
+/*==================
+continueBaleAccount
+======================*/
+async function continueBaleAccount() {
 
+    showToast(
+        "در حال بررسی حساب بله...",
+        "info"
+    );
+
+    try {
+
+        const response = await fetch(
+            `${BALE_API_BASE}/account`
+        );
+
+        const data = await response.json();
+
+
+        if (data.exists) {
+
+            showBaleMessagingPage();
+
+        } else {
+
+            showBaleLoginPage();
+
+        }
+
+
+    } catch(error) {
+
+        console.error(
+            error
+        );
+
+        showBaleLoginPage();
+
+    }
+}
+/*=============================
+baleSetActiveNav
++======================*/
 function baleSetActiveNav() {
     document.querySelectorAll(".settings-nav-item").forEach(item => {
         item.classList.remove("active");
     });
 }
+function showBaleSavedAccountPage(phone) {
 
+    const content =
+        document.getElementById("settingsContent");
+
+
+    content.innerHTML = `
+
+        <div class="page-header">
+
+            <h1 class="page-title">
+                حساب بله
+            </h1>
+
+            <p class="page-description">
+                یک حساب ذخیره شده پیدا شد.
+            </p>
+
+        </div>
+
+
+        <div class="card">
+
+            <div class="card-body">
+
+                <div class="form-group">
+
+                    <label>
+                        شماره فعال
+                    </label>
+
+                    <div
+                        style="
+                        padding:12px;
+                        background:#f3f4f6;
+                        border-radius:8px;
+                        direction:ltr;
+                        "
+                    >
+                        ${escapeBaleHtml(phone)}
+                    </div>
+
+                </div>
+
+
+                <div class="form-actions">
+
+                    <button
+                        class="btn btn-primary"
+                        onclick="continueBaleAccount()"
+                    >
+                        ادامه با این حساب
+                    </button>
+
+
+                    <button
+                        class="btn btn-secondary"
+                        onclick="showBaleLoginPage()"
+                    >
+                        ورود با شماره جدید
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    `;
+}
 /*======================================
 checkBaleAccount
 ======================================*/
@@ -1846,6 +1957,11 @@ window.pollBaleProgress =
 window.updateBaleProgress =
     updateBaleProgress;
 
+window.showBaleSavedAccountPage =
+    showBaleSavedAccountPage;
+
+window.continueBaleAccount =
+    continueBaleAccount;
 console.log(
     "[BALE] bale.js loaded successfully."
 );
