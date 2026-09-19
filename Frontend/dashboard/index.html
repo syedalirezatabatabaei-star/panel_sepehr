@@ -27,19 +27,27 @@
     <nav class="sidebar-nav">
       <div class="sidebar-section-title">منوی اصلی</div>
       <button class="sidebar-item" onclick="showToast('این بخش هنوز ساخته نشده', 'info')">
-        <span class="icon">🔔</span>
+        <span class="icon">&#128276;</span>
         <span>اعلان‌ها</span>
         <span class="badge">3</span>
       </button>
+
+
       <button class="sidebar-item" onclick="openBaleMessaging()">
-        <span class="icon">✉️</span>
+        <span class="icon">&#9993;&#65039;</span>
         <span>ارسال پیام</span>
         <span class="badge">بله</span>
       </button>
 
+<button class="sidebar-item" onclick="openBaleChatPage()">
+    <span class="icon">&#128172;</span>
+    <span>صفحه چت ربات بله</span>
+    <span class="badge">بله</span>
+</button>
+
       <div class="sidebar-section-title" style="margin-top: var(--space-4)">مدیریت</div>
       <button class="sidebar-item active" onclick="navigateTo('overview')">
-        <span class="icon">⚙️</span>
+        <span class="icon">&#9881;&#65039;</span>
         <span>تنظیمات</span>
       </button>
     </nav>
@@ -62,7 +70,7 @@
     <header class="header">
       <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
       <button class="settings-toggle-btn" id="settingsToggleBtn" onclick="toggleSettingsNav()">
-        <span class="icon">⚙️</span>
+        <span class="icon">&#9881;&#65039;</span>
         <span>تنظیمات</span>
       </button>
       <div>
@@ -71,11 +79,11 @@
       <div class="header-spacer"></div>
       <div class="header-actions">
         <button class="header-btn" onclick="showToast('اعلان‌ها', 'info')">
-          🔔
+          &#128276;
           <span class="notification-dot"></span>
         </button>
         <button class="header-btn" onclick="showToast('جستجو', 'info')">
-          🔍
+          &#128269;
         </button>
       </div>
       <div class="header-user" onclick="toggleUserDropdown()">
@@ -105,43 +113,43 @@
           <button class="settings-nav-close" onclick="toggleSettingsNav()">✕</button>
         </div>
         <button class="settings-nav-item active" data-page="overview" onclick="navigateTo('overview')">
-          <span class="icon">📊</span>
+          <span class="icon">&#128202;</span>
           <span>نمای کلی</span>
         </button>
 <button class="settings-nav-item" data-page="registration-requests" onclick="navigateTo('registration-requests')">
-  <span class="icon">📝</span>
+  <span class="icon">&#128221;</span>
   <span>درخواست کاربران جدید</span>
 </button>
         <button class="settings-nav-item" data-page="users" onclick="navigateTo('users')">
-          <span class="icon">👥</span>
+          <span class="icon">&#128101;</span>
           <span>مدیریت کاربران</span>
         </button>
         <button class="settings-nav-item" data-page="roles" onclick="navigateTo('roles')">
-          <span class="icon">🏷️</span>
+          <span class="icon">&#127991;&#65039;</span>
           <span>مدیریت نقش‌ها</span>
         </button>
         <button class="settings-nav-item" data-page="notifications" onclick="navigateTo('notifications')">
-          <span class="icon">🔔</span>
+          <span class="icon">&#128276;</span>
           <span>اعلان‌ها</span>
         </button>
         <button class="settings-nav-item" data-page="audit-logs" onclick="navigateTo('audit-logs')">
-          <span class="icon">📜</span>
+          <span class="icon">&#128220;</span>
           <span>لاگ‌های سیستم</span>
         </button>
         <button class="settings-nav-item" data-page="activities" onclick="navigateTo('activities')">
-          <span class="icon">📋</span>
+          <span class="icon">&#128203;</span>
           <span>فعالیت کاربران</span>
         </button>
         <button class="settings-nav-item" data-page="security" onclick="navigateTo('security')">
-          <span class="icon">🔒</span>
+          <span class="icon">&#128274;</span>
           <span>امنیت</span>
         </button>
         <button class="settings-nav-item" data-page="my-account" onclick="navigateTo('my-account')">
-          <span class="icon">👤</span>
+          <span class="icon">&#128100;</span>
           <span>حساب من</span>
         </button>
         <button class="settings-nav-item" data-page="system-settings" onclick="navigateTo('system-settings')">
-          <span class="icon">🔧</span>
+          <span class="icon">&#128295;</span>
           <span>تنظیمات سیستم</span>
         </button>
       </nav>
@@ -171,6 +179,7 @@
 
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
+<script src="js/bale_UI.js"></script>
 <script src="js/bale.js"></script>
 </body>
 </html>

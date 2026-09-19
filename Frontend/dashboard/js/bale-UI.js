@@ -1,393 +1,571 @@
 /* =========================================================
-   BALE CHAT UI
-   Sepehr Salamat Dashboard
+   Bale Chat UI
+   Project: Sepehr Salamat
+   File: Frontend/dashboard/js/bale-UI.js
+
+   این فایل برای اجرا داخل داشبورد اصلی طراحی شده است.
    ========================================================= */
 
-(() => {
-    "use strict";
+(function () {
+    'use strict';
 
-    /* =====================================================
+    /* =========================================================
        CONFIG
-       ===================================================== */
+       ========================================================= */
 
-    const BALE_API = "http://95.38.187.123:3000";
-    const BALE_WEBHOOK = "https://n8n.sepehrsalamati.ir/webhook/seandms";
-    const BALE_CREATE_WEBHOOK = "https://n8n.sepehrsalamati.ir/webhook/plasuser";
+    const BALE_CONFIG = {
+        API_BASE: 'http://95.38.187.123:3000',
 
-    /* =====================================================
+        SEND_WEBHOOK:
+            'https://n8n.sepehrsalamati.ir/webhook/seandms',
+
+        CREATE_CHAT_WEBHOOK:
+            'https://n8n.sepehrsalamati.ir/webhook/plasuser',
+
+        POLL_MESSAGES_INTERVAL: 5000,
+        POLL_SESSIONS_INTERVAL: 15000,
+
+        ASSETS: {
+            logo: 'img/navid.jpg',
+            defaultAvatar: 'img/images.jpg'
+        }
+    };
+
+
+    /* =========================================================
        STATE
-       ===================================================== */
+       ========================================================= */
 
-    const BaleUIState = {
+    const BaleState = {
+        sessions: [],
         currentSession: null,
         currentUserId: null,
 
-        unread: {},
-        lastSessionUpdate: {},
+        messages: [],
 
-        lastMessageCount: 0,
-        isInitialLoad: true,
+        isLoadingSessions: false,
+        isLoadingMessages: false,
 
-        sessions: [],
+        isInitialMessageLoad: true,
 
-        refreshSessionsTimer: null,
-        refreshMessagesTimer: null
+        sessionsInterval: null,
+        messagesInterval: null,
+
+        searchMode: false,
+        searchResults: [],
+
+        isMobileSidebarOpen: false
     };
 
-    /* =====================================================
-       OPEN BALE PAGE
-       ===================================================== */
 
-    window.openBaleMessaging = function () {
+    /* =========================================================
+       HELPERS
+       ========================================================= */
 
-        console.log("[BALE UI] Opening Bale Chat Bot");
-
-        /*
-         * Settings navigation را مخفی می‌کنیم
-         * چون صفحه بله یک بخش مستقل داشبورد است.
-         */
-
-        const settingsLayout = document.querySelector(".settings-layout");
-
-        if (settingsLayout) {
-            settingsLayout.classList.add("bale-ui-active");
+    function escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return '';
         }
 
-        const settingsNav = document.getElementById("settingsNav");
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
 
-        if (settingsNav) {
-            settingsNav.style.display = "none";
-        }
 
-        const settingsToggle = document.getElementById("settingsToggleBtn");
-
-        if (settingsToggle) {
-            settingsToggle.style.display = "none";
-        }
-
-        /*
-         * عنوان Header
-         */
-
-        const headerTitle = document.getElementById("headerTitle");
-
-        if (headerTitle) {
-            headerTitle.textContent = "چت ربات بله";
-        }
-
-        /*
-         * محتوای اصلی
-         */
-
-        const content = document.getElementById("settingsContent");
-
-        if (!content) {
-            console.error("[BALE UI] settingsContent پیدا نشد.");
+    function baleNotify(message, type = 'info') {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
             return;
         }
 
-        content.classList.add("bale-ui-content");
+        alert(message);
+    }
 
-        content.innerHTML = getBaleHTML();
 
-        injectBaleStyles();
-
-        initializeBaleUI();
-
-        loadSessions();
-    };
-
-    /* =====================================================
-       CLOSE BALE PAGE
-       ===================================================== */
-
-    window.closeBaleMessaging = function () {
-
-        console.log("[BALE UI] Closing Bale Chat");
-
-        if (BaleUIState.refreshSessionsTimer) {
-            clearInterval(BaleUIState.refreshSessionsTimer);
-            BaleUIState.refreshSessionsTimer = null;
+    function formatTime(dateValue) {
+        if (!dateValue) {
+            return '';
         }
 
-        if (BaleUIState.refreshMessagesTimer) {
-            clearInterval(BaleUIState.refreshMessagesTimer);
-            BaleUIState.refreshMessagesTimer = null;
+        const date = new Date(dateValue);
+
+        if (Number.isNaN(date.getTime())) {
+            return '';
         }
 
-        const content = document.getElementById("settingsContent");
+        return date.toLocaleTimeString('fa-IR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
 
-        if (content) {
-            content.classList.remove("bale-ui-content");
+
+    function formatDate(dateValue) {
+        if (!dateValue) {
+            return '';
         }
 
-        const settingsLayout = document.querySelector(".settings-layout");
+        const date = new Date(dateValue);
 
-        if (settingsLayout) {
-            settingsLayout.classList.remove("bale-ui-active");
+        if (Number.isNaN(date.getTime())) {
+            return '';
         }
 
-        const settingsNav = document.getElementById("settingsNav");
+        return date.toLocaleDateString('fa-IR');
+    }
 
-        if (settingsNav) {
-            settingsNav.style.display = "";
+
+    function getSessionId(session) {
+        return (
+            session?.id ??
+            session?.session_id ??
+            session?.uuid ??
+            null
+        );
+    }
+
+
+    function getSessionUserId(session) {
+        return (
+            session?.user_id ??
+            session?.userid ??
+            session?.userId ??
+            null
+        );
+    }
+
+
+    function getSessionUsername(session) {
+        return (
+            session?.username ??
+            session?.user_name ??
+            session?.name ??
+            session?.phone ??
+            'کاربر بله'
+        );
+    }
+
+
+    function getMessageText(message) {
+        return (
+            message?.message ??
+            message?.text ??
+            message?.content ??
+            ''
+        );
+    }
+
+
+    function getMessageSenderId(message) {
+        return (
+            message?.user_id ??
+            message?.userid ??
+            message?.userId ??
+            null
+        );
+    }
+
+
+    function getMessageDate(message) {
+        return (
+            message?.created_at ??
+            message?.createdAt ??
+            message?.timestamp ??
+            message?.date ??
+            null
+        );
+    }
+
+
+    function getCurrentUserId() {
+        if (BaleState.currentUserId) {
+            return BaleState.currentUserId;
         }
 
-        const settingsToggle = document.getElementById("settingsToggleBtn");
+        const session = BaleState.currentSession;
 
-        if (settingsToggle) {
-            settingsToggle.style.display = "";
+        if (session) {
+            const userId = getSessionUserId(session);
+
+            if (userId !== null && userId !== undefined) {
+                BaleState.currentUserId = userId;
+                return userId;
+            }
         }
-    };
 
-    /* =====================================================
-       HTML
-       ===================================================== */
+        return null;
+    }
 
-    function getBaleHTML() {
 
+    function getElement(id) {
+        return document.getElementById(id);
+    }
+
+
+    /* =========================================================
+       PAGE HTML
+       ========================================================= */
+
+    function getBalePageHTML() {
         return `
-            <div class="bale-ui-container">
+            <div class="bale-page" id="balePage">
 
-                <!-- =========================================
-                     USERS / SESSIONS
-                     ========================================= -->
+                <div class="bale-container">
 
-                <aside class="bale-users">
+                    <!-- =========================
+                         SIDEBAR
+                         ========================= -->
+                    <aside class="bale-sidebar" id="baleSidebar">
 
-                    <div class="bale-users-header">
+                        <div class="bale-sidebar-header">
 
-                        <div class="bale-header-content">
-
-                            <div class="bale-logo">
+                            <div class="bale-brand">
                                 <img
-                                    src="../img/images.jpg"
+                                    src="${BALE_CONFIG.ASSETS.logo}"
                                     alt="سپهر سلامتی"
+                                    class="bale-brand-logo"
                                     onerror="this.style.display='none'"
                                 >
+
+                                <div class="bale-brand-text">
+                                    <strong>ربات بله</strong>
+                                    <span>سپهر سلامتی</span>
+                                </div>
                             </div>
 
-                            <div class="bale-header-text">
-
-                                <h2>سپهر سلامتی</h2>
-
-                                <span>
-                                    بله - واحد تحول دیجیتال
-                                </span>
-
-                            </div>
-
-                        </div>
-
-                        <div class="bale-header-actions">
-
                             <button
-                                id="baleThemeToggle"
-                                class="bale-header-btn"
-                                title="تغییر تم"
+                                type="button"
+                                class="bale-icon-button bale-close-sidebar"
+                                onclick="window.closeBaleSidebar()"
+                                title="بستن"
                             >
-                                🌙
-                            </button>
-
-                            <button
-                                id="baleSearchBtn"
-                                class="bale-header-btn"
-                                title="جستجوی پیام‌ها"
-                            >
-                                🔍
-                            </button>
-
-                            <button
-                                id="baleNewChatBtn"
-                                class="bale-header-btn"
-                                title="گفتگوی جدید"
-                            >
-                                +
+                                ×
                             </button>
 
                         </div>
 
-                    </div>
 
-                    <div
-                        id="baleSessions"
-                        class="bale-sessions"
-                    ></div>
+                        <!-- Search -->
+                        <div class="bale-search-box">
 
-                </aside>
-
-
-                <!-- =========================================
-                     CHAT
-                     ========================================= -->
-
-                <section class="bale-chat">
-
-                    <div
-                        id="baleChatHeader"
-                        class="bale-chat-header"
-                    >
-
-                        <div class="bale-empty-state">
-
-                            <div class="bale-empty-icon">
-                                💬
-                            </div>
-
-                            <h3>
-                                به چت ربات بله خوش آمدید
-                            </h3>
-
-                            <p>
-                                یک گفتگو را از لیست انتخاب کنید
-                                <br>
-                                یا یک گفتگوی جدید ایجاد کنید
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    <div
-                        id="baleChatBox"
-                        class="bale-chat-box"
-                        style="display:none;"
-                    ></div>
-
-
-                    <div
-                        id="baleInputBox"
-                        class="bale-input-box"
-                        style="display:none;"
-                    >
-
-                        <div class="bale-input-container">
+                            <span class="bale-search-icon">⌕</span>
 
                             <input
-                                id="baleMsgInput"
                                 type="text"
-                                placeholder="پیام خود را بنویسید..."
+                                id="baleSessionSearch"
+                                placeholder="جستجوی گفتگو..."
                                 autocomplete="off"
                             >
 
                         </div>
 
+
+                        <!-- New Chat -->
                         <button
-                            id="baleSendBtn"
-                            class="bale-send-btn"
-                            title="ارسال پیام"
+                            type="button"
+                            class="bale-new-chat-button"
+                            onclick="window.openBaleNewChatModal()"
                         >
-                            ➤
+                            <span class="bale-plus">+</span>
+                            <span>گفتگوی جدید</span>
                         </button>
 
-                    </div>
 
-                </section>
+                        <!-- Sessions -->
+                        <div class="bale-sessions-header">
 
-
-                <!-- =========================================
-                     SEARCH
-                     ========================================= -->
-
-                <div
-                    id="baleSearchOverlay"
-                    class="bale-search-overlay"
-                >
-
-                    <div class="bale-search-container">
-
-                        <div class="bale-search-header">
-
-                            <h3>
-                                🔍 جستجوی پیام‌ها
-                            </h3>
+                            <span>گفتگوها</span>
 
                             <button
-                                id="baleSearchClose"
-                                class="bale-search-close"
+                                type="button"
+                                class="bale-refresh-button"
+                                onclick="window.loadBaleSessions(true)"
+                                title="بروزرسانی"
                             >
-                                ✕
-                            </button>
-
-                        </div>
-
-
-                        <div class="bale-search-input-row">
-
-                            <input
-                                id="baleSearchInput"
-                                class="bale-search-input"
-                                type="text"
-                                placeholder="عبارت مورد نظر را جستجو کنید..."
-                            >
-
-                            <button
-                                id="balePerformSearch"
-                                class="bale-search-button"
-                            >
-                                جستجو
+                                ↻
                             </button>
 
                         </div>
 
 
                         <div
-                            id="baleSearchResults"
-                            class="bale-search-results"
+                            class="bale-sessions"
+                            id="baleSessions"
                         >
+                            <div class="bale-loading">
+                                <div class="bale-spinner"></div>
+                                <span>در حال دریافت گفتگوها...</span>
+                            </div>
+                        </div>
 
-                            <div class="bale-search-empty">
-                                🔍
-                                <p>
-                                    عبارت مورد نظر را جستجو کنید
-                                </p>
+
+                        <div class="bale-sidebar-footer">
+
+                            <div class="bale-connection-status">
+
+                                <span class="bale-status-dot"></span>
+
+                                <span>
+                                    اتصال به سرور فعال
+                                </span>
+
                             </div>
 
                         </div>
 
+                    </aside>
+
+
+                    <!-- =========================
+                         MAIN CHAT
+                         ========================= -->
+                    <main class="bale-chat">
+
+                        <!-- Chat Header -->
+                        <header class="bale-chat-header">
+
+                            <div class="bale-chat-header-right">
+
+                                <button
+                                    type="button"
+                                    class="bale-icon-button bale-menu-button"
+                                    onclick="window.toggleBaleSidebar()"
+                                    title="گفتگوها"
+                                >
+                                    ☰
+                                </button>
+
+
+                                <div
+                                    class="bale-current-avatar"
+                                    id="baleCurrentAvatar"
+                                >
+                                    <img
+                                        src="${BALE_CONFIG.ASSETS.defaultAvatar}"
+                                        alt=""
+                                    >
+                                </div>
+
+
+                                <div class="bale-current-user">
+
+                                    <strong id="baleChatUsername">
+                                        یک گفتگو انتخاب کنید
+                                    </strong>
+
+                                    <span id="baleChatStatus">
+                                        برای شروع گفتگو، یک کاربر را انتخاب کنید
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="bale-chat-header-left">
+
+                                <button
+                                    type="button"
+                                    class="bale-icon-button"
+                                    onclick="window.refreshBaleMessages()"
+                                    title="بروزرسانی پیام‌ها"
+                                >
+                                    ↻
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="bale-icon-button"
+                                    onclick="window.closeBaleChatPage()"
+                                    title="بازگشت به داشبورد"
+                                >
+                                    ←
+                                </button>
+
+                            </div>
+
+                        </header>
+
+
+                        <!-- Chat Content -->
+                        <div
+                            class="bale-chat-box"
+                            id="baleChatBox"
+                        >
+
+                            <div class="bale-empty-chat" id="baleEmptyChat">
+
+                                <div class="bale-empty-icon">
+                                    💬
+                                </div>
+
+                                <h3>
+                                    چت ربات بله
+                                </h3>
+
+                                <p>
+                                    برای مشاهده پیام‌ها، یکی از گفتگوها را انتخاب کنید.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Message Input -->
+                        <div class="bale-input-area">
+
+                            <div class="bale-input-wrapper">
+
+                                <textarea
+                                    id="baleMsgInput"
+                                    rows="1"
+                                    placeholder="پیام خود را بنویسید..."
+                                    disabled
+                                ></textarea>
+
+
+                                <button
+                                    type="button"
+                                    id="baleSendButton"
+                                    class="bale-send-button"
+                                    onclick="window.sendBaleMessage()"
+                                    disabled
+                                    title="ارسال پیام"
+                                >
+                                    ➤
+                                </button>
+
+                            </div>
+
+                            <div class="bale-input-hint">
+                                برای ارسال پیام می‌توانید از Enter استفاده کنید.
+                                برای خط جدید Shift + Enter را بزنید.
+                            </div>
+
+                        </div>
+
+                    </main>
+
+                </div>
+
+
+                <!-- =========================
+                     SEARCH OVERLAY
+                     ========================= -->
+                <div
+                    class="bale-search-overlay"
+                    id="baleSearchOverlay"
+                    style="display:none;"
+                >
+
+                    <div class="bale-search-panel">
+
+                        <div class="bale-search-panel-header">
+
+                            <strong>
+                                نتایج جستجو
+                            </strong>
+
+                            <button
+                                type="button"
+                                class="bale-icon-button"
+                                onclick="window.closeBaleSearch()"
+                            >
+                                ×
+                            </button>
+
+                        </div>
+
+                        <div
+                            class="bale-search-results"
+                            id="baleSearchResults"
+                        ></div>
+
                     </div>
 
                 </div>
 
 
-                <!-- =========================================
+                <!-- =========================
                      NEW CHAT MODAL
-                     ========================================= -->
-
+                     ========================= -->
                 <div
-                    id="baleNewChatModal"
                     class="bale-modal"
+                    id="baleNewChatModal"
+                    style="display:none;"
                 >
+
+                    <div
+                        class="bale-modal-backdrop"
+                        onclick="window.closeBaleNewChatModal()"
+                    ></div>
+
 
                     <div class="bale-modal-content">
 
-                        <h3>
-                            ایجاد گفتگوی جدید
-                        </h3>
+                        <div class="bale-modal-header">
 
-                        <input
-                            id="baleUsernameInput"
-                            type="text"
-                            placeholder="نام کاربری را وارد کنید..."
-                        >
+                            <div>
+                                <strong>
+                                    ایجاد گفتگوی جدید
+                                </strong>
 
-                        <div class="bale-modal-buttons">
+                                <span>
+                                    نام کاربری بله را وارد کنید.
+                                </span>
+                            </div>
 
                             <button
-                                id="baleCreateChat"
-                                class="bale-primary-btn"
+                                type="button"
+                                class="bale-icon-button"
+                                onclick="window.closeBaleNewChatModal()"
                             >
-                                ایجاد گفتگو
+                                ×
                             </button>
 
+                        </div>
+
+
+                        <div class="bale-modal-body">
+
+                            <label for="baleNewChatUsername">
+                                نام کاربری
+                            </label>
+
+                            <input
+                                type="text"
+                                id="baleNewChatUsername"
+                                placeholder="مثلاً @username"
+                                autocomplete="off"
+                            >
+
+                        </div>
+
+
+                        <div class="bale-modal-footer">
+
                             <button
-                                id="baleCloseModal"
-                                class="bale-secondary-btn"
+                                type="button"
+                                class="bale-secondary-button"
+                                onclick="window.closeBaleNewChatModal()"
                             >
                                 انصراف
                             </button>
 
+                            <button
+                                type="button"
+                                class="bale-primary-button"
+                                onclick="window.createBaleChat()"
+                            >
+                                ایجاد گفتگو
+                            </button>
+
                         </div>
 
                     </div>
@@ -398,2374 +576,3052 @@
         `;
     }
 
-    /* =====================================================
-       INITIALIZE
-       ===================================================== */
 
-    function initializeBaleUI() {
-
-        initTheme();
-
-        document
-            .getElementById("baleThemeToggle")
-            ?.addEventListener("click", toggleTheme);
-
-        document
-            .getElementById("baleNewChatBtn")
-            ?.addEventListener("click", openNewChatModal);
-
-        document
-            .getElementById("baleCloseModal")
-            ?.addEventListener("click", closeNewChatModal);
-
-        document
-            .getElementById("baleCreateChat")
-            ?.addEventListener("click", createChat);
-
-        document
-            .getElementById("baleSearchBtn")
-            ?.addEventListener("click", openSearch);
-
-        document
-            .getElementById("baleSearchClose")
-            ?.addEventListener("click", closeSearch);
-
-        document
-            .getElementById("balePerformSearch")
-            ?.addEventListener("click", performSearch);
-
-        document
-            .getElementById("baleSendBtn")
-            ?.addEventListener("click", sendMessage);
-
-        document
-            .getElementById("baleMsgInput")
-            ?.addEventListener("keypress", event => {
-
-                if (event.key === "Enter") {
-                    sendMessage();
-                }
-
-            });
-
-        document
-            .getElementById("baleSearchInput")
-            ?.addEventListener("keypress", event => {
-
-                if (event.key === "Enter") {
-                    performSearch();
-                }
-
-            });
-
-        document
-            .getElementById("baleSearchOverlay")
-            ?.addEventListener("click", event => {
-
-                if (event.target.id === "baleSearchOverlay") {
-                    closeSearch();
-                }
-
-            });
-
-        document
-            .getElementById("baleNewChatModal")
-            ?.addEventListener("click", event => {
-
-                if (event.target.id === "baleNewChatModal") {
-                    closeNewChatModal();
-                }
-
-            });
-
-        startRefreshTimers();
-    }
-
-    /* =====================================================
-       THEME
-       ===================================================== */
-
-    function initTheme() {
-
-        const savedTheme =
-            localStorage.getItem("baleChatTheme") || "light";
-
-        document
-            .documentElement
-            .setAttribute("data-bale-theme", savedTheme);
-
-        updateThemeIcon(savedTheme);
-    }
-
-    function toggleTheme() {
-
-        const current =
-            document.documentElement.getAttribute("data-bale-theme");
-
-        const next =
-            current === "dark" ? "light" : "dark";
-
-        document
-            .documentElement
-            .setAttribute("data-bale-theme", next);
-
-        localStorage.setItem("baleChatTheme", next);
-
-        updateThemeIcon(next);
-    }
-
-    function updateThemeIcon(theme) {
-
-        const btn =
-            document.getElementById("baleThemeToggle");
-
-        if (btn) {
-            btn.textContent =
-                theme === "dark" ? "☀️" : "🌙";
-        }
-    }
-
-    /* =====================================================
-       NEW CHAT
-       ===================================================== */
-
-    function openNewChatModal() {
-
-        const modal =
-            document.getElementById("baleNewChatModal");
-
-        if (!modal) return;
-
-        modal.style.display = "flex";
-
-        setTimeout(() => {
-
-            document
-                .getElementById("baleUsernameInput")
-                ?.focus();
-
-        }, 100);
-    }
-
-    function closeNewChatModal() {
-
-        const modal =
-            document.getElementById("baleNewChatModal");
-
-        if (modal) {
-            modal.style.display = "none";
-        }
-
-        const input =
-            document.getElementById("baleUsernameInput");
-
-        if (input) {
-            input.value = "";
-        }
-    }
-
-    async function createChat() {
-
-        const input =
-            document.getElementById("baleUsernameInput");
-
-        const username =
-            input?.value.trim();
-
-        if (!username) {
-
-            alert("لطفاً نام کاربری را وارد کنید.");
-
-            return;
-        }
-
-        const btn =
-            document.getElementById("baleCreateChat");
-
-        try {
-
-            btn.disabled = true;
-            btn.innerHTML = `
-                <span class="bale-spinner"></span>
-            `;
-
-            const response =
-                await fetch(BALE_CREATE_WEBHOOK, {
-
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        username
-                    })
-
-                });
-
-            if (!response.ok) {
-                throw new Error("Webhook Error");
-            }
-
-            await response.json();
-
-            closeNewChatModal();
-
-            await loadSessions();
-
-        } catch (error) {
-
-            console.error(
-                "[BALE UI] createChat:",
-                error
-            );
-
-            alert("خطا در ایجاد گفتگو");
-
-        } finally {
-
-            btn.disabled = false;
-            btn.textContent = "ایجاد گفتگو";
-        }
-    }
-
-    /* =====================================================
-       LOAD SESSIONS
-       ===================================================== */
-
-    async function loadSessions() {
-
-        try {
-
-            const response =
-                await fetch(`${BALE_API}/sessions`);
-
-            if (!response.ok) {
-                throw new Error("Sessions API Error");
-            }
-
-            let sessions =
-                await response.json();
-
-            sessions.sort(
-                (a, b) =>
-                    new Date(b.updated_at) -
-                    new Date(a.updated_at)
-            );
-
-            BaleUIState.sessions = sessions;
-
-            renderSessions(sessions);
-
-        } catch (error) {
-
-            console.error(
-                "[BALE UI] loadSessions:",
-                error
-            );
-
-            const box =
-                document.getElementById("baleSessions");
-
-            if (box) {
-
-                box.innerHTML = `
-                    <div class="bale-error-state">
-                        ⚠️
-                        <p>
-                            خطا در دریافت گفتگوها
-                        </p>
-                    </div>
-                `;
-            }
-        }
-    }
-
-    /* =====================================================
-       RENDER SESSIONS
-       ===================================================== */
-
-    function renderSessions(sessions) {
-
-        const box =
-            document.getElementById("baleSessions");
-
-        if (!box) return;
-
-        box.innerHTML = "";
-
-        if (!sessions.length) {
-
-            box.innerHTML = `
-                <div class="bale-empty-sessions">
-
-                    <div>
-                        📭
-                    </div>
-
-                    <p>
-                        هنوز گفتگویی وجود ندارد
-                    </p>
-
-                </div>
-            `;
-
-            return;
-        }
-
-        sessions.forEach(session => {
-
-            if (
-                BaleUIState.lastSessionUpdate[session.id] &&
-                BaleUIState.lastSessionUpdate[session.id]
-                    !== session.updated_at &&
-                BaleUIState.currentSession !== session.id
-            ) {
-
-                BaleUIState.unread[session.id] =
-                    (BaleUIState.unread[session.id] || 0) + 1;
-            }
-
-            BaleUIState.lastSessionUpdate[session.id] =
-                session.updated_at;
-
-            const item =
-                document.createElement("div");
-
-            item.className =
-                "bale-user" +
-                (
-                    BaleUIState.currentSession === session.id
-                        ? " active"
-                        : ""
-                );
-
-            const initial =
-                session.user_id
-                    ? String(session.user_id)
-                        .charAt(0)
-                        .toUpperCase()
-                    : "?";
-
-            const unread =
-                BaleUIState.unread[session.id] || 0;
-
-            item.innerHTML = `
-
-                <div class="bale-user-content">
-
-                    <div class="bale-user-avatar">
-                        ${escapeHTML(initial)}
-                    </div>
-
-                    <div class="bale-user-info">
-
-                        <div class="bale-uid">
-                            ${escapeHTML(session.user_id || "بدون نام")}
-                        </div>
-
-                        <div class="bale-user-title">
-                            ${escapeHTML(session.title || "گفتگوی جدید")}
-                        </div>
-
-                        <div class="bale-utime">
-                            ${formatDate(session.updated_at)}
-                        </div>
-
-                    </div>
-
-                </div>
-
-                ${
-                    unread
-                        ? `<div class="bale-unread-badge">${unread}</div>`
-                        : ""
-                }
-
-            `;
-
-            item.addEventListener(
-                "click",
-                () => selectSession(session)
-            );
-
-            box.appendChild(item);
-        });
-    }
-
-    /* =====================================================
-       SELECT SESSION
-       ===================================================== */
-
-    async function selectSession(session) {
-
-        BaleUIState.currentSession = session.id;
-        BaleUIState.currentUserId = session.user_id;
-
-        BaleUIState.unread[session.id] = 0;
-
-        BaleUIState.lastMessageCount = 0;
-        BaleUIState.isInitialLoad = true;
-
-        const initial =
-            session.user_id
-                ? String(session.user_id)
-                    .charAt(0)
-                    .toUpperCase()
-                : "?";
-
-        const header =
-            document.getElementById("baleChatHeader");
-
-        if (header) {
-
-            header.innerHTML = `
-
-                <button
-                    class="bale-mobile-back"
-                    onclick="baleGoBackToSidebar()"
-                >
-                    →
-                </button>
-
-                <div class="bale-chat-header-avatar">
-                    ${escapeHTML(initial)}
-                </div>
-
-                <div class="bale-chat-header-info">
-
-                    <h2>
-                        ${escapeHTML(session.user_id || "کاربر")}
-                    </h2>
-
-                    <span>
-                        <span class="bale-status-dot"></span>
-                        آنلاین
-                        •
-                        ${escapeHTML(session.title || "گفتگو")}
-                    </span>
-
-                </div>
-            `;
-        }
-
-        const chatBox =
-            document.getElementById("baleChatBox");
-
-        const inputBox =
-            document.getElementById("baleInputBox");
-
-        if (chatBox) {
-            chatBox.style.display = "flex";
-        }
-
-        if (inputBox) {
-            inputBox.style.display = "flex";
-        }
-
-        const users =
-            document.querySelector(".bale-users");
-
-        const chat =
-            document.querySelector(".bale-chat");
-
-        if (window.innerWidth <= 768) {
-
-            users?.classList.add("show-chat");
-            chat?.classList.add("show-chat");
-        }
-
-        renderSessions(BaleUIState.sessions);
-
-        await loadMessages();
-    }
-
-    /* =====================================================
-       LOAD MESSAGES
-       ===================================================== */
-
-    async function loadMessages() {
-
-        if (!BaleUIState.currentSession) {
-            return;
-        }
-
-        try {
-
-            const response =
-                await fetch(
-                    `${BALE_API}/messages/${BaleUIState.currentSession}`
-                );
-
-            if (!response.ok) {
-                throw new Error("Messages API Error");
-            }
-
-            const messages =
-                await response.json();
-
-            const chatBox =
-                document.getElementById("baleChatBox");
-
-            if (!chatBox) return;
-
-            if (
-                messages.length ===
-                BaleUIState.lastMessageCount &&
-                !BaleUIState.isInitialLoad
-            ) {
-                return;
-            }
-
-            const wasAtBottom =
-                chatBox.scrollHeight -
-                chatBox.scrollTop <=
-                chatBox.clientHeight + 50;
-
-            BaleUIState.lastMessageCount =
-                messages.length;
-
-            chatBox.innerHTML = "";
-
-            if (!messages.length) {
-
-                chatBox.innerHTML = `
-
-                    <div class="bale-empty-state">
-
-                        <div class="bale-empty-icon">
-                            ✨
-                        </div>
-
-                        <h3>
-                            شروع مکالمه
-                        </h3>
-
-                        <p>
-                            هنوز پیامی رد و بدل نشده است
-                        </p>
-
-                    </div>
-                `;
-
-                BaleUIState.isInitialLoad = false;
-
-                return;
-            }
-
-            messages.forEach(message => {
-
-                const isUser =
-                    message.sender_type === "user";
-
-                const wrapper =
-                    document.createElement("div");
-
-                wrapper.className =
-                    "bale-message-wrapper" +
-                    (isUser ? " me-wrapper" : "");
-
-                const avatar =
-                    isUser
-                        ? "images.jpg"
-                        : "navid.jpg";
-
-                const time =
-                    message.created_at
-                        ? formatTime(message.created_at)
-                        : formatTime(new Date());
-
-                wrapper.innerHTML = `
-
-                    <div class="bale-message-avatar">
-
-                        <img
-                            src="${avatar}"
-                            alt=""
-                            onerror="this.style.display='none'"
-                        >
-
-                    </div>
-
-                    <div class="bale-message ${
-                        isUser ? "me" : "other"
-                    }">
-
-                        <div>
-                            ${escapeHTML(message.message || "")}
-                        </div>
-
-                        <div class="bale-message-time">
-                            ${time}
-                        </div>
-
-                    </div>
-                `;
-
-                chatBox.appendChild(wrapper);
-            });
-
-            BaleUIState.isInitialLoad = false;
-
-            if (wasAtBottom) {
-                chatBox.scrollTop =
-                    chatBox.scrollHeight;
-            }
-
-        } catch (error) {
-
-            console.error(
-                "[BALE UI] loadMessages:",
-                error
-            );
-        }
-    }
-
-    /* =====================================================
-       SEND MESSAGE
-       ===================================================== */
-
-    async function sendMessage() {
-
-        const input =
-            document.getElementById("baleMsgInput");
-
-        const text =
-            input?.value.trim();
-
-        if (!BaleUIState.currentSession) {
-
-            alert("ابتدا یک گفتگو را انتخاب کنید.");
-
-            return;
-        }
-
-        if (!text) return;
-
-        const btn =
-            document.getElementById("baleSendBtn");
-
-        try {
-
-            btn.disabled = true;
-
-            btn.innerHTML =
-                `<span class="bale-spinner"></span>`;
-
-            const response =
-                await fetch(BALE_WEBHOOK, {
-
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify({
-
-                        session_id:
-                            BaleUIState.currentSession,
-
-                        user_id:
-                            BaleUIState.currentUserId,
-
-                        message: text
-
-                    })
-                });
-
-            if (!response.ok) {
-                throw new Error("Webhook Error");
-            }
-
-            input.value = "";
-
-            await loadMessages();
-
-        } catch (error) {
-
-            console.error(
-                "[BALE UI] sendMessage:",
-                error
-            );
-
-            alert("ارسال پیام انجام نشد.");
-
-        } finally {
-
-            btn.disabled = false;
-            btn.innerHTML = "➤";
-        }
-    }
-
-    /* =====================================================
-       SEARCH
-       ===================================================== */
-
-    function openSearch() {
-
-        const overlay =
-            document.getElementById("baleSearchOverlay");
-
-        if (!overlay) return;
-
-        overlay.classList.add("active");
-
-        document
-            .getElementById("baleSearchInput")
-            ?.focus();
-    }
-
-    function closeSearch() {
-
-        const overlay =
-            document.getElementById("baleSearchOverlay");
-
-        overlay?.classList.remove("active");
-
-        const input =
-            document.getElementById("baleSearchInput");
-
-        if (input) {
-            input.value = "";
-        }
-    }
-
-    async function performSearch() {
-
-        const input =
-            document.getElementById("baleSearchInput");
-
-        const query =
-            input?.value.trim();
-
-        if (!query) {
-
-            alert("لطفاً عبارتی برای جستجو وارد کنید.");
-
-            return;
-        }
-
-        const results =
-            document.getElementById("baleSearchResults");
-
-        results.innerHTML = `
-
-            <div class="bale-search-empty">
-
-                <span class="bale-spinner dark"></span>
-
-                <p>
-                    در حال جستجو...
-                </p>
-
-            </div>
-        `;
-
-        try {
-
-            const response =
-                await fetch(`${BALE_API}/sessions`);
-
-            if (!response.ok) {
-                throw new Error("Sessions API Error");
-            }
-
-            const sessions =
-                await response.json();
-
-            const searchResults = [];
-
-            for (const session of sessions) {
-
-                try {
-
-                    const messagesResponse =
-                        await fetch(
-                            `${BALE_API}/messages/${session.id}`
-                        );
-
-                    if (!messagesResponse.ok) {
-                        continue;
-                    }
-
-                    const messages =
-                        await messagesResponse.json();
-
-                    messages.forEach(message => {
-
-                        const text =
-                            String(message.message || "");
-
-                        if (
-                            text
-                                .toLowerCase()
-                                .includes(query.toLowerCase())
-                        ) {
-
-                            searchResults.push({
-
-                                userId:
-                                    session.user_id,
-
-                                sessionTitle:
-                                    session.title,
-
-                                message:
-                                    text,
-
-                                senderType:
-                                    message.sender_type
-                            });
-                        }
-
-                    });
-
-                } catch (error) {
-
-                    console.warn(
-                        "[BALE UI] Search session failed:",
-                        session.id
-                    );
-                }
-            }
-
-            renderSearchResults(
-                searchResults,
-                query
-            );
-
-        } catch (error) {
-
-            console.error(
-                "[BALE UI] search:",
-                error
-            );
-
-            results.innerHTML = `
-
-                <div class="bale-search-empty">
-
-                    <div>
-                        ⚠️
-                    </div>
-
-                    <p>
-                        خطا در جستجو
-                    </p>
-
-                </div>
-            `;
-        }
-    }
-
-    function renderSearchResults(results, query) {
-
-        const container =
-            document.getElementById("baleSearchResults");
-
-        if (!results.length) {
-
-            container.innerHTML = `
-
-                <div class="bale-search-empty">
-
-                    <div>
-                        😔
-                    </div>
-
-                    <p>
-                        نتیجه‌ای یافت نشد
-                    </p>
-
-                </div>
-            `;
-
-            return;
-        }
-
-        container.innerHTML =
-            results.map(result => {
-
-                const highlighted =
-                    highlightText(
-                        result.message,
-                        query
-                    );
-
-                return `
-
-                    <div class="bale-search-result">
-
-                        <div class="bale-search-user">
-
-                            ${escapeHTML(
-                                result.userId || "کاربر"
-                            )}
-
-                            •
-
-                            ${
-                                result.senderType === "user"
-                                    ? "کاربر"
-                                    : "بات"
-                            }
-
-                        </div>
-
-                        <div class="bale-search-message">
-                            ${highlighted}
-                        </div>
-
-                    </div>
-                `;
-
-            }).join("");
-    }
-
-    /* =====================================================
-       MOBILE
-       ===================================================== */
-
-    window.baleGoBackToSidebar =
-        function () {
-
-            if (window.innerWidth > 768) {
-                return;
-            }
-
-            document
-                .querySelector(".bale-users")
-                ?.classList.remove("show-chat");
-
-            document
-                .querySelector(".bale-chat")
-                ?.classList.remove("show-chat");
-        };
-
-    /* =====================================================
-       REFRESH
-       ===================================================== */
-
-    function startRefreshTimers() {
-
-        if (BaleUIState.refreshSessionsTimer) {
-            clearInterval(
-                BaleUIState.refreshSessionsTimer
-            );
-        }
-
-        if (BaleUIState.refreshMessagesTimer) {
-            clearInterval(
-                BaleUIState.refreshMessagesTimer
-            );
-        }
-
-        BaleUIState.refreshSessionsTimer =
-            setInterval(
-                loadSessions,
-                15000
-            );
-
-        BaleUIState.refreshMessagesTimer =
-            setInterval(
-                async () => {
-
-                    if (
-                        BaleUIState.currentSession
-                    ) {
-
-                        try {
-
-                            const response =
-                                await fetch(
-                                    `${BALE_API}/messages/${BaleUIState.currentSession}`
-                                );
-
-                            const messages =
-                                await response.json();
-
-                            if (
-                                messages.length >
-                                BaleUIState.lastMessageCount
-                            ) {
-
-                                await loadMessages();
-                            }
-
-                        } catch (error) {
-
-                            // Background refresh
-                            // intentionally silent
-                        }
-                    }
-
-                },
-                5000
-            );
-    }
-
-    /* =====================================================
-       HELPERS
-       ===================================================== */
-
-    function escapeHTML(value) {
-
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    function escapeRegex(value) {
-
-        return String(value)
-            .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }
-
-    function highlightText(text, query) {
-
-        const safeText =
-            escapeHTML(text);
-
-        const regex =
-            new RegExp(
-                `(${escapeRegex(query)})`,
-                "gi"
-            );
-
-        return safeText.replace(
-            regex,
-            '<span class="bale-search-highlight">$1</span>'
-        );
-    }
-
-    function formatDate(date) {
-
-        try {
-
-            return new Date(date)
-                .toLocaleString("fa-IR");
-
-        } catch {
-
-            return "";
-        }
-    }
-
-    function formatTime(date) {
-
-        try {
-
-            return new Date(date)
-                .toLocaleTimeString(
-                    "fa-IR",
-                    {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                    }
-                );
-
-        } catch {
-
-            return "";
-        }
-    }
-
-    /* =====================================================
-       STYLES
-       ===================================================== */
+    /* =========================================================
+       CSS
+       ========================================================= */
 
     function injectBaleStyles() {
 
-        if (document.getElementById("baleUIStyles")) {
+        if (document.getElementById('baleUIStyles')) {
             return;
         }
 
-        const style =
-            document.createElement("style");
+        const style = document.createElement('style');
 
-        style.id = "baleUIStyles";
+        style.id = 'baleUIStyles';
 
         style.textContent = `
 
-        /* =================================================
-           BALE DASHBOARD OVERRIDE
-           ================================================= */
+        /* =====================================================
+           DASHBOARD MODE
+           ===================================================== */
 
-        .settings-layout.bale-ui-active {
+        .settings-layout.bale-dashboard-mode {
             display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        .bale-ui-content {
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
             height: calc(100vh - 70px) !important;
+            min-height: 0 !important;
+            padding: 0 !important;
             overflow: hidden !important;
         }
 
-        [data-bale-theme="light"] {}
+        .settings-layout.bale-dashboard-mode .settings-nav {
+            display: none !important;
+        }
 
-        [data-bale-theme="dark"] {}
+        .settings-layout.bale-dashboard-mode .settings-nav-overlay {
+            display: none !important;
+        }
 
-        .bale-ui-container {
+        .settings-layout.bale-dashboard-mode .settings-content {
+            width: 100% !important;
+            max-width: none !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+        }
 
-            --bale-primary: #4da6ff;
-            --bale-primary-dark: #3399ff;
-            --bale-primary-light: #80c4ff;
-            --bale-accent: #7c4dff;
 
-            --bale-bg: #f0f4f8;
-            --bale-sidebar: #ffffff;
-            --bale-chat-bg: #e8f0fe;
+        /* =====================================================
+           PAGE
+           ===================================================== */
 
-            --bale-text: #1a1a2e;
-            --bale-secondary: #5a6c7d;
-            --bale-muted: #8899aa;
-
-            --bale-border: rgba(0,0,0,.08);
+        .bale-page {
+            --bale-primary: #1687f8;
+            --bale-primary-dark: #0875df;
+            --bale-bg: #f4f7fb;
+            --bale-panel: #ffffff;
+            --bale-border: #e5eaf1;
+            --bale-text: #172033;
+            --bale-muted: #7b8496;
+            --bale-hover: #f1f6fc;
+            --bale-message: #e9f4ff;
 
             width: 100%;
             height: 100%;
-
-            display: flex;
-
             direction: rtl;
-
-            background: var(--bale-bg);
-
+            font-family: inherit;
             color: var(--bale-text);
-
-            font-family:
-                'Vazirmatn',
-                Tahoma,
-                sans-serif;
-
+            background: var(--bale-bg);
             overflow: hidden;
         }
 
 
-        /* =================================================
-           USERS
-           ================================================= */
-
-        .bale-users {
-
-            width: 360px;
-
-            flex-shrink: 0;
-
-            background:
-                var(--bale-sidebar);
-
+        .bale-container {
             display: flex;
-
-            flex-direction: column;
-
-            border-left:
-                1px solid var(--bale-border);
-
-            box-shadow:
-                2px 0 20px rgba(0,0,0,.05);
-
-            z-index: 10;
-        }
-
-
-        .bale-users-header {
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: space-between;
-
-            padding: 16px;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    var(--bale-primary),
-                    var(--bale-primary-dark)
-                );
-
-            color: white;
-        }
-
-
-        .bale-header-content {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 10px;
-
-            min-width: 0;
-        }
-
-
-        .bale-logo {
-
-            width: 44px;
-
-            height: 44px;
-
-            border-radius: 12px;
-
-            overflow: hidden;
-
-            border:
-                2px solid rgba(255,255,255,.3);
-
-            flex-shrink: 0;
-        }
-
-
-        .bale-logo img {
-
             width: 100%;
             height: 100%;
+            overflow: hidden;
+            background: var(--bale-panel);
+        }
 
+
+        /* =====================================================
+           SIDEBAR
+           ===================================================== */
+
+        .bale-sidebar {
+            width: 330px;
+            min-width: 330px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border-left: 1px solid var(--bale-border);
+            overflow: hidden;
+            z-index: 20;
+        }
+
+
+        .bale-sidebar-header {
+            height: 76px;
+            min-height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+            border-bottom: 1px solid var(--bale-border);
+        }
+
+
+        .bale-brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+
+        .bale-brand-logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid var(--bale-border);
+        }
+
+
+        .bale-brand-text {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+
+        .bale-brand-text strong {
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+
+        .bale-brand-text span {
+            font-size: 11px;
+            color: var(--bale-muted);
+        }
+
+
+        .bale-icon-button {
+            border: 0;
+            background: transparent;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            cursor: pointer;
+            color: var(--bale-muted);
+            font-size: 19px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: .2s ease;
+        }
+
+
+        .bale-icon-button:hover {
+            background: var(--bale-hover);
+            color: var(--bale-primary);
+        }
+
+
+        .bale-close-sidebar {
+            display: none;
+        }
+
+
+        /* =====================================================
+           SEARCH
+           ===================================================== */
+
+        .bale-search-box {
+            margin: 14px;
+            height: 42px;
+            border: 1px solid var(--bale-border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            background: #fafbfd;
+        }
+
+
+        .bale-search-icon {
+            color: var(--bale-muted);
+            font-size: 20px;
+            margin-left: 8px;
+        }
+
+
+        .bale-search-box input {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            font-family: inherit;
+            font-size: 12px;
+            color: var(--bale-text);
+        }
+
+
+        .bale-search-box input::placeholder {
+            color: #a2a9b6;
+        }
+
+
+        /* =====================================================
+           NEW CHAT
+           ===================================================== */
+
+        .bale-new-chat-button {
+            margin: 0 14px 14px;
+            height: 43px;
+            border: 0;
+            border-radius: 11px;
+            background: var(--bale-primary);
+            color: #fff;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: .2s ease;
+        }
+
+
+        .bale-new-chat-button:hover {
+            background: var(--bale-primary-dark);
+            transform: translateY(-1px);
+        }
+
+
+        .bale-plus {
+            font-size: 20px;
+            line-height: 1;
+        }
+
+
+        /* =====================================================
+           SESSIONS
+           ===================================================== */
+
+        .bale-sessions-header {
+            height: 40px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 17px;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--bale-muted);
+        }
+
+
+        .bale-refresh-button {
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            color: var(--bale-muted);
+            font-size: 18px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+        }
+
+
+        .bale-refresh-button:hover {
+            background: var(--bale-hover);
+            color: var(--bale-primary);
+        }
+
+
+        .bale-sessions {
+            flex: 1;
+            overflow-y: auto;
+            padding: 3px 8px;
+        }
+
+
+        .bale-sessions::-webkit-scrollbar,
+        .bale-chat-box::-webkit-scrollbar {
+            width: 5px;
+        }
+
+
+        .bale-sessions::-webkit-scrollbar-thumb,
+        .bale-chat-box::-webkit-scrollbar-thumb {
+            background: #d5dbe5;
+            border-radius: 20px;
+        }
+
+
+        .bale-session {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 10px;
+            margin-bottom: 3px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: .18s ease;
+            border: 1px solid transparent;
+        }
+
+
+        .bale-session:hover {
+            background: var(--bale-hover);
+        }
+
+
+        .bale-session.active {
+            background: #edf6ff;
+            border-color: #d8ebff;
+        }
+
+
+        .bale-session-avatar {
+            width: 43px;
+            height: 43px;
+            min-width: 43px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #eef2f7;
+        }
+
+
+        .bale-session-avatar img {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
         }
 
 
-        .bale-header-text {
-
+        .bale-session-info {
+            flex: 1;
             min-width: 0;
         }
 
 
-        .bale-header-text h2 {
-
-            font-size: 15px;
-
-            font-weight: 700;
-
-            color: white;
-
-            margin: 0 0 3px;
-        }
-
-
-        .bale-header-text span {
-
-            font-size: 11px;
-
-            color:
-                rgba(255,255,255,.85);
-        }
-
-
-        .bale-header-actions {
-
-            display: flex;
-
-            gap: 5px;
-
-            flex-shrink: 0;
-        }
-
-
-        .bale-header-btn {
-
-            width: 36px;
-
-            height: 36px;
-
-            border: none;
-
-            border-radius: 10px;
-
-            background:
-                rgba(255,255,255,.2);
-
-            color: white;
-
-            cursor: pointer;
-
-            font-size: 16px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            transition: .2s;
-        }
-
-
-        .bale-header-btn:hover {
-
-            background:
-                rgba(255,255,255,.32);
-
-            transform: scale(1.05);
-        }
-
-
-        /* =================================================
-           SESSIONS
-           ================================================= */
-
-        .bale-sessions {
-
-            flex: 1;
-
-            overflow-y: auto;
-
-            padding: 10px;
-        }
-
-
-        .bale-user {
-
-            padding: 12px;
-
+        .bale-session-name {
+            display: block;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             margin-bottom: 5px;
-
-            border-radius: 14px;
-
-            cursor: pointer;
-
-            border:
-                1px solid transparent;
-
-            transition: .2s;
-
-            position: relative;
         }
 
 
-        .bale-user:hover {
-
-            background:
-                rgba(77,166,255,.06);
-
-            border-color:
-                rgba(77,166,255,.15);
-        }
-
-
-        .bale-user.active {
-
-            background:
-                rgba(77,166,255,.12);
-
-            border-color:
-                rgba(77,166,255,.28);
-        }
-
-
-        .bale-user-content {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 10px;
-        }
-
-
-        .bale-user-avatar {
-
-            width: 46px;
-
-            height: 46px;
-
-            flex-shrink: 0;
-
-            border-radius: 13px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    var(--bale-primary),
-                    var(--bale-accent)
-                );
-
-            color: white;
-
-            font-weight: 700;
-        }
-
-
-        .bale-user-info {
-
-            flex: 1;
-
-            min-width: 0;
-        }
-
-
-        .bale-uid {
-
-            font-size: 13px;
-
-            font-weight: 600;
-
-            overflow: hidden;
-
+        .bale-session-preview {
+            display: block;
+            font-size: 10px;
+            color: var(--bale-muted);
             white-space: nowrap;
-
+            overflow: hidden;
             text-overflow: ellipsis;
         }
 
 
-        .bale-user-title {
-
-            font-size: 11px;
-
-            color: var(--bale-secondary);
-
-            overflow: hidden;
-
-            white-space: nowrap;
-
-            text-overflow: ellipsis;
-
-            margin-top: 3px;
-        }
-
-
-        .bale-utime {
-
-            font-size: 10px;
-
-            color: var(--bale-muted);
-
-            margin-top: 5px;
-        }
-
-
-        .bale-unread-badge {
-
-            position: absolute;
-
-            left: 12px;
-
-            top: 12px;
-
-            min-width: 22px;
-
-            height: 22px;
-
-            padding: 0 6px;
-
-            border-radius: 11px;
-
-            background: #ff4757;
-
-            color: white;
-
+        .bale-session-meta {
+            align-self: flex-start;
             display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            font-size: 10px;
-
-            font-weight: 700;
-        }
-
-
-        .bale-empty-sessions,
-        .bale-error-state {
-
-            padding: 40px 20px;
-
-            text-align: center;
-
-            color: var(--bale-muted);
-
-            font-size: 13px;
-        }
-
-
-        .bale-empty-sessions div {
-
-            font-size: 42px;
-
-            margin-bottom: 10px;
-        }
-
-
-        /* =================================================
-           CHAT
-           ================================================= */
-
-        .bale-chat {
-
-            flex: 1;
-
-            min-width: 0;
-
-            display: flex;
-
             flex-direction: column;
-
-            background:
-                var(--bale-chat-bg);
-
-            position: relative;
-        }
-
-
-        .bale-chat-header {
-
-            min-height: 76px;
-
-            padding: 14px 20px;
-
-            background:
-                var(--bale-sidebar);
-
-            border-bottom:
-                1px solid var(--bale-border);
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 12px;
-
-            flex-shrink: 0;
-        }
-
-
-        .bale-chat-header-avatar {
-
-            width: 44px;
-
-            height: 44px;
-
-            border-radius: 13px;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    var(--bale-primary),
-                    var(--bale-primary-light)
-                );
-
-            color: white;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            font-weight: 700;
-        }
-
-
-        .bale-chat-header-info {
-
-            flex: 1;
-        }
-
-
-        .bale-chat-header-info h2 {
-
-            font-size: 15px;
-
-            margin: 0 0 4px;
-
-            font-weight: 600;
-        }
-
-
-        .bale-chat-header-info span {
-
-            font-size: 11px;
-
-            color: var(--bale-secondary);
-
-            display: flex;
-
-            align-items: center;
-
+            align-items: flex-end;
             gap: 5px;
+        }
+
+
+        .bale-session-time {
+            font-size: 9px;
+            color: #9ba3b2;
+            white-space: nowrap;
+        }
+
+
+        .bale-unread {
+            min-width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--bale-primary);
+            color: #fff;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+
+        .bale-loading {
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--bale-muted);
+            font-size: 11px;
+        }
+
+
+        .bale-spinner {
+            width: 27px;
+            height: 27px;
+            border-radius: 50%;
+            border: 3px solid #e4eaf2;
+            border-top-color: var(--bale-primary);
+            animation: baleSpin .8s linear infinite;
+        }
+
+
+        @keyframes baleSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+
+        .bale-no-sessions {
+            padding: 35px 20px;
+            text-align: center;
+            color: var(--bale-muted);
+            font-size: 12px;
+        }
+
+
+        /* =====================================================
+           SIDEBAR FOOTER
+           ===================================================== */
+
+        .bale-sidebar-footer {
+            padding: 13px 16px;
+            border-top: 1px solid var(--bale-border);
+        }
+
+
+        .bale-connection-status {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: #7d8798;
+            font-size: 10px;
         }
 
 
         .bale-status-dot {
-
-            width: 7px;
-
-            height: 7px;
-
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-
-            background: #00d68f;
-
-            box-shadow:
-                0 0 8px rgba(0,214,143,.5);
+            background: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
         }
 
 
-        .bale-chat-box {
+        /* =====================================================
+           CHAT
+           ===================================================== */
 
+        .bale-chat {
             flex: 1;
-
-            overflow-y: auto;
-
-            padding: 20px;
-
-            display: flex;
-
-            flex-direction: column;
-
-            gap: 12px;
-        }
-
-
-        .bale-message-wrapper {
-
-            display: flex;
-
-            align-items: flex-end;
-
-            gap: 8px;
-
-            max-width: 75%;
-        }
-
-
-        .bale-message-wrapper.me-wrapper {
-
-            flex-direction: row-reverse;
-
-            align-self: flex-start;
-        }
-
-
-        .bale-message-avatar {
-
-            width: 32px;
-
-            height: 32px;
-
-            border-radius: 9px;
-
-            overflow: hidden;
-
-            flex-shrink: 0;
-
-            background: #ddd;
-        }
-
-
-        .bale-message-avatar img {
-
-            width: 100%;
-
+            min-width: 0;
             height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+        }
 
+
+        .bale-chat-header {
+            height: 76px;
+            min-height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            background: #fff;
+            border-bottom: 1px solid var(--bale-border);
+        }
+
+
+        .bale-chat-header-right,
+        .bale-chat-header-left {
+            display: flex;
+            align-items: center;
+        }
+
+
+        .bale-chat-header-right {
+            gap: 10px;
+        }
+
+
+        .bale-chat-header-left {
+            gap: 4px;
+        }
+
+
+        .bale-menu-button {
+            display: none;
+        }
+
+
+        .bale-current-avatar {
+            width: 43px;
+            height: 43px;
+            min-width: 43px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #eef2f7;
+        }
+
+
+        .bale-current-avatar img {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
         }
 
 
-        .bale-message {
-
-            padding: 10px 14px;
-
-            border-radius: 16px;
-
-            line-height: 1.7;
-
-            font-size: 13px;
-
-            word-break: break-word;
-        }
-
-
-        .bale-message.me {
-
-            background:
-                linear-gradient(
-                    135deg,
-                    var(--bale-primary),
-                    var(--bale-primary-light)
-                );
-
-            color: white;
-
-            border-bottom-left-radius: 5px;
-        }
-
-
-        .bale-message.other {
-
-            background:
-                white;
-
-            color: var(--bale-text);
-
-            border:
-                1px solid var(--bale-border);
-
-            border-bottom-right-radius: 5px;
-        }
-
-
-        .bale-message-time {
-
-            font-size: 9px;
-
-            margin-top: 4px;
-
-            opacity: .65;
-
-            text-align: left;
-        }
-
-
-        /* =================================================
-           INPUT
-           ================================================= */
-
-        .bale-input-box {
-
+        .bale-current-user {
             display: flex;
-
-            gap: 10px;
-
-            padding: 12px 18px;
-
-            background:
-                var(--bale-sidebar);
-
-            border-top:
-                1px solid var(--bale-border);
-        }
-
-
-        .bale-input-container {
-
-            flex: 1;
-
-            background:
-                var(--bale-bg);
-
-            border-radius: 13px;
-
-            border:
-                2px solid transparent;
-
-            transition: .2s;
-        }
-
-
-        .bale-input-container:focus-within {
-
-            border-color:
-                rgba(77,166,255,.3);
-        }
-
-
-        .bale-input-container input {
-
-            width: 100%;
-
-            border: none;
-
-            outline: none;
-
-            background: transparent;
-
-            color: var(--bale-text);
-
-            padding: 13px 16px;
-
-            font-family:
-                'Vazirmatn',
-                Tahoma,
-                sans-serif;
-
-            font-size: 13px;
-        }
-
-
-        .bale-send-btn {
-
-            width: 48px;
-
-            height: 48px;
-
-            border: none;
-
-            border-radius: 13px;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    var(--bale-primary),
-                    var(--bale-primary-light)
-                );
-
-            color: white;
-
-            cursor: pointer;
-
-            font-size: 18px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-        }
-
-
-        .bale-send-btn:disabled {
-
-            opacity: .5;
-
-            cursor: not-allowed;
-        }
-
-
-        /* =================================================
-           EMPTY STATE
-           ================================================= */
-
-        .bale-empty-state {
-
-            width: 100%;
-
-            height: 100%;
-
-            display: flex;
-
             flex-direction: column;
+            gap: 5px;
+        }
 
-            align-items: center;
 
-            justify-content: center;
+        .bale-current-user strong {
+            font-size: 13px;
+            font-weight: 800;
+        }
 
-            text-align: center;
 
+        .bale-current-user span {
+            font-size: 10px;
             color: var(--bale-muted);
+        }
 
-            padding: 30px;
+
+        /* =====================================================
+           CHAT BOX
+           ===================================================== */
+
+        .bale-chat-box {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 25px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+
+        .bale-empty-chat {
+            margin: auto;
+            text-align: center;
+            color: var(--bale-muted);
+            max-width: 350px;
         }
 
 
         .bale-empty-icon {
-
-            font-size: 60px;
-
-            margin-bottom: 15px;
-
-            opacity: .6;
+            width: 70px;
+            height: 70px;
+            border-radius: 22px;
+            margin: 0 auto 15px;
+            background: #eaf4ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
         }
 
 
-        .bale-empty-state h3 {
-
-            font-size: 17px;
-
-            color: var(--bale-secondary);
-
-            margin-bottom: 7px;
+        .bale-empty-chat h3 {
+            margin: 0 0 8px;
+            color: var(--bale-text);
+            font-size: 16px;
         }
 
 
-        .bale-empty-state p {
-
+        .bale-empty-chat p {
+            margin: 0;
             font-size: 12px;
-
             line-height: 1.8;
         }
 
 
-        /* =================================================
-           SEARCH
-           ================================================= */
+        /* =====================================================
+           MESSAGE
+           ===================================================== */
+
+        .bale-message-row {
+            display: flex;
+            width: 100%;
+        }
+
+
+        .bale-message-row.incoming {
+            justify-content: flex-start;
+        }
+
+
+        .bale-message-row.outgoing {
+            justify-content: flex-end;
+        }
+
+
+        .bale-message {
+            max-width: min(70%, 650px);
+            padding: 10px 13px;
+            border-radius: 15px;
+            font-size: 12px;
+            line-height: 2;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+
+        .bale-message.incoming {
+            background: #fff;
+            border: 1px solid var(--bale-border);
+            border-bottom-right-radius: 5px;
+        }
+
+
+        .bale-message.outgoing {
+            background: var(--bale-primary);
+            color: #fff;
+            border-bottom-left-radius: 5px;
+        }
+
+
+        .bale-message-time {
+            display: block;
+            margin-top: 3px;
+            font-size: 8px;
+            opacity: .65;
+            direction: ltr;
+            text-align: left;
+        }
+
+
+        /* =====================================================
+           INPUT
+           ===================================================== */
+
+        .bale-input-area {
+            padding: 12px 20px 15px;
+            background: #fff;
+            border-top: 1px solid var(--bale-border);
+        }
+
+
+        .bale-input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 9px;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+
+        .bale-input-wrapper textarea {
+            flex: 1;
+            min-height: 44px;
+            max-height: 130px;
+            resize: none;
+            border: 1px solid var(--bale-border);
+            border-radius: 13px;
+            padding: 11px 13px;
+            outline: none;
+            background: #fafbfd;
+            font-family: inherit;
+            font-size: 12px;
+            color: var(--bale-text);
+            line-height: 1.8;
+            transition: .2s ease;
+        }
+
+
+        .bale-input-wrapper textarea:focus {
+            border-color: #a8d3ff;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(22, 135, 248, .07);
+        }
+
+
+        .bale-input-wrapper textarea:disabled {
+            cursor: not-allowed;
+            opacity: .6;
+        }
+
+
+        .bale-send-button {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            border: 0;
+            border-radius: 13px;
+            background: var(--bale-primary);
+            color: #fff;
+            cursor: pointer;
+            font-size: 19px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: .2s ease;
+        }
+
+
+        .bale-send-button:hover:not(:disabled) {
+            background: var(--bale-primary-dark);
+            transform: translateY(-1px);
+        }
+
+
+        .bale-send-button:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+
+        .bale-input-hint {
+            max-width: 1100px;
+            margin: 5px auto 0;
+            color: #9ba3b2;
+            font-size: 9px;
+        }
+
+
+        /* =====================================================
+           SEARCH OVERLAY
+           ===================================================== */
 
         .bale-search-overlay {
-
             position: fixed;
-
             inset: 0;
-
-            z-index: 9999;
-
-            display: none;
-
-            align-items: flex-start;
-
-            justify-content: center;
-
-            padding-top: 90px;
-
-            background:
-                rgba(0,0,0,.5);
-
-            backdrop-filter: blur(5px);
-        }
-
-
-        .bale-search-overlay.active {
-
+            z-index: 10000;
+            background: rgba(15, 23, 42, .35);
             display: flex;
-        }
-
-
-        .bale-search-container {
-
-            width: 90%;
-
-            max-width: 600px;
-
-            background:
-                white;
-
-            border-radius: 20px;
-
-            padding: 22px;
-
-            box-shadow:
-                0 25px 60px rgba(0,0,0,.25);
-        }
-
-
-        .bale-search-header {
-
-            display: flex;
-
             align-items: center;
-
-            gap: 10px;
-
-            margin-bottom: 16px;
+            justify-content: center;
+            padding: 20px;
         }
 
 
-        .bale-search-header h3 {
-
-            flex: 1;
-
-            font-size: 17px;
+        .bale-search-panel {
+            width: min(650px, 100%);
+            max-height: 80vh;
+            background: #fff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 20px 70px rgba(0,0,0,.18);
         }
 
 
-        .bale-search-close {
-
-            width: 34px;
-
-            height: 34px;
-
-            border: none;
-
-            border-radius: 9px;
-
-            cursor: pointer;
-        }
-
-
-        .bale-search-input-row {
-
+        .bale-search-panel-header {
+            height: 60px;
             display: flex;
-
-            gap: 8px;
-        }
-
-
-        .bale-search-input {
-
-            flex: 1;
-
-            padding: 12px 14px;
-
-            border:
-                2px solid rgba(77,166,255,.2);
-
-            border-radius: 11px;
-
-            outline: none;
-
-            font-family:
-                'Vazirmatn',
-                Tahoma,
-                sans-serif;
-        }
-
-
-        .bale-search-button {
-
-            padding: 0 20px;
-
-            border: none;
-
-            border-radius: 11px;
-
-            background:
-                var(--bale-primary);
-
-            color: white;
-
-            cursor: pointer;
-
-            font-family:
-                'Vazirmatn',
-                Tahoma,
-                sans-serif;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+            border-bottom: 1px solid var(--bale-border);
         }
 
 
         .bale-search-results {
-
-            margin-top: 15px;
-
-            max-height: 400px;
-
+            max-height: calc(80vh - 60px);
             overflow-y: auto;
+            padding: 10px;
         }
 
 
         .bale-search-result {
-
             padding: 12px;
-
-            border-radius: 10px;
-
-            margin-bottom: 6px;
-
+            border-radius: 11px;
             cursor: pointer;
         }
 
 
         .bale-search-result:hover {
-
-            background:
-                rgba(77,166,255,.08);
+            background: var(--bale-hover);
         }
 
 
-        .bale-search-user {
-
-            color: var(--bale-primary);
-
+        .bale-search-result-name {
             font-size: 12px;
-
-            font-weight: 600;
-
-            margin-bottom: 5px;
+            font-weight: 800;
+            margin-bottom: 4px;
         }
 
 
-        .bale-search-message {
-
-            font-size: 13px;
-
-            line-height: 1.7;
+        .bale-search-result-message {
+            font-size: 11px;
+            color: var(--bale-muted);
+            line-height: 1.8;
         }
 
 
-        .bale-search-highlight {
-
-            background:
-                rgba(255,213,0,.45);
-
+        .bale-highlight {
+            background: #fff0a8;
+            color: #222;
             border-radius: 3px;
-
-            padding: 1px 3px;
+            padding: 0 2px;
         }
 
 
-        .bale-search-empty {
-
-            padding: 30px;
-
-            text-align: center;
-
-            color: #8899aa;
-        }
-
-
-        /* =================================================
+        /* =====================================================
            MODAL
-           ================================================= */
+           ===================================================== */
 
         .bale-modal {
-
             position: fixed;
-
             inset: 0;
-
-            z-index: 10000;
-
-            display: none;
-
+            z-index: 11000;
+            display: flex;
             align-items: center;
-
             justify-content: center;
+            padding: 20px;
+        }
 
-            background:
-                rgba(0,0,0,.5);
 
-            backdrop-filter: blur(5px);
+        .bale-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, .4);
         }
 
 
         .bale-modal-content {
-
-            width: 400px;
-
-            max-width: 90%;
-
-            background: white;
-
-            border-radius: 20px;
-
-            padding: 25px;
-
-            box-shadow:
-                0 25px 60px rgba(0,0,0,.25);
+            position: relative;
+            width: min(440px, 100%);
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 25px 80px rgba(0,0,0,.2);
+            overflow: hidden;
         }
 
 
-        .bale-modal-content h3 {
-
-            font-size: 18px;
-
-            margin-bottom: 18px;
-        }
-
-
-        .bale-modal-content input {
-
-            width: 100%;
-
-            padding: 13px 15px;
-
-            border:
-                2px solid rgba(77,166,255,.2);
-
-            border-radius: 11px;
-
-            outline: none;
-
-            font-family:
-                'Vazirmatn',
-                Tahoma,
-                sans-serif;
-        }
-
-
-        .bale-modal-buttons {
-
+        .bale-modal-header {
+            padding: 18px 20px;
             display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--bale-border);
+        }
 
-            justify-content: flex-end;
 
+        .bale-modal-header div {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+
+        .bale-modal-header strong {
+            font-size: 15px;
+        }
+
+
+        .bale-modal-header span {
+            color: var(--bale-muted);
+            font-size: 10px;
+        }
+
+
+        .bale-modal-body {
+            padding: 20px;
+        }
+
+
+        .bale-modal-body label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+
+        .bale-modal-body input {
+            width: 100%;
+            height: 44px;
+            box-sizing: border-box;
+            border: 1px solid var(--bale-border);
+            border-radius: 11px;
+            padding: 0 12px;
+            outline: none;
+            font-family: inherit;
+            font-size: 12px;
+        }
+
+
+        .bale-modal-body input:focus {
+            border-color: #a8d3ff;
+            box-shadow: 0 0 0 3px rgba(22,135,248,.07);
+        }
+
+
+        .bale-modal-footer {
+            display: flex;
+            justify-content: flex-start;
             gap: 8px;
-
-            margin-top: 18px;
+            padding: 15px 20px;
+            border-top: 1px solid var(--bale-border);
         }
 
 
-        .bale-primary-btn,
-        .bale-secondary-btn {
-
-            padding: 11px 18px;
-
-            border: none;
-
+        .bale-primary-button,
+        .bale-secondary-button {
+            height: 40px;
+            padding: 0 18px;
             border-radius: 10px;
-
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 700;
             cursor: pointer;
-
-            font-family:
-                'Vazirmatn',
-                Tahoma,
-                sans-serif;
+            border: 0;
         }
 
 
-        .bale-primary-btn {
-
-            background:
-                var(--bale-primary);
-
-            color: white;
+        .bale-primary-button {
+            background: var(--bale-primary);
+            color: #fff;
         }
 
 
-        .bale-secondary-btn {
-
-            background:
-                #eef1f5;
-
-            color: #5a6c7d;
+        .bale-secondary-button {
+            background: #f1f4f8;
+            color: #596274;
         }
 
 
-        /* =================================================
-           SPINNER
-           ================================================= */
-
-        .bale-spinner {
-
-            width: 17px;
-
-            height: 17px;
-
-            border:
-                2px solid rgba(255,255,255,.35);
-
-            border-top-color:
-                white;
-
-            border-radius: 50%;
-
-            animation:
-                baleSpin .8s linear infinite;
-        }
-
-
-        @keyframes baleSpin {
-
-            to {
-                transform: rotate(360deg);
-            }
-
-        }
-
-
-        /* =================================================
+        /* =====================================================
            MOBILE
-           ================================================= */
+           ===================================================== */
 
-        .bale-mobile-back {
+        @media (max-width: 800px) {
 
-            display: none;
+            .bale-sidebar {
+                position: absolute;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                transform: translateX(100%);
+                transition: transform .25s ease;
+                box-shadow: -10px 0 30px rgba(0,0,0,.1);
+            }
 
-            width: 38px;
 
-            height: 38px;
+            .bale-sidebar.mobile-open {
+                transform: translateX(0);
+            }
 
-            border: none;
 
-            border-radius: 9px;
+            .bale-close-sidebar,
+            .bale-menu-button {
+                display: inline-flex;
+            }
 
-            background:
-                rgba(77,166,255,.1);
 
-            color:
-                var(--bale-primary);
+            .bale-chat-header {
+                padding: 0 10px;
+            }
 
-            font-size: 18px;
 
-            cursor: pointer;
+            .bale-chat-box {
+                padding: 15px;
+            }
+
+
+            .bale-message {
+                max-width: 85%;
+            }
+
+
+            .bale-input-area {
+                padding: 10px;
+            }
+
         }
 
 
-        @media (max-width: 768px) {
+        @media (max-width: 480px) {
 
-            .bale-users {
-
-                width: 100%;
-
-                position: absolute;
-
-                inset: 0;
-
-                transition:
-                    transform .3s ease;
+            .bale-sidebar {
+                width: 88%;
+                min-width: 88%;
             }
 
 
-            .bale-chat {
-
-                width: 100%;
-
-                position: absolute;
-
-                inset: 0;
-
-                transform:
-                    translateX(100%);
-
-                transition:
-                    transform .3s ease;
+            .bale-current-user strong {
+                font-size: 12px;
             }
 
 
-            .bale-users.show-chat {
-
-                transform:
-                    translateX(100%);
+            .bale-chat-header-left .bale-icon-button:first-child {
+                display: none;
             }
 
 
-            .bale-chat.show-chat {
-
-                transform:
-                    translateX(0);
+            .bale-input-hint {
+                display: none;
             }
 
-
-            .bale-mobile-back {
-
-                display: flex;
-
-                align-items: center;
-
-                justify-content: center;
-            }
+        }
 
 
-            .bale-message-wrapper {
+        /* =====================================================
+           DARK MODE
+           ===================================================== */
 
-                max-width: 90%;
-            }
-
-
-            .bale-users-header {
-
-                padding: 12px;
-            }
-
-
-            .bale-header-actions {
-
-                gap: 3px;
-            }
+        .bale-page.bale-dark {
+            --bale-bg: #111827;
+            --bale-panel: #182131;
+            --bale-border: #293548;
+            --bale-text: #e7edf7;
+            --bale-muted: #9ba7b9;
+            --bale-hover: #222e41;
+            --bale-message: #22324a;
+        }
 
 
-            .bale-header-btn {
+        .bale-page.bale-dark,
+        .bale-page.bale-dark .bale-chat {
+            background: var(--bale-bg);
+        }
 
-                width: 32px;
 
-                height: 32px;
+        .bale-page.bale-dark .bale-sidebar,
+        .bale-page.bale-dark .bale-chat-header,
+        .bale-page.bale-dark .bale-input-area,
+        .bale-page.bale-dark .bale-modal-content,
+        .bale-page.bale-dark .bale-search-panel {
+            background: var(--bale-panel);
+        }
 
-                font-size: 14px;
-            }
 
+        .bale-page.bale-dark .bale-search-box,
+        .bale-page.bale-dark .bale-input-wrapper textarea {
+            background: #111827;
+            color: var(--bale-text);
+        }
+
+
+        .bale-page.bale-dark .bale-message.incoming {
+            background: #202c3e;
+            color: var(--bale-text);
+        }
+
+
+        .bale-page.bale-dark .bale-session.active {
+            background: #1c3550;
+            border-color: #294d72;
         }
 
         `;
 
         document.head.appendChild(style);
     }
+
+
+    /* =========================================================
+       RENDER PAGE
+       ========================================================= */
+
+    function renderBalePage() {
+
+        injectBaleStyles();
+
+        const content = document.getElementById('settingsContent');
+
+        if (!content) {
+            console.error(
+                'Bale UI: #settingsContent پیدا نشد.'
+            );
+            return;
+        }
+
+        content.innerHTML = getBalePageHTML();
+
+        content.classList.add('bale-dashboard-content');
+
+        const page = document.getElementById('balePage');
+
+        if (page) {
+            const savedTheme =
+                localStorage.getItem('chatTheme');
+
+            if (savedTheme === 'dark') {
+                page.classList.add('bale-dark');
+            }
+        }
+
+        initializeBaleEvents();
+
+        loadBaleSessions();
+
+        startBalePolling();
+    }
+
+
+    /* =========================================================
+       INITIALIZE EVENTS
+       ========================================================= */
+
+    function initializeBaleEvents() {
+
+        const searchInput =
+            getElement('baleSessionSearch');
+
+        const messageInput =
+            getElement('baleMsgInput');
+
+        const newChatInput =
+            getElement('baleNewChatUsername');
+
+
+        /* Session search */
+
+        if (searchInput) {
+
+            searchInput.addEventListener(
+                'input',
+                function () {
+
+                    const query =
+                        this.value.trim().toLowerCase();
+
+                    if (!query) {
+                        renderBaleSessions(BaleState.sessions);
+                        return;
+                    }
+
+                    const filtered =
+                        BaleState.sessions.filter(session => {
+
+                            const username =
+                                String(
+                                    getSessionUsername(session)
+                                ).toLowerCase();
+
+                            return username.includes(query);
+                        });
+
+                    renderBaleSessions(filtered);
+
+                }
+            );
+
+        }
+
+
+        /* Message input */
+
+        if (messageInput) {
+
+            messageInput.addEventListener(
+                'keydown',
+                function (event) {
+
+                    if (
+                        event.key === 'Enter' &&
+                        !event.shiftKey
+                    ) {
+
+                        event.preventDefault();
+
+                        sendBaleMessage();
+                    }
+
+                }
+            );
+
+
+            messageInput.addEventListener(
+                'input',
+                function () {
+
+                    this.style.height = 'auto';
+
+                    this.style.height =
+                        Math.min(
+                            this.scrollHeight,
+                            130
+                        ) + 'px';
+
+                }
+            );
+
+        }
+
+
+        /* New chat Enter */
+
+        if (newChatInput) {
+
+            newChatInput.addEventListener(
+                'keydown',
+                function (event) {
+
+                    if (event.key === 'Enter') {
+
+                        event.preventDefault();
+
+                        createBaleChat();
+                    }
+
+                }
+            );
+
+        }
+    }
+
+
+    /* =========================================================
+       LOAD SESSIONS
+       ========================================================= */
+
+    async function loadBaleSessions(showNotification = false) {
+
+        if (BaleState.isLoadingSessions) {
+            return;
+        }
+
+        BaleState.isLoadingSessions = true;
+
+        try {
+
+            const response =
+                await fetch(
+                    `${BALE_CONFIG.API_BASE}/sessions`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    }
+                );
+
+            if (!response.ok) {
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+            }
+
+            const data =
+                await response.json();
+
+            let sessions = [];
+
+            if (Array.isArray(data)) {
+                sessions = data;
+            }
+            else if (Array.isArray(data.sessions)) {
+                sessions = data.sessions;
+            }
+            else if (Array.isArray(data.data)) {
+                sessions = data.data;
+            }
+
+            BaleState.sessions = sessions;
+
+            renderBaleSessions(
+                BaleState.sessions
+            );
+
+            /*
+             * اگر گفتگوی فعلی وجود دارد،
+             * اطلاعات آن را از لیست جدید بروز می‌کنیم.
+             */
+
+            if (BaleState.currentSession) {
+
+                const currentId =
+                    getSessionId(
+                        BaleState.currentSession
+                    );
+
+                const updatedSession =
+                    BaleState.sessions.find(
+                        session =>
+                            String(
+                                getSessionId(session)
+                            ) === String(currentId)
+                    );
+
+                if (updatedSession) {
+
+                    BaleState.currentSession =
+                        updatedSession;
+
+                    updateBaleChatHeader(
+                        updatedSession
+                    );
+                }
+            }
+
+
+            if (showNotification) {
+                baleNotify(
+                    'گفتگوها بروزرسانی شدند.',
+                    'success'
+                );
+            }
+
+        }
+        catch (error) {
+
+            console.error(
+                'Bale sessions error:',
+                error
+            );
+
+            renderBaleSessions([]);
+
+            baleNotify(
+                'دریافت گفتگوهای بله با خطا مواجه شد.',
+                'error'
+            );
+
+        }
+        finally {
+
+            BaleState.isLoadingSessions = false;
+
+        }
+    }
+
+
+    /* =========================================================
+       RENDER SESSIONS
+       ========================================================= */
+
+    function renderBaleSessions(sessions) {
+
+        const container =
+            getElement('baleSessions');
+
+        if (!container) {
+            return;
+        }
+
+        if (!sessions || sessions.length === 0) {
+
+            container.innerHTML = `
+                <div class="bale-no-sessions">
+                    گفتگویی پیدا نشد.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            sessions.map(session => {
+
+                const sessionId =
+                    getSessionId(session);
+
+                const username =
+                    getSessionUsername(session);
+
+                const active =
+                    BaleState.currentSession &&
+                    String(
+                        getSessionId(
+                            BaleState.currentSession
+                        )
+                    ) === String(sessionId);
+
+
+                const updatedAt =
+                    session.updated_at ??
+                    session.updatedAt ??
+                    session.created_at ??
+                    session.createdAt ??
+                    null;
+
+
+                const lastMessage =
+                    session.last_message ??
+                    session.lastMessage ??
+                    session.message ??
+                    'برای مشاهده پیام‌ها کلیک کنید';
+
+
+                return `
+                    <div
+                        class="bale-session ${active ? 'active' : ''}"
+                        data-session-id="${escapeHtml(sessionId)}"
+                        onclick="window.selectBaleSession('${escapeHtml(sessionId)}')"
+                    >
+
+                        <div class="bale-session-avatar">
+                            <img
+                                src="${BALE_CONFIG.ASSETS.defaultAvatar}"
+                                alt=""
+                                onerror="this.style.display='none'"
+                            >
+                        </div>
+
+
+                        <div class="bale-session-info">
+
+                            <span class="bale-session-name">
+                                ${escapeHtml(username)}
+                            </span>
+
+                            <span class="bale-session-preview">
+                                ${escapeHtml(lastMessage)}
+                            </span>
+
+                        </div>
+
+
+                        <div class="bale-session-meta">
+
+                            <span class="bale-session-time">
+                                ${formatTime(updatedAt)}
+                            </span>
+
+                        </div>
+
+                    </div>
+                `;
+
+            }).join('');
+    }
+
+
+    /* =========================================================
+       SELECT SESSION
+       ========================================================= */
+
+    async function selectBaleSession(sessionId) {
+
+        const session =
+            BaleState.sessions.find(
+                item =>
+                    String(
+                        getSessionId(item)
+                    ) === String(sessionId)
+            );
+
+
+        if (!session) {
+            return;
+        }
+
+
+        BaleState.currentSession = session;
+
+        BaleState.currentUserId =
+            getSessionUserId(session);
+
+
+        BaleState.isInitialMessageLoad = true;
+
+
+        updateBaleChatHeader(session);
+
+        enableBaleMessageInput();
+
+        renderBaleSessions(
+            BaleState.sessions
+        );
+
+
+        if (window.innerWidth <= 800) {
+            closeBaleSidebar();
+        }
+
+
+        await loadBaleMessages();
+    }
+
+
+    /* =========================================================
+       UPDATE CHAT HEADER
+       ========================================================= */
+
+    function updateBaleChatHeader(session) {
+
+        const username =
+            getSessionUsername(session);
+
+
+        const usernameElement =
+            getElement('baleChatUsername');
+
+        const statusElement =
+            getElement('baleChatStatus');
+
+
+        if (usernameElement) {
+            usernameElement.textContent =
+                username;
+        }
+
+
+        if (statusElement) {
+            statusElement.textContent =
+                'گفتگوی فعال در ربات بله';
+        }
+    }
+
+
+    /* =========================================================
+       ENABLE INPUT
+       ========================================================= */
+
+    function enableBaleMessageInput() {
+
+        const input =
+            getElement('baleMsgInput');
+
+        const button =
+            getElement('baleSendButton');
+
+
+        if (input) {
+            input.disabled = false;
+            input.placeholder =
+                'پیام خود را بنویسید...';
+        }
+
+
+        if (button) {
+            button.disabled = false;
+        }
+    }
+
+
+    function disableBaleMessageInput() {
+
+        const input =
+            getElement('baleMsgInput');
+
+        const button =
+            getElement('baleSendButton');
+
+
+        if (input) {
+            input.disabled = true;
+        }
+
+
+        if (button) {
+            button.disabled = true;
+        }
+    }
+
+
+    /* =========================================================
+       LOAD MESSAGES
+       ========================================================= */
+
+    async function loadBaleMessages() {
+
+        if (
+            !BaleState.currentSession ||
+            BaleState.isLoadingMessages
+        ) {
+            return;
+        }
+
+
+        const sessionId =
+            getSessionId(
+                BaleState.currentSession
+            );
+
+
+        if (!sessionId) {
+            return;
+        }
+
+
+        BaleState.isLoadingMessages = true;
+
+
+        const chatBox =
+            getElement('baleChatBox');
+
+
+        const wasAtBottom =
+            chatBox
+                ? (
+                    chatBox.scrollHeight -
+                    chatBox.scrollTop -
+                    chatBox.clientHeight
+                ) < 100
+                : true;
+
+
+        const firstLoad =
+            BaleState.isInitialMessageLoad;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `${BALE_CONFIG.API_BASE}/messages/${encodeURIComponent(sessionId)}`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    }
+                );
+
+
+            if (!response.ok) {
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+            }
+
+
+            const data =
+                await response.json();
+
+
+            let messages = [];
+
+            if (Array.isArray(data)) {
+                messages = data;
+            }
+            else if (Array.isArray(data.messages)) {
+                messages = data.messages;
+            }
+            else if (Array.isArray(data.data)) {
+                messages = data.data;
+            }
+
+
+            BaleState.messages = messages;
+
+            renderBaleMessages(messages);
+
+
+            if (chatBox && (wasAtBottom || firstLoad)) {
+
+                requestAnimationFrame(() => {
+
+                    chatBox.scrollTop =
+                        chatBox.scrollHeight;
+
+                });
+
+            }
+
+
+            BaleState.isInitialMessageLoad = false;
+
+        }
+        catch (error) {
+
+            console.error(
+                'Bale messages error:',
+                error
+            );
+
+
+            if (firstLoad) {
+
+                renderBaleMessages([]);
+
+                baleNotify(
+                    'دریافت پیام‌ها با خطا مواجه شد.',
+                    'error'
+                );
+            }
+
+        }
+        finally {
+
+            BaleState.isLoadingMessages = false;
+
+        }
+    }
+
+
+    /* =========================================================
+       RENDER MESSAGES
+       ========================================================= */
+
+    function renderBaleMessages(messages) {
+
+        const chatBox =
+            getElement('baleChatBox');
+
+        if (!chatBox) {
+            return;
+        }
+
+
+        if (!messages || messages.length === 0) {
+
+            chatBox.innerHTML = `
+                <div class="bale-empty-chat">
+
+                    <div class="bale-empty-icon">
+                        💬
+                    </div>
+
+                    <h3>
+                        هنوز پیامی وجود ندارد
+                    </h3>
+
+                    <p>
+                        اولین پیام این گفتگو را ارسال کنید.
+                    </p>
+
+                </div>
+            `;
+
+            return;
+        }
+
+
+        const currentUserId =
+            getCurrentUserId();
+
+
+        chatBox.innerHTML =
+            messages.map(message => {
+
+                const text =
+                    getMessageText(message);
+
+
+                const senderId =
+                    getMessageSenderId(message);
+
+
+                /*
+                 * اگر user_id پیام با user_id جلسه
+                 * یکی باشد، پیام ورودی در نظر گرفته می‌شود.
+                 *
+                 * اگر API شما ساختار دیگری داشته باشد،
+                 * این قسمت قابل تغییر است.
+                 */
+
+                const sessionUserId =
+                    getSessionUserId(
+                        BaleState.currentSession
+                    );
+
+
+                const isIncoming =
+                    sessionUserId !== null &&
+                    senderId !== null
+                        ? String(senderId) === String(sessionUserId)
+                        : false;
+
+
+                const type =
+                    isIncoming
+                        ? 'incoming'
+                        : 'outgoing';
+
+
+                const date =
+                    getMessageDate(message);
+
+
+                const time =
+                    formatTime(date) ||
+                    formatTime(
+                        new Date()
+                    );
+
+
+                return `
+                    <div class="bale-message-row ${type}">
+
+                        <div class="bale-message ${type}">
+
+                            ${escapeHtml(text)}
+
+                            <span class="bale-message-time">
+                                ${escapeHtml(time)}
+                            </span>
+
+                        </div>
+
+                    </div>
+                `;
+
+            }).join('');
+    }
+
+
+    /* =========================================================
+       SEND MESSAGE
+       ========================================================= */
+
+    async function sendBaleMessage() {
+
+        if (!BaleState.currentSession) {
+
+            baleNotify(
+                'ابتدا یک گفتگو را انتخاب کنید.',
+                'warning'
+            );
+
+            return;
+        }
+
+
+        const input =
+            getElement('baleMsgInput');
+
+        const button =
+            getElement('baleSendButton');
+
+
+        if (!input) {
+            return;
+        }
+
+
+        const text =
+            input.value.trim();
+
+
+        if (!text) {
+            return;
+        }
+
+
+        const sessionId =
+            getSessionId(
+                BaleState.currentSession
+            );
+
+
+        const userId =
+            getCurrentUserId();
+
+
+        if (!sessionId) {
+
+            baleNotify(
+                'شناسه گفتگو پیدا نشد.',
+                'error'
+            );
+
+            return;
+        }
+
+
+        if (
+            userId === null ||
+            userId === undefined
+        ) {
+
+            baleNotify(
+                'شناسه کاربر پیدا نشد.',
+                'error'
+            );
+
+            return;
+        }
+
+
+        const oldText =
+            input.value;
+
+
+        input.value = '';
+
+        input.style.height = 'auto';
+
+        input.disabled = true;
+
+        if (button) {
+            button.disabled = true;
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    BALE_CONFIG.SEND_WEBHOOK,
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json',
+                            'Accept':
+                                'application/json'
+                        },
+
+                        body: JSON.stringify({
+                            session_id:
+                                sessionId,
+
+                            user_id:
+                                userId,
+
+                            message:
+                                text
+                        })
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+
+            }
+
+
+            /*
+             * پیام‌ها از API اصلی دوباره خوانده می‌شوند.
+             */
+
+            await loadBaleMessages();
+
+
+        }
+        catch (error) {
+
+            console.error(
+                'Bale send message error:',
+                error
+            );
+
+
+            input.value =
+                oldText;
+
+
+            baleNotify(
+                'ارسال پیام با خطا مواجه شد.',
+                'error'
+            );
+
+        }
+        finally {
+
+            input.disabled = false;
+
+            if (button) {
+                button.disabled = false;
+            }
+
+            input.focus();
+        }
+    }
+
+
+    /* =========================================================
+       CREATE NEW CHAT
+       ========================================================= */
+
+    async function createBaleChat() {
+
+        const input =
+            getElement('baleNewChatUsername');
+
+
+        if (!input) {
+            return;
+        }
+
+
+        const username =
+            input.value.trim();
+
+
+        if (!username) {
+
+            baleNotify(
+                'نام کاربری را وارد کنید.',
+                'warning'
+            );
+
+            input.focus();
+
+            return;
+        }
+
+
+        const button =
+            document.querySelector(
+                '#baleNewChatModal .bale-primary-button'
+            );
+
+
+        if (button) {
+            button.disabled = true;
+            button.textContent =
+                'در حال ایجاد...';
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    BALE_CONFIG.CREATE_CHAT_WEBHOOK,
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json',
+
+                            'Accept':
+                                'application/json'
+                        },
+
+                        body: JSON.stringify({
+                            username: username
+                        })
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+
+            }
+
+
+            let createdData = null;
+
+            try {
+                createdData =
+                    await response.json();
+            }
+            catch (e) {
+                createdData = null;
+            }
+
+
+            closeBaleNewChatModal();
+
+
+            input.value = '';
+
+
+            baleNotify(
+                'گفتگوی جدید ایجاد شد.',
+                'success'
+            );
+
+
+            await loadBaleSessions();
+
+
+            /*
+             * اگر API شناسه session را برگرداند،
+             * سعی می‌کنیم همان گفتگو را باز کنیم.
+             */
+
+            const returnedSessionId =
+                createdData?.session_id ??
+                createdData?.sessionId ??
+                createdData?.id;
+
+
+            if (returnedSessionId) {
+
+                const newSession =
+                    BaleState.sessions.find(
+                        session =>
+                            String(
+                                getSessionId(session)
+                            ) === String(
+                                returnedSessionId
+                            )
+                    );
+
+
+                if (newSession) {
+
+                    await selectBaleSession(
+                        returnedSessionId
+                    );
+
+                    return;
+                }
+            }
+
+
+            /*
+             * در غیر این صورت کاربری که نامش
+             * با username یکی است را پیدا می‌کنیم.
+             */
+
+            const newSession =
+                BaleState.sessions.find(
+                    session =>
+                        String(
+                            getSessionUsername(session)
+                        ).toLowerCase() ===
+                        String(username).toLowerCase()
+                );
+
+
+            if (newSession) {
+
+                await selectBaleSession(
+                    getSessionId(newSession)
+                );
+            }
+
+        }
+        catch (error) {
+
+            console.error(
+                'Bale create chat error:',
+                error
+            );
+
+
+            baleNotify(
+                'ایجاد گفتگوی جدید با خطا مواجه شد.',
+                'error'
+            );
+
+        }
+        finally {
+
+            if (button) {
+
+                button.disabled = false;
+
+                button.textContent =
+                    'ایجاد گفتگو';
+            }
+        }
+    }
+
+
+    /* =========================================================
+       SEARCH
+       ========================================================= */
+
+    async function searchBaleMessages(query) {
+
+        query =
+            String(query || '').trim().toLowerCase();
+
+
+        if (!query) {
+            return;
+        }
+
+
+        const overlay =
+            getElement('baleSearchOverlay');
+
+        const resultsContainer =
+            getElement('baleSearchResults');
+
+
+        if (!overlay || !resultsContainer) {
+            return;
+        }
+
+
+        overlay.style.display = 'flex';
+
+
+        resultsContainer.innerHTML = `
+            <div class="bale-loading">
+                <div class="bale-spinner"></div>
+                <span>در حال جستجو...</span>
+            </div>
+        `;
+
+
+        const results = [];
+
+
+        try {
+
+            /*
+             * ابتدا گفتگوها را دریافت می‌کنیم.
+             */
+
+            const sessionsResponse =
+                await fetch(
+                    `${BALE_CONFIG.API_BASE}/sessions`
+                );
+
+
+            if (!sessionsResponse.ok) {
+                throw new Error(
+                    'خطا در دریافت گفتگوها'
+                );
+            }
+
+
+            const sessionsData =
+                await sessionsResponse.json();
+
+
+            let sessions = [];
+
+            if (Array.isArray(sessionsData)) {
+                sessions = sessionsData;
+            }
+            else if (
+                Array.isArray(
+                    sessionsData.sessions
+                )
+            ) {
+                sessions =
+                    sessionsData.sessions;
+            }
+            else if (
+                Array.isArray(
+                    sessionsData.data
+                )
+            ) {
+                sessions =
+                    sessionsData.data;
+            }
+
+
+            /*
+             * پیام‌های هر گفتگو را بررسی می‌کنیم.
+             */
+
+            for (const session of sessions) {
+
+                const sessionId =
+                    getSessionId(session);
+
+
+                if (!sessionId) {
+                    continue;
+                }
+
+
+                try {
+
+                    const response =
+                        await fetch(
+                            `${BALE_CONFIG.API_BASE}/messages/${encodeURIComponent(sessionId)}`
+                        );
+
+
+                    if (!response.ok) {
+                        continue;
+                    }
+
+
+                    const data =
+                        await response.json();
+
+
+                    let messages = [];
+
+                    if (Array.isArray(data)) {
+                        messages = data;
+                    }
+                    else if (
+                        Array.isArray(
+                            data.messages
+                        )
+                    ) {
+                        messages =
+                            data.messages;
+                    }
+                    else if (
+                        Array.isArray(
+                            data.data
+                        )
+                    ) {
+                        messages =
+                            data.data;
+                    }
+
+
+                    messages.forEach(message => {
+
+                        const text =
+                            getMessageText(
+                                message
+                            );
+
+
+                        if (
+                            String(text)
+                                .toLowerCase()
+                                .includes(query)
+                        ) {
+
+                            results.push({
+                                session,
+                                message
+                            });
+
+                        }
+
+                    });
+
+                }
+                catch (error) {
+
+                    console.warn(
+                        'Search session error:',
+                        error
+                    );
+
+                }
+            }
+
+
+            BaleState.searchResults =
+                results;
+
+
+            renderBaleSearchResults(
+                results,
+                query
+            );
+
+        }
+        catch (error) {
+
+            console.error(
+                'Bale search error:',
+                error
+            );
+
+
+            resultsContainer.innerHTML = `
+                <div class="bale-no-sessions">
+                    جستجو با خطا مواجه شد.
+                </div>
+            `;
+        }
+    }
+
+
+    function highlightText(text, query) {
+
+        const safeText =
+            escapeHtml(text);
+
+
+        if (!query) {
+            return safeText;
+        }
+
+
+        const escapedQuery =
+            String(query)
+                .replace(
+                    /[.*+?^${}()|[\]\\]/g,
+                    '\\$&'
+                );
+
+
+        try {
+
+            return safeText.replace(
+                new RegExp(
+                    `(${escapedQuery})`,
+                    'gi'
+                ),
+                '<span class="bale-highlight">$1</span>'
+            );
+
+        }
+        catch (error) {
+
+            return safeText;
+        }
+    }
+
+
+    function renderBaleSearchResults(
+        results,
+        query
+    ) {
+
+        const container =
+            getElement('baleSearchResults');
+
+
+        if (!container) {
+            return;
+        }
+
+
+        if (!results.length) {
+
+            container.innerHTML = `
+                <div class="bale-no-sessions">
+                    نتیجه‌ای برای
+                    «${escapeHtml(query)}»
+                    پیدا نشد.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            results.map(
+                (result, index) => {
+
+                    const session =
+                        result.session;
+
+                    const message =
+                        result.message;
+
+                    const username =
+                        getSessionUsername(
+                            session
+                        );
+
+                    const text =
+                        getMessageText(
+                            message
+                        );
+
+
+                    return `
+                        <div
+                            class="bale-search-result"
+                            onclick="window.openBaleSearchResult(${index})"
+                        >
+
+                            <div class="bale-search-result-name">
+                                ${escapeHtml(username)}
+                            </div>
+
+                            <div class="bale-search-result-message">
+                                ${highlightText(text, query)}
+                            </div>
+
+                        </div>
+                    `;
+                }
+            ).join('');
+    }
+
+
+    async function openBaleSearchResult(index) {
+
+        const result =
+            BaleState.searchResults[index];
+
+
+        if (!result) {
+            return;
+        }
+
+
+        closeBaleSearch();
+
+
+        const sessionId =
+            getSessionId(
+                result.session
+            );
+
+
+        if (sessionId) {
+
+            await selectBaleSession(
+                sessionId
+            );
+        }
+    }
+
+
+    function closeBaleSearch() {
+
+        const overlay =
+            getElement('baleSearchOverlay');
+
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+
+    /* =========================================================
+       MODAL
+       ========================================================= */
+
+    function openBaleNewChatModal() {
+
+        const modal =
+            getElement('baleNewChatModal');
+
+        if (!modal) {
+            return;
+        }
+
+
+        modal.style.display = 'flex';
+
+
+        const input =
+            getElement('baleNewChatUsername');
+
+
+        if (input) {
+
+            input.value = '';
+
+            setTimeout(() => {
+                input.focus();
+            }, 100);
+
+        }
+    }
+
+
+    function closeBaleNewChatModal() {
+
+        const modal =
+            getElement('baleNewChatModal');
+
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+
+    /* =========================================================
+       SIDEBAR
+       ========================================================= */
+
+    function toggleBaleSidebar() {
+
+        const sidebar =
+            getElement('baleSidebar');
+
+        if (!sidebar) {
+            return;
+        }
+
+
+        sidebar.classList.toggle(
+            'mobile-open'
+        );
+
+
+        BaleState.isMobileSidebarOpen =
+            sidebar.classList.contains(
+                'mobile-open'
+            );
+    }
+
+
+    function closeBaleSidebar() {
+
+        const sidebar =
+            getElement('baleSidebar');
+
+        if (!sidebar) {
+            return;
+        }
+
+
+        sidebar.classList.remove(
+            'mobile-open'
+        );
+
+
+        BaleState.isMobileSidebarOpen =
+            false;
+    }
+
+
+    /* =========================================================
+       REFRESH
+       ========================================================= */
+
+    async function refreshBaleMessages() {
+
+        if (!BaleState.currentSession) {
+
+            baleNotify(
+                'ابتدا یک گفتگو را انتخاب کنید.',
+                'info'
+            );
+
+            return;
+        }
+
+
+        await loadBaleMessages();
+
+
+        baleNotify(
+            'پیام‌ها بروزرسانی شدند.',
+            'success'
+        );
+    }
+
+
+    /* =========================================================
+       POLLING
+       ========================================================= */
+
+    function startBalePolling() {
+
+        stopBalePolling();
+
+
+        BaleState.sessionsInterval =
+            setInterval(
+                function () {
+
+                    /*
+                     * فقط اگر صفحه Bale هنوز باز است.
+                     */
+
+                    if (
+                        document.getElementById(
+                            'balePage'
+                        )
+                    ) {
+
+                        loadBaleSessions();
+
+                    }
+
+                },
+                BALE_CONFIG.POLL_SESSIONS_INTERVAL
+            );
+
+
+        BaleState.messagesInterval =
+            setInterval(
+                function () {
+
+                    if (
+                        document.getElementById(
+                            'balePage'
+                        ) &&
+                        BaleState.currentSession
+                    ) {
+
+                        loadBaleMessages();
+
+                    }
+
+                },
+                BALE_CONFIG.POLL_MESSAGES_INTERVAL
+            );
+    }
+
+
+    function stopBalePolling() {
+
+        if (BaleState.sessionsInterval) {
+
+            clearInterval(
+                BaleState.sessionsInterval
+            );
+
+            BaleState.sessionsInterval =
+                null;
+        }
+
+
+        if (BaleState.messagesInterval) {
+
+            clearInterval(
+                BaleState.messagesInterval
+            );
+
+            BaleState.messagesInterval =
+                null;
+        }
+    }
+
+
+    /* =========================================================
+       OPEN BALE PAGE
+       ========================================================= */
+
+    function openBaleChatPage() {
+
+        const settingsLayout =
+            document.querySelector(
+                '.settings-layout'
+            );
+
+
+        const settingsContent =
+            document.getElementById(
+                'settingsContent'
+            );
+
+
+        if (!settingsLayout ||
+            !settingsContent) {
+
+            console.error(
+                'Bale UI: ساختار داشبورد پیدا نشد.'
+            );
+
+            return;
+        }
+
+
+        /*
+         * وضعیت فعلی داشبورد
+         */
+
+        if (typeof window.AppState !== 'undefined') {
+            window.AppState.currentPage =
+                'bale-chat';
+        }
+
+
+        /*
+         * عنوان Header اصلی داشبورد
+         */
+
+        const headerTitle =
+            document.getElementById(
+                'headerTitle'
+            );
+
+
+        if (headerTitle) {
+            headerTitle.textContent =
+                'صفحه چت ربات بله';
+        }
+
+
+        /*
+         * مخفی کردن Settings Navigation
+         */
+
+        settingsLayout.classList.add(
+            'bale-dashboard-mode'
+        );
+
+
+        /*
+         * دکمه باز کردن Settings در صورت وجود
+         */
+
+        const settingsToggle =
+            document.getElementById(
+                'settingsToggleBtn'
+            );
+
+
+        if (settingsToggle) {
+            settingsToggle.style.display =
+                'none';
+        }
+
+
+        /*
+         * Sidebar داخلی Settings
+         */
+
+        const settingsNav =
+            document.getElementById(
+                'settingsNav'
+            );
+
+
+        if (settingsNav) {
+            settingsNav.style.display =
+                'none';
+        }
+
+
+        const overlay =
+            document.getElementById(
+                'settingsNavOverlay'
+            );
+
+
+        if (overlay) {
+            overlay.style.display =
+                'none';
+        }
+
+
+        /*
+         * Render
+         */
+
+        renderBalePage();
+
+
+        /*
+         * active کردن آیتم sidebar
+         */
+
+        document
+            .querySelectorAll('.sidebar-item')
+            .forEach(item => {
+
+                item.classList.remove(
+                    'active'
+                );
+
+            });
+
+
+        const baleSidebarItem =
+            document.querySelector(
+                '.sidebar-item[onclick*="openBaleChatPage"]'
+            );
+
+
+        if (baleSidebarItem) {
+            baleSidebarItem.classList.add(
+                'active'
+            );
+        }
+    }
+
+
+    /* =========================================================
+       CLOSE BALE PAGE
+       ========================================================= */
+
+    function closeBaleChatPage() {
+
+        stopBalePolling();
+
+
+        const settingsLayout =
+            document.querySelector(
+                '.settings-layout'
+            );
+
+
+        if (settingsLayout) {
+
+            settingsLayout.classList.remove(
+                'bale-dashboard-mode'
+            );
+
+        }
+
+
+        const settingsNav =
+            document.getElementById(
+                'settingsNav'
+            );
+
+
+        if (settingsNav) {
+            settingsNav.style.display = '';
+        }
+
+
+        const overlay =
+            document.getElementById(
+                'settingsNavOverlay'
+            );
+
+
+        if (overlay) {
+            overlay.style.display = '';
+        }
+
+
+        const settingsToggle =
+            document.getElementById(
+                'settingsToggleBtn'
+            );
+
+
+        if (settingsToggle) {
+            settingsToggle.style.display = '';
+        }
+
+
+        const headerTitle =
+            document.getElementById(
+                'headerTitle'
+            );
+
+
+        if (headerTitle) {
+            headerTitle.textContent =
+                'تنظیمات سیستم';
+        }
+
+
+        BaleState.currentSession = null;
+        BaleState.currentUserId = null;
+        BaleState.messages = [];
+
+
+        /*
+         * برگشت به صفحه اصلی تنظیمات
+         */
+
+        if (
+            typeof window.navigateTo ===
+            'function'
+        ) {
+
+            window.navigateTo(
+                'overview'
+            );
+
+        }
+        else {
+
+            const content =
+                document.getElementById(
+                    'settingsContent'
+                );
+
+            if (content) {
+                content.innerHTML = '';
+            }
+
+        }
+    }
+
+
+    /* =========================================================
+       THEME
+       ========================================================= */
+
+    function toggleBaleTheme() {
+
+        const page =
+            getElement('balePage');
+
+        if (!page) {
+            return;
+        }
+
+
+        page.classList.toggle(
+            'bale-dark'
+        );
+
+
+        const isDark =
+            page.classList.contains(
+                'bale-dark'
+            );
+
+
+        localStorage.setItem(
+            'chatTheme',
+            isDark ? 'dark' : 'light'
+        );
+    }
+
+
+    /* =========================================================
+       PUBLIC API
+       ========================================================= */
+
+    window.openBaleChatPage =
+        openBaleChatPage;
+
+    window.closeBaleChatPage =
+        closeBaleChatPage;
+
+    window.loadBaleSessions =
+        loadBaleSessions;
+
+    window.selectBaleSession =
+        selectBaleSession;
+
+    window.sendBaleMessage =
+        sendBaleMessage;
+
+    window.createBaleChat =
+        createBaleChat;
+
+    window.openBaleNewChatModal =
+        openBaleNewChatModal;
+
+    window.closeBaleNewChatModal =
+        closeBaleNewChatModal;
+
+    window.toggleBaleSidebar =
+        toggleBaleSidebar;
+
+    window.closeBaleSidebar =
+        closeBaleSidebar;
+
+    window.refreshBaleMessages =
+        refreshBaleMessages;
+
+    window.searchBaleMessages =
+        searchBaleMessages;
+
+    window.closeBaleSearch =
+        closeBaleSearch;
+
+    window.openBaleSearchResult =
+        openBaleSearchResult;
+
+    window.toggleBaleTheme =
+        toggleBaleTheme;
+
+
+    /* =========================================================
+       INITIAL CLEANUP
+       ========================================================= */
+
+    window.addEventListener(
+        'beforeunload',
+        function () {
+            stopBalePolling();
+        }
+    );
+
 
 })();
