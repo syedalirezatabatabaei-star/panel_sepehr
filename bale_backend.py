@@ -1167,33 +1167,86 @@ class BaleBackend:
     # =====================================================
     # SEND MESSAGE
     # =====================================================
-
     def send_message(self, message):
 
         print(
             "\n[BALE] SEND MESSAGE"
         )
 
+        if self.page is None:
+            return False
 
         try:
 
+            message = str(message).strip()
 
-            return self.bale.send_message(
+            if not message:
+                return False
+
+            selectors = [
+                '[aria-label="editable-message-text"]',
+                '[contenteditable="true"]',
+                'textarea'
+            ]
+
+            input_box = None
+
+            for selector in selectors:
+
+                loc = self.page.locator(
+                    selector
+                )
+
+                for i in range(loc.count()):
+
+                    item = loc.nth(i)
+
+                    if item.is_visible():
+
+                        input_box = item
+                        break
+
+                if input_box is not None:
+                    break
+
+            if input_box is None:
+
+                print(
+                    "[SEND] Message input not found"
+                )
+
+                return False
+
+            input_box.fill(
                 message
             )
 
+            print(
+                "[SEND] Message entered"
+            )
+
+            input_box.press(
+                "Enter"
+            )
+
+            self.page.wait_for_timeout(
+                1000
+            )
+
+            print(
+                "[SEND] Message sent"
+            )
+
+            return True
 
         except Exception as e:
-
 
             print(
                 "[SEND ERROR]",
                 e
             )
 
-
             return False
-
 
 
     # =====================================================
