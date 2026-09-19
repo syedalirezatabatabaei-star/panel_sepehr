@@ -26,7 +26,41 @@ function baleSetActiveNav() {
     });
 }
 
+/*======================================
+checkBaleAccount
+======================================*/
+async function checkBaleAccount() {
 
+    try {
+
+        const response = await fetch(
+            `${BALE_API_BASE}/account`
+        );
+
+        const data = await response.json();
+
+        if (data.exists) {
+
+            showBaleSavedAccountPage(
+                data.phone
+            );
+
+        } else {
+
+            showBaleLoginPage();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "[BALE] Account check error:",
+            error
+        );
+
+        showBaleLoginPage();
+    }
+}
 /* =========================================================
    Open Bale Messaging
    ========================================================= */
@@ -46,7 +80,7 @@ function openBaleMessaging() {
 
     console.log("[BALE] Opening Bale messaging.");
 
-    showBaleLoginPage();
+    checkBaleAccount();
 }
 
 
