@@ -68,6 +68,8 @@ BALE_PROFILE = os.path.join(
     "profile"
 )
 
+BROWSER_PROFILE = BALE_PROFILE
+
 BALE_ACCOUNT_FILE = os.path.join(
     BALE_ACCOUNT_DIR,
     "account.json"
