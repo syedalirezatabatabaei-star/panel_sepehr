@@ -289,7 +289,7 @@ class BaleBackend:
         self.context = self.playwright.chromium.launch_persistent_context(
 
 
-            user_data_dir=BROWSER_PROFILE,
+            user_data_dir=BALE_PROFILE,
 
 
             executable_path=CHROMIUM_PATH,
