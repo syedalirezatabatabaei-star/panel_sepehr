@@ -70,7 +70,22 @@ class BaleOtpRequest(BaseModel):
 # ============================================================
 # LOGIN
 # ============================================================
+@router.get("/account")
+def bale_account():
 
+    account = bale_backend.get_saved_account()
+
+    if not account:
+
+        return {
+            "exists": False
+        }
+
+
+    return {
+        "exists": True,
+        "phone": account.get("phone")
+    }
 @router.post("/login")
 def bale_login(
     data: BaleLoginRequest
