@@ -58,11 +58,25 @@ BASE_DIR = os.path.dirname(
 
 
 
-BROWSER_PROFILE = os.path.join(
+BALE_ACCOUNT_DIR = os.path.join(
     BASE_DIR,
-    "browser_profile"
+    "bale_account"
 )
 
+BALE_PROFILE = os.path.join(
+    BALE_ACCOUNT_DIR,
+    "profile"
+)
+
+BALE_ACCOUNT_FILE = os.path.join(
+    BALE_ACCOUNT_DIR,
+    "account.json"
+)
+
+os.makedirs(
+    BALE_ACCOUNT_DIR,
+    exist_ok=True
+)
 
 
 CHROMIUM_PATH = "/usr/bin/chromium"
@@ -136,6 +150,62 @@ class BaleBackend:
         return self.bale.add_contact(
             phone,
             name
+        )
+    def get_saved_account(self):
+
+        if not os.path.exists(BALE_ACCOUNT_FILE):
+            return None
+
+        try:
+
+            import json
+
+            with open(
+                BALE_ACCOUNT_FILE,
+                "r",
+                encoding="utf-8"
+            ) as file:
+
+                return json.load(file)
+
+        except Exception as e:
+
+            print(
+                "[BALE ACCOUNT] Read error:",
+                e
+            )
+
+            return None
+
+
+    def save_account(self, phone):
+
+        import json
+
+        phone = self._normalize_phone(phone)
+
+        os.makedirs(
+            BALE_ACCOUNT_DIR,
+            exist_ok=True
+        )
+
+        with open(
+            BALE_ACCOUNT_FILE,
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            json.dump(
+                {
+                    "phone": phone
+                },
+                file,
+                ensure_ascii=False,
+                indent=4
+            )
+
+        print(
+            f"[BALE ACCOUNT] Saved: {phone}"
         )
    # =====================================================
     # CLEAR SESSION
