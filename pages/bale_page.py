@@ -1282,7 +1282,7 @@ class BalePage:
                     2000
                 )
                 print (
-                    "[SEARCH]Current URL:"
+                    "[SEARCH]Current URL:",
                     self.page.url
                 )
             # -------------------------------------------------
