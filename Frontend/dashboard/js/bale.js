@@ -124,7 +124,7 @@ function showBaleSavedAccountPage(phone) {
 
                     <button
                         class="btn btn-secondary"
-                        onclick="showBaleLoginPage()"
+                        onclick="changeBaleAccount()"
                     >
                         ورود با شماره جدید
                     </button>
@@ -136,6 +136,40 @@ function showBaleSavedAccountPage(phone) {
         </div>
 
     `;
+}
+/*=============
+changeBaleAccount
+================*/
+async function changeBaleAccount(){
+
+    try{
+
+        await fetch(
+            `${BALE_API_BASE}/account/reset`,
+            {
+                method:"POST"
+            }
+        );
+
+
+        showToast(
+            "حساب قبلی حذف شد.",
+            "success"
+        );
+
+
+        showBaleLoginPage();
+
+
+    }catch(error){
+
+        console.error(error);
+
+        showToast(
+            "خطا در تغییر حساب.",
+            "error"
+        );
+    }
 }
 /*======================================
 checkBaleAccount
@@ -1926,6 +1960,8 @@ function escapeBaleHtml(
 /* =========================================================
    Global Exports
    ========================================================= */
+window.changeBaleAccount =
+    changeBaleAccount;
 
 window.openBaleMessaging =
     openBaleMessaging;
