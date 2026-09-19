@@ -122,6 +122,37 @@ class BaleBackend:
         print(
             "[BALE] Backend initialized."
         )
+    def reset_bale_account(self):
+
+        print("[BALE] Reset account requested.")
+
+        # بستن مرورگر فعلی
+        self.close()
+
+        # حذف پروفایل قبلی
+        if os.path.exists(BROWSER_PROFILE):
+
+            shutil.rmtree(
+                BROWSER_PROFILE
+            )
+
+            print(
+                "[BALE] Old session removed."
+            )
+
+
+        # ساخت پروفایل جدید خالی
+        os.makedirs(
+            BROWSER_PROFILE,
+            exist_ok=True
+        )
+
+
+        print(
+            "[BALE] New empty session created."
+        )
+
+        return True
     @staticmethod
     def _normalize_phone(phone):
         phone = str(phone).strip()
@@ -596,10 +627,9 @@ class BaleBackend:
     # =====================================================
     # SEARCH CONTACT
     # =====================================================
-
     def search_contact(
         self,
-        phone
+        name
     ):
 
         print("\n================================")
@@ -609,23 +639,16 @@ class BaleBackend:
         if self.page is None:
             return False
 
-        original_phone = str(
-            phone
+        target = str(
+            name
         ).strip()
 
-        search_phone = self._normalize_phone(
-            original_phone
-        )
-
         print(
-            "Searching:",
-            search_phone
+            "[SEARCH] Name:",
+            target
         )
 
         try:
-
-            self.last_contact_phone = search_phone
-
 
             self.page.goto(
                 "https://web.bale.ai/contacts",
@@ -633,7 +656,7 @@ class BaleBackend:
             )
 
             self.page.wait_for_timeout(
-                1500
+                2500
             )
 
 
@@ -659,8 +682,19 @@ class BaleBackend:
             )
 
 
+            print(
+                "[SEARCH] Input found"
+            )
+
+
             search_input.fill(
-                search_phone
+                target
+            )
+
+
+            print(
+                "[SEARCH] Name entered:",
+                target
             )
 
 
@@ -698,47 +732,125 @@ class BaleBackend:
 
                 if error in body:
 
+                    print(
+                        "[SEARCH] No result"
+                    )
+
                     return False
 
 
-
-            variants = [
-
-                search_phone,
-                search_phone.lstrip("0"),
-                "98" + search_phone.lstrip("0"),
-                "+98" + search_phone.lstrip("0")
-
-            ]
+            dialogs = self.page.locator(
+                '[aria-label="dialog-item"]'
+            )
 
 
-            for item in variants:
+            count = dialogs.count()
 
-                if item in body:
+
+            print(
+                "[SEARCH] Dialog count:",
+                count
+            )
+
+
+            for i in range(count):
+
+                item = dialogs.nth(i)
+
+                try:
+
+                    text = item.inner_text(
+                        timeout=2000
+                    )
 
                     print(
-                        "[SEARCH SUCCESS]"
+                        f"[SEARCH] Result {i}:",
+                        text
+                    )
+
+
+                    if target in text:
+
+                        try:
+
+                            item.click(
+                                timeout=5000
+                            )
+
+                        except Exception:
+
+                            item.click(
+                                force=True,
+                                timeout=5000
+                            )
+
+
+                        self.page.wait_for_timeout(
+                            1500
+                        )
+
+
+                        if self._is_chat_open():
+
+                            self.last_contact_name = target
+
+                            print(
+                                "[SEARCH] Chat opened"
+                            )
+
+                            return True
+
+
+                except Exception as e:
+
+                    print(
+                        "[SEARCH] Result error:",
+                        e
+                    )
+
+                    continue
+
+
+            # fallback
+            element = self.page.get_by_text(
+                target,
+                exact=True
+            ).last
+
+
+            if element.count() > 0:
+
+                print(
+                    "[SEARCH] Fallback result found"
+                )
+
+
+                element.click(
+                    force=True
+                )
+
+
+                self.page.wait_for_timeout(
+                    1500
+                )
+
+
+                if self._is_chat_open():
+
+                    self.last_contact_name = target
+
+                    print(
+                        "[SEARCH] Chat opened by fallback"
                     )
 
                     return True
 
 
-
-            # fallback
-            if self.page.locator(
-                '[aria-label="dialog-item"]'
-            ).count() > 0:
-
-                return True
-
-
-
             print(
-                "[SEARCH FAILED]"
+                "[SEARCH] Contact not opened"
             )
 
             return False
-
 
 
         except Exception as e:
@@ -934,122 +1046,6 @@ class BaleBackend:
 
 
         except Exception:
-
-            return False
-    # =====================================================
-    # SEARCH CONTACT
-    # =====================================================
-
-    def search_contact(self, phone):
-
-        print("\n[BALE] SEARCH CONTACT")
-
-        if self.page is None:
-            return False
-
-        search_phone = self._normalize_phone(phone)
-
-        self.last_contact_phone = search_phone
-
-        try:
-
-            self.page.goto(
-                "https://web.bale.ai/contacts",
-                wait_until="domcontentloaded"
-            )
-
-            self.page.wait_for_timeout(1500)
-
-            if not self.bale.open_search():
-
-                print(
-                    "[SEARCH] Cannot open search"
-                )
-
-                return False
-
-
-            search_input = self.page.locator(
-                'input[type="search"]'
-            ).first
-
-
-            search_input.wait_for(
-                state="visible",
-                timeout=10000
-            )
-
-
-            search_input.fill(
-                search_phone
-            )
-
-
-            search_input.press(
-                "Enter"
-            )
-
-
-            self.page.wait_for_timeout(
-                2500
-            )
-
-
-            body = self.page.locator(
-                "body"
-            ).inner_text()
-
-
-            print(
-                body[:3000]
-            )
-
-
-            failed_words = [
-
-                "نتیجه‌ای پیدا نشد",
-                "نتیجه ای پیدا نشد",
-                "پیدا نشد",
-                "کاربر پیدا نشد"
-
-            ]
-
-
-            for word in failed_words:
-
-                if word in body:
-
-                    return False
-
-
-
-            if search_phone in body:
-
-                return True
-
-
-
-            dialogs = self.page.locator(
-                '[aria-label="dialog-item"]'
-            )
-
-
-            if dialogs.count() > 0:
-
-                return True
-
-
-
-            return False
-
-
-
-        except Exception as e:
-
-            print(
-                "[SEARCH ERROR]",
-                e
-            )
 
             return False
 

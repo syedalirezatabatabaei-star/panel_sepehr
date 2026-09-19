@@ -65,8 +65,35 @@ class BaleLoginRequest(BaseModel):
 
 class BaleOtpRequest(BaseModel):
     otp: str
+#===================================
+#reset bale.acc.
+#===================================
+@router.post("/account/reset")
+def reset_bale_account():
+
+    try:
+
+        run_bale(
+            bale_backend.reset_bale_account
+        )
+
+        return {
+            "success": True,
+            "message": "حساب قبلی حذف شد."
+        }
 
 
+    except Exception as e:
+
+        print(
+            "[BALE RESET ERROR]",
+            e
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="خطا در حذف حساب."
+        )
 # ============================================================
 # LOGIN
 # ============================================================
@@ -126,7 +153,40 @@ def bale_login(
             detail="خطا در ورود به بله."
         )
 
+# ============================================================
+# RESET BALE ACCOUNT
+# ============================================================
 
+@router.post("/reset")
+def bale_reset():
+
+    print(
+        "[BALE API] Reset account request"
+    )
+
+    try:
+
+        result = run_bale(
+            bale_backend.reset_bale_account
+        )
+
+        return {
+            "success": True,
+            "message": "حساب بله پاک شد. لطفاً با شماره جدید وارد شوید."
+        }
+
+
+    except Exception as e:
+
+        print(
+            "[BALE API] Reset error:",
+            e
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="خطا در حذف حساب بله."
+        )
 # ============================================================
 # VERIFY OTP
 # ============================================================
@@ -832,18 +892,13 @@ def send_job_worker(
                     f"[BALE JOB] "
                     f"Contact {index}/{total}"
                 )
-
                 print(
-                    f"Original phone: {phone}"
-                )
-
-                print(
-                    f"Search phone: {phone}"
+                    f"Contact name: {name}"
                 )
 
                 found = (
                     bale_backend.search_contact(
-                        phone
+                        name
                     )
                 )
 
