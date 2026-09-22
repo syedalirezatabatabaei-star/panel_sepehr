@@ -68,7 +68,150 @@
         /* =====================================================
            BALE CHAT - DASHBOARD CONTAINER
         ===================================================== */
+        /* =========================================================
+   BALE CHAT - FINAL PAGE SCROLL FIX
+   ========================================================= */
 
+/* وقتی Bale باز است، خود صفحه نباید اسکرول شود */
+html:has(.main-content.bale-chat-host),
+body:has(.main-content.bale-chat-host) {
+    overflow: hidden !important;
+    height: 100% !important;
+    max-height: 100% !important;
+}
+
+/* کل Layout داشبورد */
+.main-content.bale-chat-host {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    min-height: 0 !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+
+    overflow: hidden !important;
+}
+
+/* Header نباید فشرده شود */
+.main-content.bale-chat-host > .header {
+    flex: 0 0 auto !important;
+}
+
+/* فضای زیر Header */
+.main-content.bale-chat-host > .settings-layout {
+    flex: 1 1 0 !important;
+
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+
+    display: flex !important;
+
+    overflow: hidden !important;
+}
+
+/* محتوای Bale */
+.main-content.bale-chat-host
+.settings-layout.bale-chat-active
+.settings-content {
+    flex: 1 1 0 !important;
+
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    overflow: hidden !important;
+}
+
+/* خود صفحه Bale */
+#baleChatPageWrapper {
+    position: relative !important;
+
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+
+    overflow: hidden !important;
+}
+
+/* کانتینر */
+#baleChatPageWrapper .container {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+
+    display: flex !important;
+
+    overflow: hidden !important;
+}
+
+/* لیست کاربران */
+#baleChatPageWrapper .users {
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+
+    overflow: hidden !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* فقط لیست Sessionها اسکرول شود */
+#baleChatPageWrapper #sessions {
+    flex: 1 1 0 !important;
+
+    height: auto !important;
+    min-height: 0 !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* بخش چت */
+#baleChatPageWrapper .chat {
+    flex: 1 1 0 !important;
+
+    width: auto !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+
+    overflow: hidden !important;
+}
+
+/* Header چت */
+#baleChatPageWrapper .chat-header {
+    flex: 0 0 auto !important;
+}
+
+/* فقط پیام‌ها اسکرول شوند */
+#baleChatPageWrapper .chat-box {
+    flex: 1 1 0 !important;
+
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Input */
+#baleChatPageWrapper .input-box {
+    flex: 0 0 auto !important;
+}
         .settings-layout.bale-chat-active {
             overflow: hidden !important;
         }
@@ -2647,7 +2790,6 @@
             messagesInterval = null;
         }
     }
-
     /* =========================================================
        RENDER
     ========================================================= */
@@ -2686,6 +2828,7 @@
         startBalePolling();
     }
 
+
     /* =========================================================
        OPEN BALE CHAT PAGE
        مهم:
@@ -2710,30 +2853,53 @@
             return;
         }
 
-        /*
-         * وضعیت داشبورد
-         */
+        /* =====================================================
+           DASHBOARD HEIGHT FIX
+           ===================================================== */
+
+        const mainContent =
+            document.querySelector(
+                '.main-content'
+            );
+
+        if (mainContent) {
+
+            mainContent.classList.add(
+                'bale-chat-host'
+            );
+        }
+
+
+        /* =====================================================
+           SETTINGS LAYOUT
+           ===================================================== */
+
         const layout =
             document.querySelector(
                 '.settings-layout'
             );
 
         if (layout) {
+
             layout.classList.add(
                 'bale-chat-active'
             );
         }
 
-        /*
-         * مخفی کردن Nav تنظیمات
-         */
+
+        /* =====================================================
+           HIDE SETTINGS NAV
+           ===================================================== */
+
         const settingsNav =
             getEl('settingsNav');
 
         if (settingsNav) {
+
             settingsNav.style.display =
                 'none';
         }
+
 
         const settingsNavOverlay =
             getEl(
@@ -2741,45 +2907,61 @@
             );
 
         if (settingsNavOverlay) {
+
             settingsNavOverlay.style.display =
                 'none';
         }
 
-        /*
-         * دکمه Settings اگر وجود داشته باشد
-         */
+
+        /* =====================================================
+           HIDE SETTINGS TOGGLE
+           ===================================================== */
+
         const settingsToggleBtn =
             getEl('settingsToggleBtn');
 
         if (settingsToggleBtn) {
+
             settingsToggleBtn.style.display =
                 'none';
         }
 
-        /*
-         * عنوان Header داشبورد
-         */
+
+        /* =====================================================
+           HEADER TITLE
+           ===================================================== */
+
         const headerTitle =
             getEl('headerTitle');
 
         if (headerTitle) {
+
             headerTitle.textContent =
                 'صفحه چت ربات بله';
         }
 
-        /*
-         * AppState را روی صفحه Bale می‌گذاریم
-         */
+
+        /* =====================================================
+           APP STATE
+           ===================================================== */
+
         if (
             typeof window.AppState !==
             'undefined'
         ) {
+
             window.AppState.currentPage =
                 'bale-chat';
         }
 
+
+        /* =====================================================
+           RENDER
+           ===================================================== */
+
         await renderBaleChat();
     }
+
 
     /* =========================================================
        CLOSE BALE CHAT PAGE
@@ -2794,24 +2976,54 @@
         lastMessageCount = 0;
         isInitialLoad = true;
 
+
+        /* =====================================================
+           REMOVE BALE CHAT HOST
+           ===================================================== */
+
+        const mainContent =
+            document.querySelector(
+                '.main-content'
+            );
+
+        if (mainContent) {
+
+            mainContent.classList.remove(
+                'bale-chat-host'
+            );
+        }
+
+
+        /* =====================================================
+           REMOVE BALE CHAT STATE
+           ===================================================== */
+
         const layout =
             document.querySelector(
                 '.settings-layout'
             );
 
         if (layout) {
+
             layout.classList.remove(
                 'bale-chat-active'
             );
         }
 
+
+        /* =====================================================
+           RESTORE SETTINGS NAV
+           ===================================================== */
+
         const settingsNav =
             getEl('settingsNav');
 
         if (settingsNav) {
+
             settingsNav.style.display =
                 '';
         }
+
 
         const settingsNavOverlay =
             getEl(
@@ -2819,39 +3031,55 @@
             );
 
         if (settingsNavOverlay) {
+
             settingsNavOverlay.style.display =
                 '';
         }
+
+
+        /* =====================================================
+           RESTORE SETTINGS TOGGLE
+           ===================================================== */
 
         const settingsToggleBtn =
             getEl('settingsToggleBtn');
 
         if (settingsToggleBtn) {
+
             settingsToggleBtn.style.display =
                 '';
         }
+
+
+        /* =====================================================
+           RESTORE HEADER
+           ===================================================== */
 
         const headerTitle =
             getEl('headerTitle');
 
         if (headerTitle) {
+
             headerTitle.textContent =
                 'تنظیمات سیستم';
         }
 
-        /*
-         * اگر navigateTo موجود باشد،
-         * برمی‌گردیم به صفحه Overview.
-         */
+
+        /* =====================================================
+           RETURN TO OVERVIEW
+           ===================================================== */
+
         if (
             typeof window.navigateTo ===
             'function'
         ) {
+
             window.navigateTo(
                 'overview'
             );
         }
     }
+
 
     /* =========================================================
        PUBLIC API
@@ -2859,40 +3087,51 @@
 
     window.BaleUI = {
 
-        open: openBaleChatPage,
+        open:
+            openBaleChatPage,
 
-        close: closeBaleChatPage,
+        close:
+            closeBaleChatPage,
 
-        sendMessage: sendMessage,
+        sendMessage:
+            sendMessage,
 
-        loadSessions: loadSessions,
+        loadSessions:
+            loadSessions,
 
-        loadMessages: loadMessages,
+        loadMessages:
+            loadMessages,
 
-        openSearch: openSearch,
+        openSearch:
+            openSearch,
 
-        closeSearch: closeSearch,
+        closeSearch:
+            closeSearch,
 
-        performSearch: performSearch,
+        performSearch:
+            performSearch,
 
-        openModal: openModal,
+        openModal:
+            openModal,
 
-        closeModal: closeModal,
+        closeModal:
+            closeModal,
 
-        createChat: createChat,
+        createChat:
+            createChat,
 
-        toggleTheme: toggleTheme,
+        toggleTheme:
+            toggleTheme,
 
         goBackToSidebar:
             goBackToSidebar
     };
 
-    /*
-     * این همان تابعی است که در Sidebar استفاده می‌کنیم.
-     *
-     * توجه:
-     * openBaleMessaging در bale.js دست نخورده باقی می‌ماند.
-     */
+
+    /* =========================================================
+       SIDEBAR FUNCTIONS
+       ========================================================= */
+
     window.openBaleChatPage =
         openBaleChatPage;
 
