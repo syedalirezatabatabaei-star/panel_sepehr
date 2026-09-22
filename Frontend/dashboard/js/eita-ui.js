@@ -1605,7 +1605,124 @@
 
         }
 
+/* ================================
+   EITAA - FULL DASHBOARD AREA
+   ================================ */
 
+.main-content.eitaa-chat-host {
+    height: 100%;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+}
+.main-content.eitaa-chat-host {
+    height: 100%;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+}
+
+/* ساختار اصلی Settings */
+.main-content.eitaa-chat-host .settings-layout.eitaa-chat-active {
+    flex: 1 1 auto !important;
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+}
+
+/* منوی داشبورد را حذف نکن */
+.main-content.eitaa-chat-host .settings-nav {
+    display: flex !important;
+}
+
+/* محتوای ایتا در کنار منو */
+.main-content.eitaa-chat-host .settings-content {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
+/* صفحه ایتا */
+#eitaaChatPageWrapper {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    position: relative;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* کانتینر اصلی ایتا */
+#eitaaChatPageWrapper .container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    position: relative;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* لیست کاربران */
+#eitaaChatPageWrapper .users {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+/* لیست گفتگوها */
+#eitaaChatPageWrapper #eitaaSessions {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+
+#eitaaChatPageWrapper .chat {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+
+#eitaaChatPageWrapper .chat-header {
+    flex: 0 0 auto;
+}
+
+
+#eitaaChatPageWrapper .chat-box {
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+}
+
+
+#eitaaChatPageWrapper .input-box {
+    flex: 0 0 auto;
+}
         /* =====================================================
            MOBILE
            ===================================================== */
@@ -1774,6 +1891,7 @@
             }
 
         }
+
 
         `;
 
