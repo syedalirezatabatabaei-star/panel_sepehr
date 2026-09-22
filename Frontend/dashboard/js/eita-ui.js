@@ -1,4 +1,4 @@
-/* =========================================================
+\/* =========================================================
    EITAA CHAT UI
    ========================================================= */
 
@@ -33,7 +33,7 @@
 
     /* =========================================================
        STATE
-    ========================================================= */
+       ========================================================= */
 
     let unread = {};
 
@@ -54,7 +54,7 @@
 
     /* =========================================================
        HELPERS
-    ========================================================= */
+       ========================================================= */
 
     function getEl(id) {
 
@@ -65,7 +65,10 @@
 
     function escapeHtml(value) {
 
-        if (value === null || value === undefined) {
+        if (
+            value === null ||
+            value === undefined
+        ) {
             return '';
         }
 
@@ -244,22 +247,118 @@
 
 
         /* =====================================================
+           DASHBOARD AREA
+           ===================================================== */
+
+        .main-content.eitaa-chat-host {
+
+            height: 100vh;
+
+            min-height: 0 !important;
+
+            display: flex;
+
+            flex-direction: column;
+
+            overflow: hidden !important;
+        }
+
+
+        .main-content.eitaa-chat-host
+        .settings-layout.eitaa-chat-active {
+
+            flex: 1 1 auto !important;
+
+            width: 100%;
+
+            height: auto !important;
+
+            min-height: 0 !important;
+
+            overflow: hidden !important;
+
+            display: flex !important;
+        }
+
+
+        .main-content.eitaa-chat-host
+        .settings-nav {
+
+            display: none !important;
+        }
+
+
+        .main-content.eitaa-chat-host
+        .settings-nav-overlay {
+
+            display: none !important;
+        }
+
+
+        .main-content.eitaa-chat-host
+        .settings-content {
+
+            flex: 1 1 auto !important;
+
+            width: 100% !important;
+
+            height: auto !important;
+
+            min-height: 0 !important;
+
+            max-height: none !important;
+
+            padding: 0 !important;
+
+            margin: 0 !important;
+
+            overflow: hidden !important;
+        }
+
+
+        /* =====================================================
            CONTAINER
            ===================================================== */
+
+        #eitaaChatPageWrapper {
+
+            width: 100%;
+
+            height: 100%;
+
+            min-height: 0;
+
+            max-height: 100%;
+
+            position: relative;
+
+            overflow: hidden;
+
+            margin: 0;
+
+            padding: 0;
+        }
+
 
         #eitaaChatPageWrapper .container {
 
             display: flex;
 
             width: 100%;
+
             height: 100%;
 
             min-height: 0;
+
             max-height: 100%;
 
             position: relative;
 
             overflow: hidden;
+
+            margin: 0;
+
+            padding: 0;
         }
 
 
@@ -272,12 +371,15 @@
             width: 360px;
 
             height: 100%;
+
             min-height: 0;
+
             max-height: 100%;
 
             flex: 0 0 360px;
 
             display: flex;
+
             flex-direction: column;
 
             background:
@@ -308,6 +410,7 @@
             display: flex;
 
             align-items: center;
+
             justify-content: space-between;
 
             gap: 12px;
@@ -339,6 +442,7 @@
         #eitaaChatPageWrapper .logo-container {
 
             width: 44px;
+
             height: 44px;
 
             flex: 0 0 44px;
@@ -355,6 +459,7 @@
         #eitaaChatPageWrapper .logo-container img {
 
             width: 100%;
+
             height: 100%;
 
             object-fit: cover;
@@ -372,6 +477,7 @@
             margin: 0;
 
             font-size: 16px;
+
             font-weight: 700;
 
             color:
@@ -408,10 +514,11 @@
         #eitaaChatPageWrapper .header-btn {
 
             width: 40px;
+
             height: 40px;
 
-            border: 1px solid
-                var(--border-color);
+            border:
+                1px solid var(--border-color);
 
             border-radius:
                 var(--radius-sm);
@@ -427,6 +534,7 @@
             display: flex;
 
             align-items: center;
+
             justify-content: center;
 
             font-size: 18px;
@@ -456,13 +564,14 @@
            SESSIONS
            ===================================================== */
 
-        #eitaaChatPageWrapper #sessions {
+        #eitaaChatPageWrapper #eitaaSessions {
 
             flex: 1 1 auto;
 
             min-height: 0;
 
             overflow-y: auto;
+
             overflow-x: hidden;
 
             padding: 12px;
@@ -472,13 +581,15 @@
         }
 
 
-        #eitaaChatPageWrapper #sessions::-webkit-scrollbar {
+        #eitaaChatPageWrapper
+        #eitaaSessions::-webkit-scrollbar {
 
             width: 6px;
         }
 
 
-        #eitaaChatPageWrapper #sessions::-webkit-scrollbar-thumb {
+        #eitaaChatPageWrapper
+        #eitaaSessions::-webkit-scrollbar-thumb {
 
             background:
                 rgba(
@@ -575,6 +686,7 @@
         #eitaaChatPageWrapper .user-avatar {
 
             width: 44px;
+
             height: 44px;
 
             flex: 0 0 44px;
@@ -584,6 +696,7 @@
             display: flex;
 
             align-items: center;
+
             justify-content: center;
 
             background:
@@ -596,6 +709,7 @@
             color: #fff;
 
             font-size: 17px;
+
             font-weight: 700;
         }
 
@@ -651,32 +765,6 @@
         }
 
 
-        #eitaaChatPageWrapper .unread-badge {
-
-            min-width: 22px;
-            height: 22px;
-
-            padding: 0 6px;
-
-            border-radius: 20px;
-
-            display: flex;
-
-            align-items: center;
-            justify-content: center;
-
-            background:
-                var(--primary);
-
-            color: #fff;
-
-            font-size: 15px;
-            font-weight: 700;
-
-            flex-shrink: 0;
-        }
-
-
         /* =====================================================
            CHAT
            ===================================================== */
@@ -686,10 +774,14 @@
             flex: 1 1 auto;
 
             min-width: 0;
+
             min-height: 0;
 
             width: auto;
+
             height: 100%;
+
+            max-height: 100%;
 
             display: flex;
 
@@ -738,27 +830,28 @@
         .chat-header-avatar {
 
             width: 44px;
+
             height: 44px;
 
             flex: 0 0 44px;
 
             border-radius: 50%;
 
-            display: flex;
-
-            align-items: center;
-            justify-content: center;
+            overflow: hidden;
 
             background:
-                linear-gradient(
-                    135deg,
-                    var(--primary),
-                    var(--primary-light)
-                );
+                var(--primary);
+        }
 
-            color: #fff;
 
-            font-weight: 700;
+        #eitaaChatPageWrapper
+        .chat-header-avatar img {
+
+            width: 100%;
+
+            height: 100%;
+
+            object-fit: cover;
         }
 
 
@@ -774,7 +867,7 @@
 
             margin: 0;
 
-            font-size: 15px;
+            font-size: 16px;
 
             color:
                 var(--text-primary);
@@ -788,7 +881,7 @@
 
             margin-top: 4px;
 
-            font-size: 11px;
+            font-size: 13px;
 
             color:
                 var(--text-secondary);
@@ -800,6 +893,7 @@
             display: inline-block;
 
             width: 7px;
+
             height: 7px;
 
             border-radius: 50%;
@@ -816,13 +910,15 @@
             display: none;
 
             width: 38px;
+
             height: 38px;
 
             align-items: center;
+
             justify-content: center;
 
-            border: 1px solid
-                var(--border-color);
+            border:
+                1px solid var(--border-color);
 
             background:
                 var(--bg-input);
@@ -847,13 +943,14 @@
 
             flex: 1 1 auto;
 
-            min-height: 0;
+            min-height: 0 !important;
 
-            height: auto;
+            height: auto !important;
 
-            max-height: none;
+            max-height: none !important;
 
-            overflow-y: auto;
+            overflow-y: auto !important;
+
             overflow-x: hidden;
 
             padding: 24px;
@@ -870,13 +967,15 @@
         }
 
 
-        #eitaaChatPageWrapper .chat-box::-webkit-scrollbar {
+        #eitaaChatPageWrapper
+        .chat-box::-webkit-scrollbar {
 
             width: 7px;
         }
 
 
-        #eitaaChatPageWrapper .chat-box::-webkit-scrollbar-thumb {
+        #eitaaChatPageWrapper
+        .chat-box::-webkit-scrollbar-thumb {
 
             background:
                 rgba(
@@ -894,7 +993,14 @@
            MESSAGE
            ===================================================== */
 
+        /*
+         * ربات:
+         * پیام + آواتار سمت راست
+         */
+
         #eitaaChatPageWrapper .message-wrapper {
+
+            width: 100%;
 
             display: flex;
 
@@ -902,74 +1008,123 @@
 
             gap: 8px;
 
-            margin-left: 50px;
-            margin-right: 16px;
+            box-sizing: border-box;
+
+            direction: rtl;
+
+            justify-content: flex-start;
+
+            margin: 0;
+
+            padding: 0;
+        }
+
+
+        /*
+         * کاربر:
+         * پیام + آواتار سمت چپ
+         */
+
+        #eitaaChatPageWrapper
+        .message-wrapper.me-wrapper {
 
             direction: ltr;
+
+            justify-content: flex-start;
+
+            margin: 0;
+
+            padding: 0;
         }
 
 
-        #eitaaChatPageWrapper .me-wrapper {
-
-            margin-left: 16px;
-            margin-right: 50px;
-
-            flex-direction: row-reverse;
-        }
-
+        /*
+         * آواتار پیام
+         */
 
         #eitaaChatPageWrapper .message-avatar {
 
-            width: 34px;
-            height: 34px;
+            width: 38px;
 
-            flex: 0 0 34px;
+            height: 38px;
+
+            flex: 0 0 38px;
 
             border-radius: 50%;
 
             overflow: hidden;
+
+            align-self: flex-end;
         }
 
 
-        #eitaaChatPageWrapper .message-avatar img {
+        #eitaaChatPageWrapper
+        .message-avatar img {
 
             width: 100%;
+
             height: 100%;
 
+            display: block;
+
             object-fit: cover;
+
+            border-radius: 50%;
         }
 
+
+        /*
+         * خود حباب پیام
+         */
 
         #eitaaChatPageWrapper .message {
 
             max-width: 70%;
 
+            min-width: 0;
+
             padding: 10px 14px;
 
             border-radius: 14px;
 
-            font-size: 15px;
+            font-size: 16px;
 
             line-height: 1.8;
 
             word-break: break-word;
 
+            overflow-wrap: anywhere;
+
             direction: rtl;
+
+            box-sizing: border-box;
         }
 
 
-        #eitaaChatPageWrapper .message.me {
+        /*
+         * پیام کاربر
+         */
+
+        #eitaaChatPageWrapper
+        .message.me {
 
             background:
                 var(--msg-user);
 
             color: #fff;
 
-            border-bottom-right-radius: 4px;
+            border-bottom-left-radius: 4px;
+
+            border-bottom-right-radius: 14px;
         }
 
 
-        #eitaaChatPageWrapper .message.other {
+        /*
+         * پیام ربات
+         */
+
+        #eitaaChatPageWrapper
+        .message.other {
 
             background:
                 var(--msg-bot);
@@ -983,15 +1138,22 @@
             box-shadow:
                 var(--shadow-soft);
 
-            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+
+            border-bottom-left-radius: 14px;
         }
 
 
-        #eitaaChatPageWrapper .message-time {
+        /*
+         * ساعت پیام
+         */
+
+        #eitaaChatPageWrapper
+        .message-time {
 
             margin-top: 4px;
 
-            font-size: 15px;
+            font-size: 13px;
 
             opacity: 0.65;
 
@@ -1003,119 +1165,199 @@
            INPUT
            ===================================================== */
 
-       #eitaaChatPageWrapper .input-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    background: var(--bg-sidebar);
-   /* border-top: 1px solid var(--border-color);*/
-    box-sizing: border-box;
-    width: 100%;
-    flex-shrink: 0;
-}
+        #eitaaChatPageWrapper .input-box {
 
+            display: flex;
 
-       #eitaaChatPageWrapper .input-container {
-    flex: 1;
-    min-width: 0;
-    height: 46px;
-    display: flex;
-    align-items: center;
-    background: var(--bg-input);
-    border: none;
-    outline: none;
-    box-shadow: none;
-    border-radius: 12px;
-    overflow: hidden;
-}
+            align-items: center;
 
-#eitaaChatPageWrapper .input-container input {
-    width: 100%;
-    height: 100%;
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    background: transparent;
-    padding: 0 14px;
-    margin: 0;
-    font-family: inherit;
-    font-size: 15px;
-    box-sizing: border-box;
-}
+            gap: 10px;
 
-#eitaaChatPageWrapper .input-container input:focus {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
+            padding: 12px 16px;
 
-        #eitaaChatPageWrapper #msgInput {
-
-            width: 100%;
+            background:
+                var(--bg-sidebar);
 
             box-sizing: border-box;
 
-            border: 1px solid
-                var(--border-color);
+            width: 100%;
+
+            flex: 0 0 auto;
+
+            min-height: 70px;
+        }
+
+
+        #eitaaChatPageWrapper .input-container {
+
+            flex: 1 1 auto;
+
+            min-width: 0;
+
+            height: 46px;
+
+            display: flex;
+
+            align-items: center;
 
             background:
                 var(--bg-input);
 
-            color:
-                var(--text-primary);
-
-            border-radius:
-                12px;
-
-            padding: 12px 14px;
+            border: none;
 
             outline: none;
 
+            box-shadow: none;
+
+            border-radius: 12px;
+
+            overflow: hidden;
+
+            box-sizing: border-box;
+        }
+
+
+        #eitaaChatPageWrapper
+        .input-container input {
+
+            width: 100%;
+
+            height: 100%;
+
+            border: none !important;
+
+            outline: none !important;
+
+            box-shadow: none !important;
+
+            background:
+                transparent;
+
+            color:
+                var(--text-primary);
+
+            padding: 0 14px;
+
+            margin: 0;
+
             font-family: inherit;
 
-            font-size: 15px;
+            font-size: 16px;
 
-            transition:
-                border-color 0.2s ease;
+            box-sizing: border-box;
         }
 
 
-        #eitaaChatPageWrapper #msgInput:focus {
+        #eitaaChatPageWrapper
+        .input-container input::placeholder {
 
-            border-color:
-                var(--primary);
+            color:
+                var(--text-muted);
         }
 
+
+        #eitaaChatPageWrapper
+        .input-container input:focus {
+
+            border: none !important;
+
+            outline: none !important;
+
+            box-shadow: none !important;
+        }
+
+
+        /*
+         * جلوگیری از استایل‌های عمومی Dashboard
+         */
+
+        #eitaaChatPageWrapper #eitaaMsgInput {
+
+            border: none !important;
+
+            outline: none !important;
+
+            box-shadow: none !important;
+
+            background:
+                transparent !important;
+
+            color:
+                var(--text-primary) !important;
+        }
+
+
+        #eitaaChatPageWrapper
+        #eitaaMsgInput:focus {
+
+            border: none !important;
+
+            outline: none !important;
+
+            box-shadow: none !important;
+        }
+
+
+        /* =====================================================
+           SEND BUTTON
+           ===================================================== */
 
         #eitaaChatPageWrapper .send-btn {
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    max-width: 46px;
-    padding: 0;
-    margin: 0;
-    border: none !important;
-    outline: none !important;
-    box-shadow: none;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-sizing: border-box;
-    flex-shrink: 0;
-}
+
+            width: 46px;
+
+            height: 46px;
+
+            min-width: 46px;
+
+            max-width: 46px;
+
+            padding: 0;
+
+            margin: 0;
+
+            border: none !important;
+
+            outline: none !important;
+
+            box-shadow: none !important;
+
+            border-radius: 12px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+
+            box-sizing: border-box;
+
+            flex: 0 0 46px;
+
+            background:
+                var(--primary);
+
+            color: #fff;
+
+            font-size: 20px;
+        }
 
 
-        #eitaaChatPageWrapper .send-btn:hover {
+        #eitaaChatPageWrapper
+        .send-btn:hover {
 
             transform:
                 translateY(-1px);
+
+            background:
+                var(--primary-dark);
         }
 
 
-        #eitaaChatPageWrapper .send-btn:disabled {
+        #eitaaChatPageWrapper
+        .send-btn:disabled {
 
             opacity: 0.6;
 
@@ -1138,6 +1380,7 @@
             flex-direction: column;
 
             align-items: center;
+
             justify-content: center;
 
             text-align: center;
@@ -1158,7 +1401,8 @@
         }
 
 
-        #eitaaChatPageWrapper .empty-state h3 {
+        #eitaaChatPageWrapper
+        .empty-state h3 {
 
             margin: 0 0 8px;
 
@@ -1169,11 +1413,12 @@
         }
 
 
-        #eitaaChatPageWrapper .empty-state p {
+        #eitaaChatPageWrapper
+        .empty-state p {
 
             margin: 0;
 
-            font-size: 12px;
+            font-size: 13px;
 
             line-height: 1.8;
         }
@@ -1194,6 +1439,7 @@
             display: none;
 
             align-items: center;
+
             justify-content: center;
 
             background:
@@ -1215,7 +1461,8 @@
         }
 
 
-        #eitaaChatPageWrapper .search-container {
+        #eitaaChatPageWrapper
+        .search-container {
 
             width: min(
                 700px,
@@ -1241,11 +1488,13 @@
         }
 
 
-        #eitaaChatPageWrapper .search-header {
+        #eitaaChatPageWrapper
+        .search-header {
 
             display: flex;
 
             align-items: center;
+
             justify-content: space-between;
 
             padding: 18px;
@@ -1255,7 +1504,8 @@
         }
 
 
-        #eitaaChatPageWrapper .search-header h3 {
+        #eitaaChatPageWrapper
+        .search-header h3 {
 
             margin: 0;
 
@@ -1266,9 +1516,11 @@
         }
 
 
-        #eitaaChatPageWrapper .search-close-btn {
+        #eitaaChatPageWrapper
+        .search-close-btn {
 
             width: 34px;
+
             height: 34px;
 
             border: none;
@@ -1296,14 +1548,15 @@
         }
 
 
-        #eitaaChatPageWrapper .search-input {
+        #eitaaChatPageWrapper
+        .search-input {
 
             flex: 1;
 
             min-width: 0;
 
-            border: 1px solid
-                var(--border-color);
+            border:
+                1px solid var(--border-color);
 
             border-radius: 10px;
 
@@ -1321,7 +1574,8 @@
         }
 
 
-        #eitaaChatPageWrapper .search-btn {
+        #eitaaChatPageWrapper
+        .search-btn {
 
             padding: 0 18px;
 
@@ -1340,7 +1594,8 @@
         }
 
 
-        #eitaaChatPageWrapper .search-results {
+        #eitaaChatPageWrapper
+        .search-results {
 
             flex: 1;
 
@@ -1446,6 +1701,7 @@
             display: none;
 
             align-items: center;
+
             justify-content: center;
 
             padding: 20px;
@@ -1460,7 +1716,8 @@
         }
 
 
-        #eitaaChatPageWrapper .modal-content {
+        #eitaaChatPageWrapper
+        .modal-content {
 
             width: min(
                 430px,
@@ -1480,7 +1737,8 @@
         }
 
 
-        #eitaaChatPageWrapper .modal-content h3 {
+        #eitaaChatPageWrapper
+        .modal-content h3 {
 
             margin: 0 0 18px;
 
@@ -1492,7 +1750,7 @@
 
 
         #eitaaChatPageWrapper
-        #usernameInput {
+        #eitaaUsernameInput {
 
             width: 100%;
 
@@ -1500,8 +1758,8 @@
 
             padding: 12px;
 
-            border: 1px solid
-                var(--border-color);
+            border:
+                1px solid var(--border-color);
 
             border-radius: 10px;
 
@@ -1517,7 +1775,8 @@
         }
 
 
-        #eitaaChatPageWrapper .modal-buttons {
+        #eitaaChatPageWrapper
+        .modal-buttons {
 
             display: flex;
 
@@ -1545,7 +1804,7 @@
 
 
         #eitaaChatPageWrapper
-        #createChatBtn {
+        #eitaaCreateChatBtn {
 
             background:
                 var(--primary);
@@ -1555,7 +1814,7 @@
 
 
         #eitaaChatPageWrapper
-        #closeModalBtn {
+        #eitaaCloseModalBtn {
 
             background:
                 rgba(
@@ -1577,10 +1836,11 @@
         #eitaaChatPageWrapper .spinner {
 
             width: 18px;
+
             height: 18px;
 
-            border: 2px solid
-                rgba(
+            border:
+                2px solid rgba(
                     255,
                     255,
                     255,
@@ -1605,145 +1865,70 @@
 
         }
 
-/* ================================
-   EITAA - FULL DASHBOARD AREA
-   ================================ */
+/* ===== FIX: Eitaa full-height page ===== */
 
 .main-content.eitaa-chat-host {
-    height: 100%;
+    height: 100vh !important;
     min-height: 0 !important;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden !important;
-}
-.main-content.eitaa-chat-host {
-    height: 100%;
-    min-height: 0 !important;
-    display: flex;
-    flex-direction: column;
+    max-height: 100vh !important;
     overflow: hidden !important;
 }
 
-/* ساختار اصلی Settings */
 .main-content.eitaa-chat-host .settings-layout.eitaa-chat-active {
-    flex: 1 1 auto !important;
-    width: 100%;
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
+    max-height: 100% !important;
     overflow: hidden !important;
-    display: flex !important;
 }
 
-/* منوی داشبورد را حذف نکن */
-.main-content.eitaa-chat-host .settings-nav {
-    display: flex !important;
-}
-
-/* محتوای ایتا در کنار منو */
 .main-content.eitaa-chat-host .settings-content {
-    flex: 1 1 auto !important;
-    width: auto !important;
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
-    max-height: none !important;
+    max-height: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
     overflow: hidden !important;
 }
 
-/* صفحه ایتا */
 #eitaaChatPageWrapper {
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
-    position: relative;
-    overflow: hidden;
-    margin: 0;
-    padding: 0;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
 }
 
-/* کانتینر اصلی ایتا */
 #eitaaChatPageWrapper .container {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
-    position: relative;
-    overflow: hidden;
-    margin: 0;
-    padding: 0;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
 }
-
-/* لیست کاربران */
-#eitaaChatPageWrapper .users {
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
-    overflow: hidden;
-}
-
-/* لیست گفتگوها */
-#eitaaChatPageWrapper #eitaaSessions {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
 
 #eitaaChatPageWrapper .chat {
-    flex: 1 1 auto;
-    min-width: 0;
-    min-height: 0;
-    height: 100%;
-    max-height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
 }
-
-
-#eitaaChatPageWrapper .chat-header {
-    flex: 0 0 auto;
-}
-
 
 #eitaaChatPageWrapper .chat-box {
-    flex: 1 1 auto;
+    flex: 1 1 auto !important;
     min-height: 0 !important;
     height: auto !important;
     max-height: none !important;
     overflow-y: auto !important;
-    overflow-x: hidden;
 }
-
 
 #eitaaChatPageWrapper .input-box {
-    flex: 0 0 auto;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
 }
+
         /* =====================================================
            MOBILE
            ===================================================== */
 
         @media (max-width: 768px) {
-
-  #eitaaChatPageWrapper .input-box {
-        padding: 10px 12px;
-        gap: 8px;
-    }
-
-    #eitaaChatPageWrapper .input-container {
-        height: 44px;
-    }
-
-    #eitaaChatPageWrapper .send-btn {
-        width: 44px;
-        height: 44px;
-        min-width: 44px;
-        max-width: 44px;
-    }
 
             #eitaaChatPageWrapper .users {
 
@@ -1779,34 +1964,68 @@
             }
 
 
-            #eitaaChatPageWrapper .message {
+            #eitaaChatPageWrapper
+            .message {
 
                 max-width: 85%;
+
+                font-size: 15px;
             }
 
 
             #eitaaChatPageWrapper
             .message-wrapper {
 
-                margin-left: 16px;
-                margin-right: 16px;
-            }
-
-
-            #eitaaChatPageWrapper
-            .me-wrapper {
-
-                margin-left: 16px;
-                margin-right: 50px;
-            }
-
-
-            #eitaaChatPageWrapper
-            .search-container {
-
-                width: 95%;
+                margin: 0;
 
                 padding: 0;
+            }
+
+
+            #eitaaChatPageWrapper
+            .message-wrapper.me-wrapper {
+
+                margin: 0;
+
+                padding: 0;
+            }
+
+
+            #eitaaChatPageWrapper
+            .chat-box {
+
+                padding: 16px;
+            }
+
+
+            #eitaaChatPageWrapper
+            .input-box {
+
+                padding: 10px 12px;
+
+                gap: 8px;
+            }
+
+
+            #eitaaChatPageWrapper
+            .input-container {
+
+                height: 44px;
+            }
+
+
+            #eitaaChatPageWrapper
+            .send-btn {
+
+                width: 44px;
+
+                height: 44px;
+
+                min-width: 44px;
+
+                max-width: 44px;
+
+                flex-basis: 44px;
             }
 
 
@@ -1866,6 +2085,7 @@
             .header-btn {
 
                 width: 38px;
+
                 height: 38px;
             }
 
@@ -1876,22 +2096,7 @@
                 padding: 12px 16px;
             }
 
-
-            #eitaaChatPageWrapper
-            .chat-box {
-
-                padding: 16px;
-            }
-
-
-            #eitaaChatPageWrapper
-            .input-box {
-
-                padding: 12px 16px;
-            }
-
         }
-
 
         `;
 
@@ -2495,6 +2700,13 @@
                 );
 
 
+            if (!sessionsRes.ok) {
+                throw new Error(
+                    'Sessions request failed'
+                );
+            }
+
+
             const sessions =
                 await sessionsRes.json();
 
@@ -2507,10 +2719,26 @@
                 of sessions
             ) {
 
+                const sid =
+                    session.session_id ||
+                    session.sessions_id ||
+                    session.id;
+
+
+                if (!sid) {
+                    continue;
+                }
+
+
                 const messagesRes =
                     await fetch(
-                        `${EITAA_API}/messages/${session.id}`
+                        `${EITAA_API}/messages/${sid}`
                     );
+
+
+                if (!messagesRes.ok) {
+                    continue;
+                }
 
 
                 const messages =
@@ -2534,7 +2762,10 @@
                             results.push({
 
                                 userId:
-                                    session.user_id,
+                                    session.external_chat_id ||
+                                    session.session_id ||
+                                    session.user_id ||
+                                    sid,
 
                                 sessionTitle:
                                     session.title,
@@ -2677,102 +2908,143 @@
     /* =========================================================
        CREATE CHAT
        ========================================================= */
-async function createEitaaChat() {
 
-    const input =
-        getEl('eitaaUsernameInput');
+    async function createEitaaChat() {
 
-    if (!input) return;
-
-    const username =
-        input.value.trim();
-
-    if (!username) {
-        notify(
-            'لطفاً نام کاربری را وارد کنید.'
-        );
-        return;
-    }
-
-    const btn =
-        getEl('eitaaCreateChatBtn');
-
-    try {
-
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML =
-                '<div class="spinner"></div>';
-        }
-
-        const res = await fetch(
-            EITAA_WEBHOOK,
-            {
-                method: 'POST',
-
-                headers: {
-                    'Content-Type':
-                        'application/json'
-                },
-
-                body: JSON.stringify({
-                    username:
-                        username
-                })
-            }
-        );
-
-        if (!res.ok) {
-            throw new Error(
-                'Webhook Error'
+        const input =
+            getEl(
+                'eitaaUsernameInput'
             );
+
+        if (!input) {
+            return;
         }
 
-        let data = null;
+
+        const username =
+            input.value.trim();
+
+
+        if (!username) {
+
+            notify(
+                'لطفاً نام کاربری را وارد کنید.'
+            );
+
+            return;
+        }
+
+
+        const btn =
+            getEl(
+                'eitaaCreateChatBtn'
+            );
+
 
         try {
-            data = await res.json();
-        } catch (e) {
-            data = null;
+
+            if (btn) {
+
+                btn.disabled = true;
+
+                btn.innerHTML =
+                    '<div class="spinner"></div>';
+
+            }
+
+
+            const res =
+                await fetch(
+                    EITAA_CREATE_CHAT_WEBHOOK,
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+
+                        body: JSON.stringify({
+                            username:
+                                username
+                        })
+                    }
+                );
+
+
+            if (!res.ok) {
+
+                throw new Error(
+                    'Webhook Error'
+                );
+
+            }
+
+
+            let data = null;
+
+
+            try {
+
+                data =
+                    await res.json();
+
+            } catch (e) {
+
+                data = null;
+
+            }
+
+
+            console.log(
+                'Eitaa create chat:',
+                data
+            );
+
+
+            closeEitaaModal();
+
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        800
+                    )
+            );
+
+
+            await loadEitaaSessions();
+
+
+        } catch (err) {
+
+            console.error(
+                'Eitaa create chat error:',
+                err
+            );
+
+
+            notify(
+                'خطا در ایجاد گفتگو'
+            );
+
+
+        } finally {
+
+            if (btn) {
+
+                btn.disabled = false;
+
+                btn.textContent =
+                    'ایجاد گفتگو';
+
+            }
+
         }
 
-        console.log(
-            'Eitaa create chat:',
-            data
-        );
-
-        closeEitaaModal();
-
-        await new Promise(
-            resolve =>
-                setTimeout(
-                    resolve,
-                    800
-                )
-        );
-
-        await loadEitaaSessions();
-
-    } catch (err) {
-
-        console.error(
-            'Eitaa create chat error:',
-            err
-        );
-
-        notify(
-            'خطا در ایجاد گفتگو'
-        );
-
-    } finally {
-
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent =
-                'ایجاد گفتگو';
-        }
     }
-}
+
 
     /* =========================================================
        MOBILE
@@ -2839,528 +3111,792 @@ async function createEitaaChat() {
     /* =========================================================
        LOAD SESSIONS
        ========================================================= */
-async function loadEitaaSessions() {
-    const box = getEl('eitaaSessions');
 
-    if (!box) return;
+    async function loadEitaaSessions() {
 
-    try {
-        const res = await fetch(
-            EITAA_API + '/sessions'
-        );
+        const box =
+            getEl(
+                'eitaaSessions'
+            );
 
-        if (!res.ok) {
-            throw new Error('Sessions request failed');
-        }
 
-        let sessions = await res.json();
-
-        sessions.sort((a, b) => {
-            return new Date(b.updated_at) -
-                   new Date(a.updated_at);
-        });
-
-        box.innerHTML = '';
-
-        if (!sessions.length) {
-            box.innerHTML = `
-                <div style="
-                    padding:40px 20px;
-                    text-align:center;
-                    color:var(--text-muted);
-                ">
-                    <div style="
-                        font-size:48px;
-                        margin-bottom:12px;
-                        opacity:.5;
-                    ">
-                        📭
-                    </div>
-
-                    <p>
-                        هنوز گفتگویی وجود ندارد
-                    </p>
-                </div>
-            `;
-
+        if (!box) {
             return;
         }
 
-        sessions.forEach(s => {
 
-            /*
-             * دقیقاً مطابق HTML اصلی ایتا
-             */
-            const sid =
-                s.session_id ||
-                s.sessions_id ||
-                s.id;
+        try {
 
-            const displayId =
-                s.external_chat_id ||
-                s.session_id ||
-                sid;
-
-            if (!sid) return;
-
-            const div =
-                document.createElement('div');
-
-            div.className =
-                'user' +
-                (
-                    currentSession === sid
-                        ? ' active'
-                        : ''
+            const res =
+                await fetch(
+                    EITAA_API +
+                    '/sessions'
                 );
 
-            const initial =
-                displayId
-                    ? String(displayId)
-                        .charAt(0)
-                        .toUpperCase()
-                    : '?';
 
-            div.innerHTML = `
-                <div class="user-content">
+            if (!res.ok) {
 
-                    <div class="user-avatar">
-                        ${escapeHtml(initial)}
-                    </div>
+                throw new Error(
+                    'Sessions request failed'
+                );
 
-                    <div class="user-info">
+            }
 
-                        <div class="uid">
-                            ${escapeHtml(displayId)}
-                        </div>
 
-                        <div class="user-title">
-                            ${escapeHtml(
-                                s.title ||
-                                'گفتگوی جدید'
-                            )}
-                        </div>
+            let sessions =
+                await res.json();
 
-                        <div class="utime">
-                            ${
-                                s.updated_at
-                                    ? new Date(
-                                        s.updated_at
-                                    ).toLocaleString('fa-IR')
-                                    : ''
-                            }
-                        </div>
 
-                    </div>
+            sessions.sort(
+                (a, b) => {
 
-                </div>
-            `;
-
-            div.addEventListener(
-                'click',
-                () => {
-                    selectEitaaSession(
-                        s,
-                        sid,
-                        displayId
+                    return new Date(
+                        b.updated_at
+                    ) -
+                    new Date(
+                        a.updated_at
                     );
+
                 }
             );
 
-            box.appendChild(div);
-        });
 
-    } catch (err) {
+            box.innerHTML = '';
 
-        console.error(
-            'Load Eitaa sessions error:',
-            err
-        );
 
-        box.innerHTML = `
-            <div style="
-                padding:30px 20px;
-                text-align:center;
-                color:var(--text-muted);
-            ">
-                ⚠️ خطا در دریافت گفتگوها
-            </div>
-        `;
+            if (!sessions.length) {
+
+                box.innerHTML = `
+
+                    <div style="
+                        padding:40px 20px;
+                        text-align:center;
+                        color:var(--text-muted);
+                    ">
+
+                        <div style="
+                            font-size:48px;
+                            margin-bottom:12px;
+                            opacity:.5;
+                        ">
+                            📭
+                        </div>
+
+                        <p>
+                            هنوز گفتگویی وجود ندارد
+                        </p>
+
+                    </div>
+
+                `;
+
+                return;
+            }
+
+
+            sessions.forEach(
+                s => {
+
+                    const sid =
+                        s.session_id ||
+                        s.sessions_id ||
+                        s.id;
+
+
+                    const displayId =
+                        s.external_chat_id ||
+                        s.session_id ||
+                        sid;
+
+
+                    if (!sid) {
+                        return;
+                    }
+
+
+                    const div =
+                        document.createElement(
+                            'div'
+                        );
+
+
+                    div.className =
+                        'user' +
+                        (
+                            currentSession === sid
+                                ? ' active'
+                                : ''
+                        );
+
+
+                    const initial =
+                        displayId
+                            ? String(
+                                displayId
+                            )
+                            .charAt(0)
+                            .toUpperCase()
+                            : '?';
+
+
+                    div.innerHTML = `
+
+                        <div class="user-content">
+
+                            <div class="user-avatar">
+                                ${escapeHtml(
+                                    initial
+                                )}
+                            </div>
+
+
+                            <div class="user-info">
+
+                                <div class="uid">
+                                    ${escapeHtml(
+                                        displayId
+                                    )}
+                                </div>
+
+
+                                <div class="user-title">
+                                    ${escapeHtml(
+                                        s.title ||
+                                        'گفتگوی جدید'
+                                    )}
+                                </div>
+
+
+                                <div class="utime">
+                                    ${
+                                        s.updated_at
+                                            ? new Date(
+                                                s.updated_at
+                                            ).toLocaleString(
+                                                'fa-IR'
+                                            )
+                                            : ''
+                                    }
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+
+                    div.addEventListener(
+                        'click',
+                        () => {
+
+                            selectEitaaSession(
+                                s,
+                                sid,
+                                displayId
+                            );
+
+                        }
+                    );
+
+
+                    box.appendChild(
+                        div
+                    );
+
+                }
+            );
+
+
+        } catch (err) {
+
+            console.error(
+                'Load Eitaa sessions error:',
+                err
+            );
+
+
+            box.innerHTML = `
+
+                <div style="
+                    padding:30px 20px;
+                    text-align:center;
+                    color:var(--text-muted);
+                ">
+                    ⚠️ خطا در دریافت گفتگوها
+                </div>
+
+            `;
+
+        }
+
     }
-}
+
 
     /* =========================================================
        SELECT SESSION
        ========================================================= */
-async function selectEitaaSession(
-    s,
-    sid,
-    displayId
-) {
-    currentSession = sid;
 
-    currentUserId =
-        s.external_chat_id ||
-        s.session_id ||
-        displayId;
+    async function selectEitaaSession(
+        s,
+        sid,
+        displayId
+    ) {
 
-    delete unread[sid];
+        currentSession =
+            sid;
 
-    lastMessageCount = 0;
-    isInitialLoad = true;
 
-    const chatHeader =
-        getEl('eitaaChatHeader');
+        currentUserId =
+            s.external_chat_id ||
+            s.session_id ||
+            displayId;
 
-    if (chatHeader) {
 
-        const initial =
-            displayId
-                ? String(displayId)
-                    .charAt(0)
-                    .toUpperCase()
-                : '?';
+        delete unread[sid];
 
-        chatHeader.innerHTML = `
-            <button
-                class="mobile-back-btn"
-                id="eitaaMobileBackBtn"
-                type="button"
-            >
-                →
-            </button>
 
-            <div class="chat-header-avatar">
-                ${escapeHtml(initial)}
-            </div>
+        lastMessageCount =
+            0;
 
-            <div class="chat-header-info">
 
-                <h2>
-                    ${escapeHtml(displayId)}
-                </h2>
+        isInitialLoad =
+            true;
 
-                <span>
-                    <span class="status-dot"></span>
-                    آنلاین •
-                    ${escapeHtml(
-                        s.title ||
-                        'گفتگو'
-                    )}
-                </span>
 
-            </div>
-        `;
-
-        const backBtn =
+        const chatHeader =
             getEl(
-                'eitaaMobileBackBtn'
+                'eitaaChatHeader'
             );
 
-        if (backBtn) {
-            backBtn.onclick =
-                goBackToEitaaSidebar;
+
+        if (chatHeader) {
+
+            const avatar =
+                EITAA_AVATAR;
+
+
+            chatHeader.innerHTML = `
+
+                <button
+                    class="mobile-back-btn"
+                    id="eitaaMobileBackBtn"
+                    type="button"
+                >
+                    →
+                </button>
+
+
+                <div class="chat-header-avatar">
+
+                    <img
+                        src="${avatar}"
+                        alt="Eitaa"
+                    >
+
+                </div>
+
+
+                <div class="chat-header-info">
+
+                    <h2>
+                        ${escapeHtml(
+                            displayId
+                        )}
+                    </h2>
+
+
+                    <span>
+
+                        <span class="status-dot"></span>
+
+                        آنلاین •
+
+                        ${escapeHtml(
+                            s.title ||
+                            'گفتگو'
+                        )}
+
+                    </span>
+
+                </div>
+
+            `;
+
+
+            const backBtn =
+                getEl(
+                    'eitaaMobileBackBtn'
+                );
+
+
+            if (backBtn) {
+
+                backBtn.onclick =
+                    goBackToEitaaSidebar;
+
+            }
+
         }
+
+
+        const chatBox =
+            getEl(
+                'eitaaChatBox'
+            );
+
+
+        const inputBox =
+            getEl(
+                'eitaaInputBox'
+            );
+
+
+        if (chatBox) {
+
+            chatBox.style.display =
+                'flex';
+
+        }
+
+
+        if (inputBox) {
+
+            inputBox.style.display =
+                'flex';
+
+        }
+
+
+        if (
+            window.innerWidth <= 768
+        ) {
+
+            document
+                .querySelector(
+                    '#eitaaChatPageWrapper .users'
+                )
+                ?.classList.add(
+                    'show-chat'
+                );
+
+
+            document
+                .querySelector(
+                    '#eitaaChatPageWrapper .chat'
+                )
+                ?.classList.add(
+                    'show-chat'
+                );
+
+        }
+
+
+        /*
+         * لیست را دوباره رندر می‌کنیم
+         * تا active روی چت انتخاب‌شده باشد.
+         */
+
+        await loadEitaaSessions();
+
+
+        await loadEitaaMessages();
+
     }
 
-    const chatBox =
-        getEl('eitaaChatBox');
-
-    const inputBox =
-        getEl('eitaaInputBox');
-
-    if (chatBox) {
-        chatBox.style.display = 'flex';
-    }
-
-    if (inputBox) {
-        inputBox.style.display = 'flex';
-    }
-
-    if (window.innerWidth <= 768) {
-
-        document
-            .querySelector(
-                '#eitaaChatPageWrapper .users'
-            )
-            ?.classList.add('show-chat');
-
-        document
-            .querySelector(
-                '#eitaaChatPageWrapper .chat'
-            )
-            ?.classList.add('show-chat');
-    }
-
-    await loadEitaaMessages();
-}
 
     /* =========================================================
        LOAD MESSAGES
        ========================================================= */
-async function loadEitaaMessages(
-    silent = false
-) {
-    if (!currentSession) return;
 
-    const chatBox =
-        getEl('eitaaChatBox');
+    async function loadEitaaMessages(
+        silent = false
+    ) {
 
-    if (!chatBox) return;
+        if (!currentSession) {
+            return;
+        }
 
-    try {
 
-        const res = await fetch(
-            `${EITAA_API}/messages/${currentSession}`
-        );
-
-        if (!res.ok) {
-            throw new Error(
-                'Messages request failed'
+        const chatBox =
+            getEl(
+                'eitaaChatBox'
             );
-        }
 
-        const messages =
-            await res.json();
 
-        if (
-            silent &&
-            messages.length === lastMessageCount
-        ) {
+        if (!chatBox) {
             return;
         }
 
-        const wasAtBottom =
-            chatBox.scrollHeight -
-            chatBox.scrollTop <=
-            chatBox.clientHeight + 50;
 
-        if (
-            !isInitialLoad &&
-            messages.length ===
-                lastMessageCount
-        ) {
-            return;
-        }
+        try {
 
-        const firstLoad =
-            isInitialLoad;
-
-        lastMessageCount =
-            messages.length;
-
-        isInitialLoad = false;
-
-        chatBox.innerHTML = '';
-
-        if (!messages.length) {
-
-            chatBox.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        ✨
-                    </div>
-
-                    <h3>
-                        شروع مکالمه
-                    </h3>
-
-                    <p>
-                        هنوز پیامی رد و بدل نشده است
-                    </p>
-                </div>
-            `;
-
-            return;
-        }
-
-        messages.forEach(m => {
-
-            const isUser =
-                m.sender_type === 'user';
-
-            const wrapper =
-                document.createElement('div');
-
-            wrapper.className =
-                'message-wrapper' +
-                (
-                    isUser
-                        ? ' me-wrapper'
-                        : ''
+            const res =
+                await fetch(
+                    `${EITAA_API}/messages/${currentSession}`
                 );
 
-            const createdAt =
-                m.created_at ||
-                m.timestamp ||
-                m.createdAt;
 
-            const time =
-                createdAt
-                    ? new Date(
-                        createdAt
-                    ).toLocaleTimeString(
-                        'fa-IR',
-                        {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        }
-                    )
-                    : new Date()
-                        .toLocaleTimeString(
-                            'fa-IR',
-                            {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }
+            if (!res.ok) {
+
+                throw new Error(
+                    'Messages request failed'
+                );
+
+            }
+
+
+            const messages =
+                await res.json();
+
+
+            if (
+                silent &&
+                messages.length ===
+                    lastMessageCount
+            ) {
+                return;
+            }
+
+
+            const wasAtBottom =
+                chatBox.scrollHeight -
+                chatBox.scrollTop <=
+                chatBox.clientHeight + 50;
+
+
+            if (
+                !isInitialLoad &&
+                messages.length ===
+                    lastMessageCount
+            ) {
+                return;
+            }
+
+
+            const firstLoad =
+                isInitialLoad;
+
+
+            lastMessageCount =
+                messages.length;
+
+
+            isInitialLoad =
+                false;
+
+
+            chatBox.innerHTML =
+                '';
+
+
+            if (!messages.length) {
+
+                chatBox.innerHTML = `
+
+                    <div class="empty-state">
+
+                        <div class="empty-state-icon">
+                            ✨
+                        </div>
+
+                        <h3>
+                            شروع مکالمه
+                        </h3>
+
+                        <p>
+                            هنوز پیامی رد و بدل نشده است
+                        </p>
+
+                    </div>
+
+                `;
+
+                return;
+            }
+
+
+            messages.forEach(
+                m => {
+
+                    const isUser =
+                        m.sender_type ===
+                        'user';
+
+
+                    const wrapper =
+                        document.createElement(
+                            'div'
                         );
 
-            const avatar =
-                isUser
-                    ? 'img/images.jpg'
-                    : 'img/navid.jpg';
 
-            const messageText =
-                escapeHtml(
-                    m.message || ''
-                ).replace(
-                    /\n/g,
-                    '<br>'
-                );
-
-            wrapper.innerHTML = `
-                <div class="message-avatar">
-                    <img
-                        src="${avatar}"
-                        alt="${
+                    wrapper.className =
+                        'message-wrapper' +
+                        (
                             isUser
-                                ? 'Eitaa'
-                                : 'سپهر'
-                        }"
-                    >
-                </div>
+                                ? ' me-wrapper'
+                                : ''
+                        );
 
-                <div class="message ${
-                    isUser
-                        ? 'me'
-                        : 'other'
-                }">
 
-                    <div>
-                        ${messageText}
-                    </div>
+                    const createdAt =
+                        m.created_at ||
+                        m.timestamp ||
+                        m.createdAt;
 
-                    <div class="message-time">
-                        ${time}
-                    </div>
 
-                </div>
-            `;
+                    const time =
+                        createdAt
+                            ? new Date(
+                                createdAt
+                            ).toLocaleTimeString(
+                                'fa-IR',
+                                {
+                                    hour:
+                                        '2-digit',
 
-            chatBox.appendChild(wrapper);
-        });
+                                    minute:
+                                        '2-digit'
+                                }
+                            )
+                            : new Date()
+                                .toLocaleTimeString(
+                                    'fa-IR',
+                                    {
+                                        hour:
+                                            '2-digit',
 
-        if (
-            wasAtBottom ||
-            firstLoad
-        ) {
-            chatBox.scrollTop =
-                chatBox.scrollHeight;
+                                        minute:
+                                            '2-digit'
+                                    }
+                                );
+
+
+                    /*
+                     * کاربر:
+                     * images.jpg
+                     *
+                     * ربات:
+                     * navid.jpg
+                     */
+
+                    const avatar =
+                        isUser
+                            ? 'img/eitaa.png'
+                            : 'img/navid.jpg';
+
+
+                    const messageText =
+                        escapeHtml(
+                            m.message || ''
+                        )
+                        .replace(
+                            /\n/g,
+                            '<br>'
+                        );
+
+
+                    wrapper.innerHTML = `
+
+                        <div class="message-avatar">
+
+                            <img
+                                src="${avatar}"
+                                alt="${
+                                    isUser
+                                        ? 'کاربر ایتا'
+                                        : 'سپهر'
+                                }"
+                            >
+
+                        </div>
+
+
+                        <div class="message ${
+                            isUser
+                                ? 'me'
+                                : 'other'
+                        }">
+
+                            <div>
+                                ${messageText}
+                            </div>
+
+
+                            <div class="message-time">
+                                ${time}
+                            </div>
+
+                        </div>
+
+                    `;
+
+
+                    chatBox.appendChild(
+                        wrapper
+                    );
+
+                }
+            );
+
+
+            if (
+                wasAtBottom ||
+                firstLoad
+            ) {
+
+                chatBox.scrollTop =
+                    chatBox.scrollHeight;
+
+            }
+
+
+        } catch (err) {
+
+            console.error(
+                'Load Eitaa messages error:',
+                err
+            );
+
         }
 
-    } catch (err) {
-
-        console.error(
-            'Load Eitaa messages error:',
-            err
-        );
     }
-}
 
 
     /* =========================================================
        SEND MESSAGE
        ========================================================= */
-async function sendEitaaMessage() {
 
-    const input =
-        getEl('eitaaMsgInput');
+    async function sendEitaaMessage() {
 
-    if (!input) return;
-
-    const text =
-        input.value.trim();
-
-    if (!currentSession) {
-        notify(
-            'ابتدا یک گفتگو را انتخاب کنید.'
-        );
-        return;
-    }
-
-    if (!text) return;
-
-    const btn =
-        getEl('eitaaSendMessageBtn');
-
-    try {
-
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML =
-                '<div class="spinner"></div>';
-        }
-
-        const res = await fetch(
-            EITAA_WEBHOOK,
-            {
-                method: 'POST',
-
-                headers: {
-                    'Content-Type':
-                        'application/json'
-                },
-
-                body: JSON.stringify({
-                    session_id:
-                        currentSession,
-
-                    message:
-                        text
-                })
-            }
-        );
-
-        if (!res.ok) {
-            throw new Error(
-                'Webhook Error'
+        const input =
+            getEl(
+                'eitaaMsgInput'
             );
+
+
+        if (!input) {
+            return;
         }
 
-        input.value = '';
 
-        await loadEitaaMessages(false);
+        const text =
+            input.value.trim();
 
-    } catch (err) {
 
-        console.error(
-            'Send Eitaa message error:',
-            err
-        );
+        if (!currentSession) {
 
-        notify(
-            'ارسال پیام انجام نشد.'
-        );
+            notify(
+                'ابتدا یک گفتگو را انتخاب کنید.'
+            );
 
-    } finally {
-
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML =
-                '<span>➤</span>';
+            return;
         }
+
+
+        if (!text) {
+            return;
+        }
+
+
+        const btn =
+            getEl(
+                'eitaaSendMessageBtn'
+            );
+
+
+        try {
+
+            if (btn) {
+
+                btn.disabled =
+                    true;
+
+                btn.innerHTML =
+                    '<div class="spinner"></div>';
+
+            }
+
+
+            /*
+             * مهم:
+             *
+             * برای Eitaa فقط همین دو مقدار
+             * ارسال می‌شود.
+             *
+             * user_id ارسال نمی‌کنیم.
+             */
+
+            const res =
+                await fetch(
+                    EITAA_WEBHOOK,
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+
+                        body: JSON.stringify({
+
+                            session_id:
+                                currentSession,
+
+                            message:
+                                text
+
+                        })
+                    }
+                );
+
+
+            if (!res.ok) {
+
+                throw new Error(
+                    'Webhook Error'
+                );
+
+            }
+
+
+            input.value =
+                '';
+
+
+            await loadEitaaMessages(
+                false
+            );
+
+
+        } catch (err) {
+
+            console.error(
+                'Send Eitaa message error:',
+                err
+            );
+
+
+            notify(
+                'ارسال پیام انجام نشد.'
+            );
+
+
+        } finally {
+
+            if (btn) {
+
+                btn.disabled =
+                    false;
+
+                btn.innerHTML =
+                    '<span>➤</span>';
+
+            }
+
+        }
+
     }
-}
 
 
     /* =========================================================
@@ -3368,7 +3904,6 @@ async function sendEitaaMessage() {
        ========================================================= */
 
     function initializeEitaaEvents() {
-
 
         /*
          * Theme
@@ -3656,78 +4191,98 @@ async function sendEitaaMessage() {
     /* =========================================================
        POLLING
        ========================================================= */
-function startEitaaPolling() {
 
-    stopEitaaPolling();
+    function startEitaaPolling() {
 
-    sessionsInterval =
-        setInterval(
-            () => {
-
-                if (
-                    getEl(
-                        'eitaaChatPageWrapper'
-                    )
-                ) {
-                    loadEitaaSessions();
-                }
-
-            },
-            15000
-        );
+        stopEitaaPolling();
 
 
-    messagesInterval =
-        setInterval(
-            async () => {
-
-                if (!currentSession) {
-                    return;
-                }
-
-                if (
-                    !getEl(
-                        'eitaaChatPageWrapper'
-                    )
-                ) {
-                    return;
-                }
-
-                try {
-
-                    const res =
-                        await fetch(
-                            `${EITAA_API}/messages/${currentSession}`
-                        );
-
-                    const messages =
-                        await res.json();
+        sessionsInterval =
+            setInterval(
+                () => {
 
                     if (
-                        messages.length >
-                        lastMessageCount
+                        getEl(
+                            'eitaaChatPageWrapper'
+                        )
                     ) {
-                        await loadEitaaMessages(
-                            false
-                        );
+
+                        loadEitaaSessions();
+
                     }
 
-                } catch (err) {
+                },
+                15000
+            );
 
-                    // intentionally silent
 
-                }
+        messagesInterval =
+            setInterval(
+                async () => {
 
-            },
-            5000
-        );
-}
+                    if (!currentSession) {
+                        return;
+                    }
 
-/*============================
-stopEitaaPolling
-========================*/
+
+                    if (
+                        !getEl(
+                            'eitaaChatPageWrapper'
+                        )
+                    ) {
+                        return;
+                    }
+
+
+                    try {
+
+                        const res =
+                            await fetch(
+                                `${EITAA_API}/messages/${currentSession}`
+                            );
+
+
+                        if (!res.ok) {
+                            return;
+                        }
+
+
+                        const messages =
+                            await res.json();
+
+
+                        if (
+                            messages.length >
+                            lastMessageCount
+                        ) {
+
+                            await loadEitaaMessages(
+                                false
+                            );
+
+                        }
+
+
+                    } catch (err) {
+
+                        /*
+                         * intentionally silent
+                         */
+
+                    }
+
+                },
+                5000
+            );
+
+    }
+
+
+    /* =========================================================
+       STOP POLLING
+       ========================================================= */
+
     function stopEitaaPolling() {
-
 
         if (
             sessionsInterval
@@ -3867,9 +4422,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           DASHBOARD HEIGHT FIX
-           ===================================================== */
+        /*
+         * Dashboard
+         */
 
         const mainContent =
             document.querySelector(
@@ -3886,9 +4441,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           SETTINGS LAYOUT
-           ===================================================== */
+        /*
+         * Settings Layout
+         */
 
         const layout =
             document.querySelector(
@@ -3905,9 +4460,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           HIDE SETTINGS NAV
-           ===================================================== */
+        /*
+         * Hide Settings Navigation
+         */
 
         const settingsNav =
             getEl(
@@ -3937,9 +4492,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           HIDE SETTINGS TOGGLE
-           ===================================================== */
+        /*
+         * Hide Settings Toggle
+         */
 
         const settingsToggleBtn =
             getEl(
@@ -3955,9 +4510,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           HEADER
-           ===================================================== */
+        /*
+         * Header
+         */
 
         const headerTitle =
             getEl(
@@ -3973,9 +4528,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           APP STATE
-           ===================================================== */
+        /*
+         * App State
+         */
 
         if (
             typeof window.AppState !==
@@ -3988,9 +4543,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           RENDER
-           ===================================================== */
+        /*
+         * Render
+         */
 
         await renderEitaaChat();
 
@@ -4019,9 +4574,9 @@ stopEitaaPolling
             true;
 
 
-        /* =====================================================
-           REMOVE EITAA HOST
-           ===================================================== */
+        /*
+         * Remove Host
+         */
 
         const mainContent =
             document.querySelector(
@@ -4038,9 +4593,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           REMOVE EITAA STATE
-           ===================================================== */
+        /*
+         * Remove Layout State
+         */
 
         const layout =
             document.querySelector(
@@ -4057,9 +4612,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           RESTORE SETTINGS NAV
-           ===================================================== */
+        /*
+         * Restore Navigation
+         */
 
         const settingsNav =
             getEl(
@@ -4089,9 +4644,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           RESTORE SETTINGS TOGGLE
-           ===================================================== */
+        /*
+         * Restore Toggle
+         */
 
         const settingsToggleBtn =
             getEl(
@@ -4107,9 +4662,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           RESTORE HEADER
-           ===================================================== */
+        /*
+         * Restore Header
+         */
 
         const headerTitle =
             getEl(
@@ -4125,9 +4680,9 @@ stopEitaaPolling
         }
 
 
-        /* =====================================================
-           RETURN TO OVERVIEW
-           ===================================================== */
+        /*
+         * Return Overview
+         */
 
         if (
             typeof window.navigateTo ===
