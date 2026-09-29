@@ -520,6 +520,12 @@ a {
   top: var(--header-height);
   height: calc(100vh - var(--header-height));
   overflow-y: auto;
+  display: none;
+}
+
+
+.settings-nav.show {
+    display: flex;
 }
 
 .settings-nav-title {
