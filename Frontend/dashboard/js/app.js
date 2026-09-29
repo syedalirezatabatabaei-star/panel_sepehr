@@ -33,7 +33,13 @@ const AppState = {
     notificationSearch: '',
     notificationFilter: 'all'
 };
+function toggleSettingsNav() {
+    const nav = document.querySelector('.settings-nav');
 
+    if (nav) {
+        nav.classList.toggle('open');
+    }
+}
 async function loadCurrentUser() {
     try {
         const response = await fetch(`${API_BASE}/api/auth/me`, {
@@ -273,3 +279,4 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUsers();
 
 });
+

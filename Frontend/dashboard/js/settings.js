@@ -1,3 +1,44 @@
+(function () {
+
+    'use strict';
+
+    window.toggleSettingsNav = function () {
+
+        const nav = document.getElementById('settingsNav');
+        const overlay = document.getElementById('settingsNavOverlay');
+
+        if (!nav) {
+            console.error('❌ settingsNav پیدا نشد');
+            return;
+        }
+
+        const isOpen = nav.classList.toggle('open');
+
+        if (overlay) {
+            overlay.classList.toggle('show', isOpen);
+        }
+
+        console.log('⚙️ Settings Nav:', isOpen ? 'OPEN' : 'CLOSED');
+    };
+
+
+    window.hideSettingsNav = function () {
+
+        const nav = document.getElementById('settingsNav');
+        const overlay = document.getElementById('settingsNavOverlay');
+
+        if (nav) {
+            nav.classList.remove('open');
+        }
+
+        if (overlay) {
+            overlay.classList.remove('show');
+        }
+
+        console.log('⚙️ Settings Nav: CLOSED');
+    };
+
+})();
 /* =========================================================
    SETTINGS
    ========================================================= */

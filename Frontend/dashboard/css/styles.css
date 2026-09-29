@@ -510,21 +510,8 @@ a {
   flex: 1;
 }
 
-.settings-nav {
-  width: var(--settings-nav-width);
-  background: #fff;
-  border-left: 1px solid var(--gray-200);
-  padding: var(--space-6) 0;
-  flex-shrink: 0;
-  position: sticky;
-  top: var(--header-height);
-  height: calc(100vh - var(--header-height));
-  overflow-y: auto;
-  display: none;
-}
 
-
-.settings-nav.show {
+.settings-nav.open {
     display: flex;
 }
 
@@ -1864,7 +1851,20 @@ a {
   padding-top: var(--space-4);
   border-top: 1px solid var(--gray-100);
 }
+.settings-nav {
+    width: var(--settings-nav-width);
+    background: #fff;
+    border-left: 1px solid var(--gray-200);
+    padding: var(--space-6) 0;
+    flex-shrink: 0;
+    position: sticky;
+    top: var(--header-height);
+    height: calc(100vh - var(--header-height));
+    overflow-y: auto;
 
+    display: flex;
+    flex-direction: column;
+}
 /* ─── Section Divider ──────────────────────────────────────────── */
 .section-divider {
   height: 1px;
@@ -2008,20 +2008,23 @@ a {
   }
 
   .settings-nav {
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 100;
-    transform: translateX(-100%);
-    width: 280px;
-    box-shadow: var(--shadow-xl);
+    width: var(--settings-nav-width);
     background: #fff;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    height: 100vh;
-  }
+    border-left: 1px solid var(--gray-200);
+    padding: var(--space-6) 0;
+    flex-shrink: 0;
+    position: sticky;
+    top: var(--header-height);
+    height: calc(100vh - var(--header-height));
+    overflow-y: auto;
 
+    display: flex;
+    flex-direction: column;
+  }
   .settings-nav.open {
+    transform: translateX(0);
+  }
+  .Wsettings-nav.open {
     transform: translateX(0);
   }
 
@@ -2478,8 +2481,14 @@ a {
         padding:16px;
 
     }
+    .settings-nav {
+    transition: transform .3s ease;
+    }
 
-
+    .settings-nav.open {
+    transform: translateX(0);
+    
+    }
     .account-grid {
 
         grid-template-columns:1fr;
