@@ -33,15 +33,7 @@ const AppState = {
     notificationSearch: '',
     notificationFilter: 'all'
 };
-function toggleSettingsNav() {
 
-    const nav = document.getElementById('settingsNav');
-
-    if (!nav) return;
-
-    nav.classList.toggle('open');
-
-}
 async function loadCurrentUser() {
     try {
         const response = await fetch(`${API_BASE}/api/auth/me`, {
