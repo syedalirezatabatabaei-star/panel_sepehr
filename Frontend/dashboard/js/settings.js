@@ -11,30 +11,15 @@ function toggleSettingsNav() {
     const nav = document.getElementById('settingsNav');
     const overlay = document.getElementById('settingsNavOverlay');
 
-    if (!nav) {
-        console.error('settingsNav not found');
-        return;
+    console.log("BEFORE:", nav.className);
+
+    nav.classList.add('open');
+
+    if (overlay) {
+        overlay.classList.add('show');
     }
 
-    const isOpen = nav.classList.contains('open');
-
-    if (isOpen) {
-
-        nav.classList.remove('open');
-
-        if (overlay) {
-            overlay.classList.remove('show');
-        }
-
-    } else {
-
-        nav.classList.add('open');
-
-        if (overlay) {
-            overlay.classList.add('show');
-        }
-
-    }
+    console.log("AFTER:", nav.className);
 }
 
 function closeSettingsNav() {
