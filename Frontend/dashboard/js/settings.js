@@ -7,15 +7,33 @@
    ========================================================= */
 
 function toggleSettingsNav() {
+
     const nav = document.getElementById('settingsNav');
     const overlay = document.getElementById('settingsNavOverlay');
 
-    if (!nav) return;
+    if (!nav) {
+        console.error('settingsNav not found');
+        return;
+    }
 
-    nav.classList.toggle('open');
+    const isOpen = nav.classList.contains('open');
 
-    if (overlay) {
-        overlay.classList.toggle('show');
+    if (isOpen) {
+
+        nav.classList.remove('open');
+
+        if (overlay) {
+            overlay.classList.remove('show');
+        }
+
+    } else {
+
+        nav.classList.add('open');
+
+        if (overlay) {
+            overlay.classList.add('show');
+        }
+
     }
 }
 
