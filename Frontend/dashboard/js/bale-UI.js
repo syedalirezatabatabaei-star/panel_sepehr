@@ -2836,7 +2836,7 @@ body:has(.main-content.bale-chat-host) {
     ========================================================= */
 
     async function openBaleChatPage() {
-
+        hideSettingsNav(); 
         console.log(
             'Opening Bale Chat Page...'
         );

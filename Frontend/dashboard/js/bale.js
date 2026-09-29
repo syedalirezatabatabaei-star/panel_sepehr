@@ -211,7 +211,7 @@ async function checkBaleAccount() {
    ========================================================= */
 
 function openBaleMessaging() {
-
+    hideSettingsNav();
     const content = document.getElementById("settingsContent");
 
     if (!content) {

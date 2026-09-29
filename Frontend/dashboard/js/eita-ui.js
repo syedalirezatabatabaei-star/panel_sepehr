@@ -4400,7 +4400,7 @@
        ========================================================= */
 
     async function openEitaaChatPage() {
-
+       hideSettingsNav();
         console.log(
             'Opening Eitaa Chat Page...'
         );

@@ -7556,3 +7556,41 @@ function toggleUserStatus(
         'users'
     );
 }
+// ===============================
+// Settings Navigation Controller
+// ===============================
+
+window.toggleSettingsNav = function () {
+
+    const nav = document.getElementById("settingsNav");
+    const overlay = document.getElementById("settingsNavOverlay");
+
+    if (!nav) {
+        console.error("settingsNav not found");
+        return;
+    }
+
+    nav.classList.toggle("open");
+
+    if (overlay) {
+        overlay.classList.toggle("show");
+    }
+
+};
+
+
+// بستن منوی تنظیمات
+window.hideSettingsNav = function () {
+
+    const nav = document.getElementById("settingsNav");
+    const overlay = document.getElementById("settingsNavOverlay");
+
+    if (nav) {
+        nav.classList.remove("open");
+    }
+
+    if (overlay) {
+        overlay.classList.remove("show");
+    }
+
+};
