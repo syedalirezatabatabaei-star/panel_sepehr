@@ -6,21 +6,7 @@
    SETTINGS NAV
    ========================================================= */
 
-function toggleSettingsNav() {
 
-    const nav = document.getElementById('settingsNav');
-    const overlay = document.getElementById('settingsNavOverlay');
-
-    console.log("BEFORE:", nav.className);
-
-    nav.classList.add('open');
-
-    if (overlay) {
-        overlay.classList.add('show');
-    }
-
-    console.log("AFTER:", nav.className);
-}
 
 function closeSettingsNav() {
     const nav = document.getElementById('settingsNav');
@@ -7559,8 +7545,46 @@ function toggleUserStatus(
 // ===============================
 // Settings Navigation Controller
 // ===============================
+function toggleSettingsNav() {
 
-window.toggleSettingsNav = function () {
+    const nav = document.getElementById("settingsNav");
+    const overlay = document.getElementById("settingsNavOverlay");
+
+    if (!nav) {
+        console.log("settingsNav پیدا نشد");
+        return;
+    }
+
+    // باز و بسته کردن مستقیم
+    if (nav.style.display === "flex") {
+
+        nav.style.display = "none";
+
+        if (overlay) {
+            overlay.style.display = "none";
+        }
+
+    } else {
+
+        nav.style.display = "flex";
+        nav.style.position = "fixed";
+        nav.style.right = "0";
+        nav.style.top = "64px";
+        nav.style.width = "240px";
+        nav.style.height = "calc(100vh - 64px)";
+        nav.style.background = "#fff";
+        nav.style.zIndex = "9999";
+        nav.style.boxShadow = "0 0 20px rgba(0,0,0,.15)";
+
+        if (overlay) {
+            overlay.style.display = "block";
+        }
+    }
+
+    console.log("settings toggle اجرا شد");
+}
+
+window.	toggleSettingsNav = function () {
 
     const nav = document.getElementById("settingsNav");
     const overlay = document.getElementById("settingsNavOverlay");
