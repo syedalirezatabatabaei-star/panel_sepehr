@@ -4472,20 +4472,6 @@ function toggleSidebar() {
   document.getElementById('sidebarOverlay').classList.toggle('show');
 }
 
-function toggleSettingsNav() {
-  const nav = document.getElementById('settingsNav');
-  const overlay = document.getElementById('settingsNavOverlay');
-  nav.classList.toggle('open');
-  overlay.classList.toggle('show');
-}
-
-function closeSettingsNav() {
-  const nav = document.getElementById('settingsNav');
-  const overlay = document.getElementById('settingsNavOverlay');
-  if (nav) nav.classList.remove('open');
-  if (overlay) overlay.classList.remove('show');
-}
-
 function toggleUserDropdown() {
   document.getElementById('userDropdown').classList.toggle('show');
 }
