@@ -6,7 +6,7 @@
    config
    ========================= */
 
-const API_BASE = '';
+const API_BASE = 'http://95.38.187.123:8005';
 let CURRENT_USER = null;
 
 /* =========================
@@ -34,20 +34,23 @@ const AppState = {
     notificationFilter: 'all'
 };
 
-
-/* =========================
-   current user
-   ========================= */
-
 async function loadCurrentUser() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/me`);
+        const response = await fetch(`${API_BASE}/api/auth/me`, {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        const text = await response.text();
+
+        console.log('ME STATUS:', response.status);
+        console.log('ME RESPONSE:', text);
 
         if (!response.ok) {
-            throw new Error('خطا در گرفتن کاربر');
+            throw new Error(`ME API ${response.status}: ${text}`);
         }
 
-        const data = await response.json();
+        const data = JSON.parse(text);
 
         if (data.user) {
             CURRENT_USER = {
@@ -73,19 +76,23 @@ async function loadCurrentUser() {
 }
 
 
-/* =========================
-   users
-   ========================= */
-
 async function loadUsers() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/users`);
+        const response = await fetch(`${API_BASE}/api/auth/users`, {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        const text = await response.text();
+
+        console.log('USERS STATUS:', response.status);
+        console.log('USERS RESPONSE:', text);
 
         if (!response.ok) {
-            throw new Error('خطا در گرفتن کاربران');
+            throw new Error(`USERS API ${response.status}: ${text}`);
         }
 
-        const data = await response.json();
+        const data = JSON.parse(text);
 
         if (Array.isArray(data)) {
             USERS = data;
@@ -102,31 +109,43 @@ async function loadUsers() {
     }
 }
 
+/*=============================
 
+up user namaesh
+
+=============================*/
 function updateUserUI() {
+    console.log('CURRENT_USER:', CURRENT_USER);
+
     if (!CURRENT_USER) return;
 
-    const name =
+    const fullName =
         `${CURRENT_USER.firstName || ''} ${CURRENT_USER.lastName || ''}`.trim();
 
-    const userNameElements = document.querySelectorAll(
-        '[data-current-user-name], .current-user-name'
-    );
+    const name =
+        fullName || CURRENT_USER.username || 'کاربر';
 
-    userNameElements.forEach(el => {
-        el.textContent = name || CURRENT_USER.username || 'کاربر';
+    const role =
+        CURRENT_USER.organizationalPosition ||
+        CURRENT_USER.role ||
+        '';
+
+    document.querySelectorAll('.user-name').forEach(el => {
+        el.textContent = name;
     });
 
-    const userRoleElements = document.querySelectorAll(
-        '[data-current-user-role], .current-user-role'
-    );
+    document.querySelectorAll('.user-role').forEach(el => {
+        el.textContent = role;
+    });
 
-    userRoleElements.forEach(el => {
-        el.textContent = CURRENT_USER.role || '';
+    document.querySelectorAll('.name').forEach(el => {
+        el.textContent = name;
+    });
+
+    document.querySelectorAll('.role-badge').forEach(el => {
+        el.textContent = role;
     });
 }
-
-
 /* =========================
    helper ها
    ========================= */
