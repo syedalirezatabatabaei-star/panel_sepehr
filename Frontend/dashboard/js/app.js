@@ -7,23 +7,11 @@
    ========================= */
 
 const API_BASE = '';
+let CURRENT_USER = null;
 
 /* =========================
    state
    ========================= */
-
-let CURRENT_USER = null;
-
-let USERS = [];
-let ROLES = [];
-let PERMISSIONS = [];
-let PERMISSION_GROUPS = [];
-
-let NOTIFICATIONS = [];
-let ACTIVITIES = [];
-let SECURITY_EVENTS = [];
-let AUDIT_LOGS = [];
-let SYSTEM_SETTINGS = {};
 
 const AppState = {
     currentPage: 'overview',
