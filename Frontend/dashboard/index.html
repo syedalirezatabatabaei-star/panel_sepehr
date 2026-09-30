@@ -88,7 +88,7 @@
 
 
       <div class="sidebar-section-title" style="margin-top: var(--space-4)">مدیریت</div>
-      <button class="sidebar-item active" onclick="navigateTo('overview')">
+      <button class="sidebar-item active" data-section="settings" onclick="navigateTo('overview')">
         <span class="icon">&#9881;&#65039;</span>
         <span>تنظیمات</span>
       </button>
@@ -143,58 +143,13 @@
       </div>
     </header>
 
-    <!-- Settings Layout -->
+    <!-- Settings Layout (nav is injected by JS only when settings is opened) -->
     <div class="settings-layout">
       <!-- Settings Overlay (Mobile) -->
       <div class="settings-nav-overlay" id="settingsNavOverlay" onclick="toggleSettingsNav()"></div>
 
-      <!-- Settings Navigation -->
-      <nav class="settings-nav" id="settingsNav">
-        <div class="settings-nav-header">
-          <span class="settings-nav-title">تنظیمات</span>
-          <button class="settings-nav-close" onclick="toggleSettingsNav()">✕</button>
-        </div>
-        <button class="settings-nav-item active" data-page="overview" onclick="navigateTo('overview')">
-          <span class="icon">&#128202;</span>
-          <span>نمای کلی</span>
-        </button>
-<button class="settings-nav-item" data-page="registration-requests" onclick="navigateTo('registration-requests')">
-  <span class="icon">&#128221;</span>
-  <span>درخواست کاربران جدید</span>
-</button>
-        <button class="settings-nav-item" data-page="users" onclick="navigateTo('users')">
-          <span class="icon">&#128101;</span>
-          <span>مدیریت کاربران</span>
-        </button>
-        <button class="settings-nav-item" data-page="roles" onclick="navigateTo('roles')">
-          <span class="icon">&#127991;&#65039;</span>
-          <span>مدیریت نقش‌ها</span>
-        </button>
-        <button class="settings-nav-item" data-page="notifications" onclick="navigateTo('notifications')">
-          <span class="icon">&#128276;</span>
-          <span>اعلان‌ها</span>
-        </button>
-        <button class="settings-nav-item" data-page="audit-logs" onclick="navigateTo('audit-logs')">
-          <span class="icon">&#128220;</span>
-          <span>لاگ‌های سیستم</span>
-        </button>
-        <button class="settings-nav-item" data-page="activities" onclick="navigateTo('activities')">
-          <span class="icon">&#128203;</span>
-          <span>فعالیت کاربران</span>
-        </button>
-        <button class="settings-nav-item" data-page="security" onclick="navigateTo('security')">
-          <span class="icon">&#128274;</span>
-          <span>امنیت</span>
-        </button>
-        <button class="settings-nav-item" data-page="my-account" onclick="navigateTo('my-account')">
-          <span class="icon">&#128100;</span>
-          <span>حساب من</span>
-        </button>
-        <button class="settings-nav-item" data-page="system-settings" onclick="navigateTo('system-settings')">
-          <span class="icon">&#128295;</span>
-          <span>تنظیمات سیستم</span>
-        </button>
-      </nav>
+      <!-- Settings Navigation — rendered dynamically by ensureSettingsNav() in settings.js -->
+      <div id="settingsNavContainer"></div>
 
       <!-- Content Area -->
       <div class="settings-content" id="settingsContent">

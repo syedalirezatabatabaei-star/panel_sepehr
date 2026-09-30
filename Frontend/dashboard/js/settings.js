@@ -1,54 +1,137 @@
-(function () {
-
-    'use strict';
-
-    window.toggleSettingsNav = function () {
-
-        const nav = document.getElementById('settingsNav');
-        const overlay = document.getElementById('settingsNavOverlay');
-
-        if (!nav) {
-            console.error('❌ settingsNav پیدا نشد');
-            return;
-        }
-
-        const isOpen = nav.classList.toggle('open');
-
-        if (overlay) {
-            overlay.classList.toggle('show', isOpen);
-        }
-
-        console.log('⚙️ Settings Nav:', isOpen ? 'OPEN' : 'CLOSED');
-    };
-
-
-    window.hideSettingsNav = function () {
-
-        const nav = document.getElementById('settingsNav');
-        const overlay = document.getElementById('settingsNavOverlay');
-
-        if (nav) {
-            nav.classList.remove('open');
-        }
-
-        if (overlay) {
-            overlay.classList.remove('show');
-        }
-
-        console.log('⚙️ Settings Nav: CLOSED');
-    };
-
-})();
 /* =========================================================
    SETTINGS
    ========================================================= */
 
 /* =========================================================
    SETTINGS NAV
+   فقط وقتی کاربر داخل صفحات تنظیمات است در DOM ساخته می‌شود.
+   بله / ایتا از settingsContent داخل settings-layout استفاده می‌کنند؛
+   پس layout همیشه باید بماند و فقط خود nav حذف/ساخته شود.
    ========================================================= */
 
+const SETTINGS_NAV_ITEMS = [
+    { page: 'overview',               icon: '&#128202;', label: 'نمای کلی' },
+    { page: 'registration-requests',  icon: '&#128221;', label: 'درخواست کاربران جدید' },
+    { page: 'users',                  icon: '&#128101;', label: 'مدیریت کاربران' },
+    { page: 'roles',                  icon: '&#127991;&#65039;', label: 'مدیریت نقش‌ها' },
+    { page: 'notifications',          icon: '&#128276;', label: 'اعلان‌ها' },
+    { page: 'audit-logs',             icon: '&#128220;', label: 'لاگ‌های سیستم' },
+    { page: 'activities',             icon: '&#128203;', label: 'فعالیت کاربران' },
+    { page: 'security',               icon: '&#128274;', label: 'امنیت' },
+    { page: 'my-account',             icon: '&#128100;', label: 'حساب من' },
+    { page: 'system-settings',        icon: '&#128295;', label: 'تنظیمات سیستم' }
+];
 
+/** true فقط وقتی کاربر در صفحات تنظیمات است (نه بله/ایتا) */
+let settingsSectionOpen = false;
 
+/** صفحات واقعی تنظیمات */
+const SETTINGS_PAGES = new Set([
+    'overview', 'users', 'registration-requests', 'user-details',
+    'user-permissions', 'edit-user', 'roles', 'role-permissions',
+    'notifications', 'audit-logs', 'activities', 'security',
+    'my-account', 'system-settings'
+]);
+
+/** ساخت و تزریق منوی تنظیمات در DOM */
+function ensureSettingsNav() {
+    const container = document.getElementById('settingsNavContainer');
+    if (!container) return;
+
+    if (document.getElementById('settingsNav')) return;
+
+    const itemsHtml = SETTINGS_NAV_ITEMS.map(item => `
+        <button class="settings-nav-item" data-page="${item.page}" onclick="navigateTo('${item.page}')">
+            <span class="icon">${item.icon}</span>
+            <span>${item.label}</span>
+        </button>
+    `).join('');
+
+    container.innerHTML = `
+        <nav class="settings-nav" id="settingsNav">
+            <div class="settings-nav-header">
+                <span class="settings-nav-title">تنظیمات</span>
+                <button class="settings-nav-close" onclick="toggleSettingsNav()">✕</button>
+            </div>
+            ${itemsHtml}
+        </nav>
+    `;
+}
+
+/**
+ * حذف کامل nav از DOM + بستن پنل موبایل.
+ * layout و settingsContent دست نخورده می‌مانند (برای بله/ایتا لازم است).
+ */
+function destroySettingsNav() {
+    const container = document.getElementById('settingsNavContainer');
+    if (container) {
+        container.innerHTML = '';
+    }
+
+    const overlay = document.getElementById('settingsNavOverlay');
+    if (overlay) {
+        overlay.classList.remove('show');
+        overlay.style.display = '';
+    }
+
+    const toggleBtn = document.getElementById('settingsToggleBtn');
+    if (toggleBtn) {
+        toggleBtn.style.display = 'none';
+    }
+
+    settingsSectionOpen = false;
+}
+
+/** نمایش layout (اگر مخفی بود) — برای بله/ایتا و تنظیمات */
+function ensureSettingsLayoutVisible() {
+    const layout = document.querySelector('.settings-layout');
+    if (layout) {
+        layout.style.display = '';
+    }
+}
+
+/** باز کردن بخش تنظیمات: layout + nav + دکمه موبایل */
+function openSettingsSection() {
+    ensureSettingsLayoutVisible();
+    ensureSettingsNav();
+    settingsSectionOpen = true;
+
+    const toggleBtn = document.getElementById('settingsToggleBtn');
+    if (toggleBtn) {
+        toggleBtn.style.display = '';
+    }
+
+    // کلاس‌های چت بله/ایتا را پاک کن تا nav دیده شود
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.classList.remove('bale-chat-host', 'eitaa-chat-host');
+    }
+    const layout = document.querySelector('.settings-layout');
+    if (layout) {
+        layout.classList.remove('bale-chat-active', 'eitaa-chat-active');
+    }
+
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-section') === 'settings');
+    });
+}
+
+/**
+ * خروج از صفحات تنظیمات:
+ * فقط nav حذف می‌شود. layout می‌ماند تا بله/ایتا کار کنند.
+ * توسط سایدبار و hideSettingsNav صدا زده می‌شود.
+ */
+function leaveSettingsSection() {
+    destroySettingsNav();
+
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+        if (el.getAttribute('data-section') === 'settings') {
+            el.classList.remove('active');
+        }
+    });
+}
+
+/** بستن پنل کشویی موبایل (بدون حذف nav) */
 function closeSettingsNav() {
     const nav = document.getElementById('settingsNav');
     const overlay = document.getElementById('settingsNavOverlay');
@@ -56,18 +139,67 @@ function closeSettingsNav() {
     if (nav) {
         nav.classList.remove('open');
     }
-
     if (overlay) {
         overlay.classList.remove('show');
     }
 }
 
+/**
+ * سازگار با bale.js / bale-UI.js / eita-ui.js
+ * وقتی بخش‌های غیرتنظیمات باز می‌شوند، nav را کامل حذف می‌کند.
+ */
+function hideSettingsNav() {
+    leaveSettingsSection();
+    ensureSettingsLayoutVisible();
+}
+
+function toggleSettingsNav() {
+    if (!settingsSectionOpen) {
+        openSettingsSection();
+        const page = (typeof AppState !== 'undefined' && AppState.currentPage && SETTINGS_PAGES.has(AppState.currentPage))
+            ? AppState.currentPage
+            : 'overview';
+        navigateTo(page);
+        return;
+    }
+
+    ensureSettingsNav();
+
+    const nav = document.getElementById('settingsNav');
+    const overlay = document.getElementById('settingsNavOverlay');
+    if (!nav) return;
+
+    nav.classList.toggle('open');
+    if (overlay) {
+        overlay.classList.toggle('show');
+    }
+}
+
+window.hideSettingsNav = hideSettingsNav;
+window.leaveSettingsSection = leaveSettingsSection;
+window.openSettingsSection = openSettingsSection;
+window.destroySettingsNav = destroySettingsNav;
+window.toggleSettingsNav = toggleSettingsNav;
+window.closeSettingsNav = closeSettingsNav;
+
 document.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('settingsNavOverlay');
-
     if (overlay) {
         overlay.addEventListener('click', closeSettingsNav);
     }
+
+    // در شروع: nav نباشد، ولی layout برای محتوای بعدی آماده باشد
+    destroySettingsNav();
+    ensureSettingsLayoutVisible();
+
+    // کلیک روی آیتم‌های غیر تنظیمات سایدبار → حذف nav
+    document.querySelectorAll('.sidebar-item').forEach(btn => {
+        if (btn.getAttribute('data-section') === 'settings') return;
+        btn.addEventListener('click', function () {
+            leaveSettingsSection();
+            ensureSettingsLayoutVisible();
+        });
+    });
 });
 
 
@@ -76,6 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================= */
 
 function navigateTo(page, data) {
+    // ورود به صفحات تنظیمات → nav ساخته شود
+    openSettingsSection();
+
     AppState.currentPage = page;
 
     closeSettingsNav();
@@ -84,7 +219,6 @@ function navigateTo(page, data) {
         if (data.userId !== undefined) {
             AppState.selectedUserId = data.userId;
         }
-
         if (data.roleId !== undefined) {
             AppState.selectedRoleId = data.roleId;
         }
@@ -119,7 +253,6 @@ function navigateTo(page, data) {
     };
 
     const headerTitle = document.getElementById('headerTitle');
-
     if (headerTitle) {
         headerTitle.textContent = titles[page] || 'تنظیمات';
     }
@@ -7583,79 +7716,3 @@ function toggleUserStatus(
         'users'
     );
 }
-// ===============================
-// Settings Navigation Controller
-// ===============================
-function toggleSettingsNav() {
-
-    const nav = document.getElementById("settingsNav");
-    const overlay = document.getElementById("settingsNavOverlay");
-
-    if (!nav) {
-        console.log("settingsNav پیدا نشد");
-        return;
-    }
-
-    // باز و بسته کردن مستقیم
-    if (nav.style.display === "flex") {
-
-        nav.style.display = "none";
-
-        if (overlay) {
-            overlay.style.display = "none";
-        }
-
-    } else {
-
-        nav.style.display = "flex";
-        nav.style.position = "fixed";
-        nav.style.right = "0";
-        nav.style.top = "64px";
-        nav.style.width = "240px";
-        nav.style.height = "calc(100vh - 64px)";
-        nav.style.background = "#fff";
-        nav.style.zIndex = "9999";
-        nav.style.boxShadow = "0 0 20px rgba(0,0,0,.15)";
-
-        if (overlay) {
-            overlay.style.display = "block";
-        }
-    }
-
-    console.log("settings toggle اجرا شد");
-}
-
-window.	toggleSettingsNav = function () {
-
-    const nav = document.getElementById("settingsNav");
-    const overlay = document.getElementById("settingsNavOverlay");
-
-    if (!nav) {
-        console.error("settingsNav not found");
-        return;
-    }
-
-    nav.classList.toggle("open");
-
-    if (overlay) {
-        overlay.classList.toggle("show");
-    }
-
-};
-
-
-// بستن منوی تنظیمات
-window.hideSettingsNav = function () {
-
-    const nav = document.getElementById("settingsNav");
-    const overlay = document.getElementById("settingsNavOverlay");
-
-    if (nav) {
-        nav.classList.remove("open");
-    }
-
-    if (overlay) {
-        overlay.classList.remove("show");
-    }
-
-};

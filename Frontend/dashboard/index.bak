@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>پنل مدیریتی سپهر — تنظیمات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- ═══ Sidebar ═══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+	<img src="./img/logo.jpg">
+	</div>
+      <div>
+        <div class="logo-text">سپهر سلامتی</div>
+        <div class="logo-sub">پنل مدیریتی</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-title">منوی اصلی</div>
+      <button class="sidebar-item" onclick="showToast('این بخش هنوز ساخته نشده', 'info')">
+        <span class="icon">&#128276;</span>
+        <span>اعلان‌ها</span>
+        <span class="badge">3</span>
+      </button>
+
+      <button class="sidebar-item" onclick="openBaleMessaging()">
+        <span class="icon">&#9993;&#65039;</span>
+        <span>ارسال پیام شخصی </span>
+        <span class="badge">بله</span>
+      </button>
+
+            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+        <span class="icon">&#9993;&#65039;</span>
+        <span>ارسال پیام شخصی ایتا </span>
+        <span class="badge">ایتا</span>
+      </button>
+
+<!--    <span class="icon">&#128172;</span> -->
+<button class="sidebar-item" onclick="openBaleChatPage()">
+    <span class="icon">
+    <img src="./img/images.jpg" alt="icon"
+         style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
+</span>
+    <span>صفحه چت ربات بله</span>
+    <span class="badge">آرامش</span>
+</button>
+
+      <button class="sidebar-item" onclick="openEitaaChatPage()">
+	<span class="icon">	
+<img src="./img/eitaa.png" alt="icon" 
+         style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
+</span>
+	
+        <span>صفحه چت ربات ایتا</span>
+        <span class="badge">ایتا</span>        
+	</button>
+
+            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+	<span class="icon">&#9993;</span>
+	<span>داشبورد هوش مصنوعی </span>
+	<span class="badge">AI </span>	
+	</button>
+            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+        <span class="icon">&#128202;</span>
+        <span>ربات نظر سنجی</span>
+        <span class="badge">بله</span>
+        </button>
+
+            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+        <span class="icon">&#128065;</span>
+        <span>ربات پایش و کنترل کارشناسان</span>
+        <span class="badge">گلشنی</span>
+        </button>
+
+            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+        <span class="icon">&#128220;</span>
+        <span>آیین نامه</span>
+        </button>
+
+
+      <div class="sidebar-section-title" style="margin-top: var(--space-4)">مدیریت</div>
+      <button class="sidebar-item active" onclick="navigateTo('overview')">
+        <span class="icon">&#9881;&#65039;</span>
+        <span>تنظیمات</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="avatar md" style="background: var(--primary)">کاربر</div>
+<div class="user-info">
+  <div class="user-name">در حال بارگذاری...</div>
+  <div class="user-role">در حال دریافت اطلاعات...</div>
+</div>
+    </div>
+  </aside>
+
+  <!-- ═══ Sidebar Overlay (Mobile) ═══ -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- ═══ Main Content ═══ -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="header">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+      <button class="settings-toggle-btn" id="settingsToggleBtn" onclick="toggleSettingsNav()">
+        <span class="icon">&#9881;&#65039;</span>
+        <span>تنظیمات</span>
+      </button>
+      <div>
+        <div class="header-title" id="headerTitle">تنظیمات سیستم</div>
+      </div>
+      <div class="header-spacer"></div>
+      <div class="header-actions">
+        <button class="header-btn" onclick="showToast('اعلان‌ها', 'info')">
+          &#128276;
+          <span class="notification-dot"></span>
+        </button>
+        <button class="header-btn" onclick="showToast('جستجو', 'info')">
+          &#128269;
+        </button>
+      </div>
+      <div class="header-user" onclick="toggleUserDropdown()">
+        <div>
+  <div class="name">در حال بارگذاری...</div>
+  <div class="role-badge">در حال دریافت اطلاعات...</div>
+</div>
+<div class="avatar md" style="background: var(--primary)">کاربر</div>
+        <div class="user-dropdown" id="userDropdown">
+          <button class="user-dropdown-item" onclick="navigateTo('my-account')">👤 حساب من</button>
+          <button class="user-dropdown-item" onclick="navigateTo('settings')">⚙️ تنظیمات</button>
+          <div class="user-dropdown-divider"></div>
+          <button class="user-dropdown-item danger" onclick="showToast('خروج از سیستم', 'warning')">🚪 خروج</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Settings Layout -->
+    <div class="settings-layout">
+      <!-- Settings Overlay (Mobile) -->
+      <div class="settings-nav-overlay" id="settingsNavOverlay" onclick="toggleSettingsNav()"></div>
+
+      <!-- Settings Navigation -->
+      <nav class="settings-nav" id="settingsNav">
+        <div class="settings-nav-header">
+          <span class="settings-nav-title">تنظیمات</span>
+          <button class="settings-nav-close" onclick="toggleSettingsNav()">✕</button>
+        </div>
+        <button class="settings-nav-item active" data-page="overview" onclick="navigateTo('overview')">
+          <span class="icon">&#128202;</span>
+          <span>نمای کلی</span>
+        </button>
+<button class="settings-nav-item" data-page="registration-requests" onclick="navigateTo('registration-requests')">
+  <span class="icon">&#128221;</span>
+  <span>درخواست کاربران جدید</span>
+</button>
+        <button class="settings-nav-item" data-page="users" onclick="navigateTo('users')">
+          <span class="icon">&#128101;</span>
+          <span>مدیریت کاربران</span>
+        </button>
+        <button class="settings-nav-item" data-page="roles" onclick="navigateTo('roles')">
+          <span class="icon">&#127991;&#65039;</span>
+          <span>مدیریت نقش‌ها</span>
+        </button>
+        <button class="settings-nav-item" data-page="notifications" onclick="navigateTo('notifications')">
+          <span class="icon">&#128276;</span>
+          <span>اعلان‌ها</span>
+        </button>
+        <button class="settings-nav-item" data-page="audit-logs" onclick="navigateTo('audit-logs')">
+          <span class="icon">&#128220;</span>
+          <span>لاگ‌های سیستم</span>
+        </button>
+        <button class="settings-nav-item" data-page="activities" onclick="navigateTo('activities')">
+          <span class="icon">&#128203;</span>
+          <span>فعالیت کاربران</span>
+        </button>
+        <button class="settings-nav-item" data-page="security" onclick="navigateTo('security')">
+          <span class="icon">&#128274;</span>
+          <span>امنیت</span>
+        </button>
+        <button class="settings-nav-item" data-page="my-account" onclick="navigateTo('my-account')">
+          <span class="icon">&#128100;</span>
+          <span>حساب من</span>
+        </button>
+        <button class="settings-nav-item" data-page="system-settings" onclick="navigateTo('system-settings')">
+          <span class="icon">&#128295;</span>
+          <span>تنظیمات سیستم</span>
+        </button>
+      </nav>
+
+      <!-- Content Area -->
+      <div class="settings-content" id="settingsContent">
+        <!-- Dynamic content rendered by JS -->
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══ Toast Container ═══ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══ Modal Container ═══ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script src="js/bale.js"></script>
+<script src="js/bale-UI.js"></script>
+<script src="js/eita-ui.js"></script>
+<script src="js/settings.js"></script>
+</body>
+</html>
