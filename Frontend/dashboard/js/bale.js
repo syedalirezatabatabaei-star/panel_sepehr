@@ -1,4 +1,3 @@
-
 /* =========================================================
    Bale Integration
    Login → OTP → Messaging → Excel Send → Progress
@@ -137,6 +136,7 @@ function showBaleSavedAccountPage(phone) {
 
     `;
 }
+
 /*=============
 changeBaleAccount
 ================*/
@@ -1793,6 +1793,36 @@ function handleBaleCompleted(
 
     }
 
+    const jobId = data.job_id || window.__baleLastJobId;
+    const box = document.getElementById("baleProgressResults");
+
+    if (box && jobId && data.has_report === true) {
+        if (!document.getElementById("baleExportBtn")) {
+            box.insertAdjacentHTML("beforeend", `
+                <div style="margin-top:16px;display:flex;justify-content:center;">
+                    <a id="baleExportBtn"
+                       href="${BALE_API_BASE}/send/export/${encodeURIComponent(jobId)}"
+                       target="_blank"
+                       rel="noopener"
+                       style="
+                           display:inline-flex;
+                           align-items:center;
+                           gap:8px;
+                           padding:12px 22px;
+                           border-radius:10px;
+                           background:linear-gradient(135deg,#0d9488,#0f766e);
+                           color:#fff;
+                           font-weight:600;
+                           text-decoration:none;
+                           box-shadow:0 4px 12px rgba(13,148,136,.35);
+                       ">
+                        📥 دانلود گزارش اکسل
+                    </a>
+                </div>
+            `);
+        }
+    }
+
 }
 
 
@@ -1998,6 +2028,8 @@ window.showBaleSavedAccountPage =
 
 window.continueBaleAccount =
     continueBaleAccount;
+window.__baleLastJobId =
+    data.job_id;
 console.log(
     "[BALE] bale.js loaded successfully."
 );
