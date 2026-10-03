@@ -52,22 +52,39 @@ async function loadCurrentUser() {
         const data = JSON.parse(text);
 
         if (data.user) {
-            CURRENT_USER = {
-                id: data.user.id,
-                username: data.user.username,
-                firstName: data.user.first_name,
-                lastName: data.user.last_name,
-                email: data.user.email,
-                phone: data.user.phone,
-                role: data.user.role,
-                level: data.user.level,
-                organizationalPosition: data.user.organizational_position,
-                isActive: data.user.is_active,
-                avatar: data.user.avatar
-            };
 
-            updateUserUI();
-        }
+    CURRENT_USER = {
+        id: data.user.id,
+        username: data.user.username,
+        firstName: data.user.first_name,
+        lastName: data.user.last_name,
+        accessLevel: data.user.access_level,
+        organizationalPosition: data.user.organizational_position,
+        isActive: data.user.is_active,
+        permissions: data.user.permissions
+    };
+
+
+    window.CURRENT_USER = CURRENT_USER;
+
+    localStorage.setItem(
+        "user",
+        JSON.stringify(CURRENT_USER)
+    );
+
+
+    updateUserUI();
+
+
+    if (typeof applyMenuPermissions === "function") {
+        applyMenuPermissions();
+    }
+
+
+    if (typeof applyWritePermissions === "function") {
+        applyWritePermissions();
+    }
+}
 
     } catch (error) {
         console.error('loadCurrentUser:', error);

@@ -2836,6 +2836,12 @@ body:has(.main-content.bale-chat-host) {
     ========================================================= */
 
     async function openBaleChatPage() {
+        
+       if (!canRead("bale_bot_chat")) {
+        showPermissionDenied();
+        return;
+        }
+
         hideSettingsNav(); 
         console.log(
             'Opening Bale Chat Page...'

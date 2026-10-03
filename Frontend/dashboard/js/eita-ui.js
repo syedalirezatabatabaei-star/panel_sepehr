@@ -4400,7 +4400,13 @@
        ========================================================= */
 
     async function openEitaaChatPage() {
-       hideSettingsNav();
+
+        if (!canRead("eitaa_chat")) {
+        showPermissionDenied();
+        return;
+        }        
+
+        hideSettingsNav();
         console.log(
             'Opening Eitaa Chat Page...'
         );

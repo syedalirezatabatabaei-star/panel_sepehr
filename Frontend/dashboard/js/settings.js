@@ -116,6 +116,24 @@ function openSettingsSection() {
     });
 }
 
+function applyMenuPermissions() {
+
+    Object.entries(PAGE_MENU_MAP).forEach(([page, selector]) => {
+
+        document.querySelectorAll(selector).forEach((el) => {
+
+            // بخش تنظیمات کاملاً خصوصی است
+            if (page === "settings") {
+                el.style.display = canRead("settings") ? "" : "none";
+                return;
+            }
+
+            // سایر منوها همیشه قابل مشاهده باشند
+            el.style.display = "";
+        });
+
+    });
+}
 /**
  * خروج از صفحات تنظیمات:
  * فقط nav حذف می‌شود. layout می‌ماند تا بله/ایتا کار کنند.
@@ -209,7 +227,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function navigateTo(page, data) {
     // ورود به صفحات تنظیمات → nav ساخته شود
-    openSettingsSection();
+// ==========================================
+    // تنظیمات کاملاً Private
+  const currentUser = getCurrentUser();
+
+    // Owner هیچ محدودیتی ندارد
+    if (Number(currentUser?.accessLevel) !== 3) {
+
+        if (typeof guardPage === "function") {
+
+            let permissionPage = page;
+
+            if (
+                page === "user-details" ||
+                page === "user-permissions" ||
+                page === "edit-user"
+            ) {
+                permissionPage = "users";
+            }
+
+            if (page === "role-permissions") {
+                permissionPage = "roles";
+            }
+
+            if (!guardPage(permissionPage)) {
+                return false;
+            }
+        }
+    }
+
+   openSettingsSection();
 
     AppState.currentPage = page;
 

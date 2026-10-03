@@ -211,6 +211,14 @@ async function checkBaleAccount() {
    ========================================================= */
 
 function openBaleMessaging() {
+    
+     if (typeof canRead === "function" && !canRead("bale_send")) {
+        if (typeof showPermissionDenied === "function") {
+            showPermissionDenied();
+        }
+        return;
+    }
+
     hideSettingsNav();
     const content = document.getElementById("settingsContent");
 

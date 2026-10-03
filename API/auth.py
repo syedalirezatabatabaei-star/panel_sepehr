@@ -509,7 +509,9 @@ def login(data: LoginRequest, request: Request):
                 "organizational_position": user[
                     "organizational_position"
                 ],
-                "access_level": user["access_level"]
+                "access_level": user["access_level"],
+                "is_active": user["is_active"],
+                "permissions": get_user_permissions(user["id"])
             },
 
             "bale_account": {
@@ -905,7 +907,9 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
                     "organizational_position": user[
                         "organizational_position"
                     ],
-                    "access_level": user["access_level"]
+                    "access_level": user["access_level"],
+                    "is_active": user["is_active"],
+                    "permissions": get_user_permissions(user["id"])
                 }
             }
         )
@@ -1268,6 +1272,47 @@ def get_user_from_session(request: Request):
 # =========================================================
 # CURRENT USER / ME
 # =========================================================
+def get_user_permissions(user_id: int):
+
+    db = get_connection()
+    cursor = db.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                p.code,
+                rp.id IS NOT NULL AS role_permission,
+                up.can_read,
+                up.can_write
+            FROM permissions p
+
+            LEFT JOIN role_permissions rp
+                ON rp.permission_id = p.id
+
+            LEFT JOIN user_permissions up
+                ON up.permission_id = p.id
+                AND up.user_id = %s
+
+            ORDER BY p.id
+        """, (user_id,))
+
+        rows = cursor.fetchall()
+
+        permissions = {}
+
+        for row in rows:
+            code = row["code"]
+
+            permissions[code] = {
+                "read": bool(row["role_permission"]) or bool(row["can_read"]),
+                "write": bool(row["can_write"])
+            }
+
+        return permissions
+
+    finally:
+        cursor.close()
+        db.close()
 
 @router.get("/me")
 def get_current_user(request: Request):
@@ -1295,7 +1340,8 @@ def get_current_user(request: Request):
                 "organizational_position"
             ],
             "access_level": user["access_level"],
-            "is_active": user["is_active"]
+            "is_active": user["is_active"],
+            "permissions": get_user_permissions(user["id"])
         },
 
         "session": {

@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, HTTPException
 from pydantic import BaseModel
 from pydantic import BaseModel
 from API.database import get_connection
-
+from fastapi import Depends
+from API.permissions import require_permission
 
 router = APIRouter(
     prefix="/api/admin",
@@ -396,8 +397,11 @@ def link_bale_account(data: LinkBaleAccountRequest):
         cursor.close()
         db.close()
 @router.get("/registration-requests")
-def get_registration_requests():
-
+def get_registration_requests(
+    permission=Depends(
+        require_permission("registration_requests.read")
+    )
+):
     db = get_connection()
     cursor = db.cursor(dictionary=True)
 
