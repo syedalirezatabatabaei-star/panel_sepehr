@@ -42,8 +42,8 @@ async function loadCurrentUser() {
 
         const text = await response.text();
 
-        console.log('ME STATUS:', response.status);
-        console.log('ME RESPONSE:', text);
+       //console.log('ME STATUS:', response.status);
+        //console.log('ME RESPONSE:', text);
 
         if (!response.ok) {
             throw new Error(`ME API ${response.status}: ${text}`);
@@ -102,7 +102,7 @@ async function loadUsers() {
         const text = await response.text();
 
         console.log('USERS STATUS:', response.status);
-        console.log('USERS RESPONSE:', text);
+        //console.log('USERS RESPONSE:', text);
 
         if (!response.ok) {
             throw new Error(`USERS API ${response.status}: ${text}`);

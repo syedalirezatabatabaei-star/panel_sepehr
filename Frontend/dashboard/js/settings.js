@@ -116,24 +116,6 @@ function openSettingsSection() {
     });
 }
 
-function applyMenuPermissions() {
-
-    Object.entries(PAGE_MENU_MAP).forEach(([page, selector]) => {
-
-        document.querySelectorAll(selector).forEach((el) => {
-
-            // بخش تنظیمات کاملاً خصوصی است
-            if (page === "settings") {
-                el.style.display = canRead("settings") ? "" : "none";
-                return;
-            }
-
-            // سایر منوها همیشه قابل مشاهده باشند
-            el.style.display = "";
-        });
-
-    });
-}
 /**
  * خروج از صفحات تنظیمات:
  * فقط nav حذف می‌شود. layout می‌ماند تا بله/ایتا کار کنند.
@@ -227,36 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function navigateTo(page, data) {
     // ورود به صفحات تنظیمات → nav ساخته شود
-// ==========================================
-    // تنظیمات کاملاً Private
-  const currentUser = getCurrentUser();
-
-    // Owner هیچ محدودیتی ندارد
-    if (Number(currentUser?.accessLevel) !== 3) {
-
-        if (typeof guardPage === "function") {
-
-            let permissionPage = page;
-
-            if (
-                page === "user-details" ||
-                page === "user-permissions" ||
-                page === "edit-user"
-            ) {
-                permissionPage = "users";
-            }
-
-            if (page === "role-permissions") {
-                permissionPage = "roles";
-            }
-
-            if (!guardPage(permissionPage)) {
-                return false;
-            }
-        }
-    }
-
-   openSettingsSection();
+    openSettingsSection();
 
     AppState.currentPage = page;
 
@@ -867,699 +820,204 @@ function renderOverview() {
    PAGE: REGISTRATION REQUESTS
    ========================================================= */
 
+/* ========== REGISTRATION REQUESTS ========== */
+
+function getRequestLevel(r) {
+    return Number(
+        r.requested_access_level ??
+        r.access_level ??
+        r.level ??
+        1
+    );
+}
+
 function renderRegistrationRequests() {
     return `
         <div class="page-header">
-            <div class="breadcrumb">
-                <a
-                    href="#"
-                    onclick="navigateTo('overview'); return false;"
-                >
-                    تنظیمات
-                </a>
-
-                <span class="separator">/</span>
-
-                <span class="current">
-                    درخواست کاربران جدید
-                </span>
-            </div>
-
-            <h1>
-                درخواست کاربران جدید
-            </h1>
-
-            <p>
-                مدیریت درخواست‌های ثبت‌نام کاربران
-            </p>
+            <h1>درخواست کاربران جدید</h1>
+            <p>تایید یا رد درخواست‌های ثبت‌نام</p>
         </div>
 
-        <div class="stats-grid" id="registrationStats">
-
+        <div class="stats-grid">
             <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--warning-light); color: var(--warning)"
-                >
-                    ⏳
-                </div>
-
-                <div
-                    class="stat-value"
-                    id="pendingRegistrationCount"
-                >
-                    0
-                </div>
-
-                <div class="stat-label">
-                    در انتظار بررسی
-                </div>
+                <div class="stat-value" id="pendingRegistrationCount">0</div>
+                <div class="stat-label">در انتظار</div>
             </div>
-
             <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--success-light); color: var(--success)"
-                >
-                    ✓
-                </div>
-
-                <div
-                    class="stat-value"
-                    id="approvedRegistrationCount"
-                >
-                    0
-                </div>
-
-                <div class="stat-label">
-                    تأیید شده
-                </div>
+                <div class="stat-value" id="approvedRegistrationCount">0</div>
+                <div class="stat-label">تایید شده</div>
             </div>
-
             <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--danger-light); color: var(--danger)"
-                >
-                    ✕
-                </div>
-
-                <div
-                    class="stat-value"
-                    id="rejectedRegistrationCount"
-                >
-                    0
-                </div>
-
-                <div class="stat-label">
-                    رد شده
-                </div>
+                <div class="stat-value" id="rejectedRegistrationCount">0</div>
+                <div class="stat-label">رد شده</div>
             </div>
-
         </div>
 
         <div class="card">
-
-            <div class="card-header">
-                <div class="card-title">
-                    درخواست‌ها
-                </div>
+            <div class="table-container" id="registrationRequestsTable">
+                <div class="empty-state">در حال بارگذاری...</div>
             </div>
-
-            <div
-                class="table-container"
-                id="registrationRequestsTable"
-            >
-                <div class="empty-state">
-                    <div class="icon">⏳</div>
-                    <div class="title">
-                        در حال دریافت درخواست‌ها...
-                    </div>
-                </div>
-            </div>
-
         </div>
     `;
 }
 
 async function loadRegistrationRequests() {
-    const container =
-        document.getElementById('registrationRequestsTable');
-
-    if (!container) return;
+    const box = document.getElementById("registrationRequestsTable");
+    if (!box) return;
 
     try {
-        const response = await fetch(
+        const res = await fetch(
             `${API_BASE}/api/admin/registration-requests`,
-            {
-                credentials: 'include',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            }
+            { credentials: "include", headers: { Accept: "application/json" } }
         );
+        const data = await res.json();
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.detail ||
-                data.message ||
-                'خطا در دریافت درخواست‌ها'
-            );
+        if (!res.ok || data.success === false) {
+            throw new Error(data.detail || data.message || "خطا در دریافت");
         }
 
-        const requests =
-            data.requests ||
-            data.results ||
-            [];
+        const list = data.requests || data.results || [];
+        updateRegistrationStats(list);
 
-        updateRegistrationStats(requests);
-
-        if (!requests.length) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">📭</div>
-                    <div class="title">
-                        درخواستی وجود ندارد
-                    </div>
-                </div>
-            `;
-
+        if (!list.length) {
+            box.innerHTML = `<div class="empty-state">درخواستی نیست</div>`;
             return;
         }
 
-        container.innerHTML = `
+        box.innerHTML = `
             <table class="data-table">
-
                 <thead>
                     <tr>
                         <th>نام</th>
                         <th>نام کاربری</th>
-                        <th>سطح دسترسی</th>
-                        <th>تاریخ درخواست</th>
+                        <th>سطح</th>
+                        <th>سمت</th>
                         <th>وضعیت</th>
                         <th>عملیات</th>
                     </tr>
                 </thead>
-
                 <tbody>
-
-                    ${requests.map(request => `
+                    ${list.map((r) => {
+                        const lvl = getRequestLevel(r);
+                        const pending = r.status === "pending";
+                        return `
                         <tr>
-
-                            <td>
-                                <div class="user-cell">
-                                    <span class="user-name">
-                                        ${
-                                            escapeHtml(
-                                                request.first_name ||
-                                                request.firstName ||
-                                                '-'
-                                            )
-                                        }
-                                        ${
-                                            escapeHtml(
-                                                request.last_name ||
-                                                request.lastName ||
-                                                ''
-                                            )
-                                        }
-                                    </span>
-                                </div>
-                            </td>
-
-                            <td>
-                                @${escapeHtml(
-                                    request.username || '-'
-                                )}
-                            </td>
-
-                            <td>
-                                ${levelBadge(
-                                    request.access_level ||
-                                    request.level ||
-                                    1
-                                )}
-                            </td>
-
+                            <td>${escapeHtml(r.first_name || "")} ${escapeHtml(r.last_name || "")}</td>
+                            <td>@${escapeHtml(r.username || "-")}</td>
+                            <td>${levelBadge(lvl)}</td>
+                            <td>${escapeHtml(r.organizational_position || "-")}</td>
+                            <td>${
+                                r.status === "approved"
+                                    ? '<span class="badge badge-success">تایید</span>'
+                                    : r.status === "rejected"
+                                    ? '<span class="badge badge-danger">رد</span>'
+                                    : '<span class="badge badge-warning">انتظار</span>'
+                            }</td>
                             <td>
                                 ${
-                                    escapeHtml(
-                                        request.created_at ||
-                                        request.createdAt ||
-                                        '-'
-                                    )
+                                    pending
+                                        ? `
+                                    <button class="btn btn-primary btn-sm"
+                                        onclick="approveRegistrationRequest(${r.id}, ${lvl})">تایید</button>
+                                    <button class="btn btn-danger btn-sm"
+                                        onclick="rejectRegistrationRequest(${r.id})">رد</button>
+                                `
+                                        : "-"
                                 }
                             </td>
-
-                            <td>
-                                ${
-                                    request.status === 'approved'
-                                        ? '<span class="badge badge-success">تأیید شده</span>'
-                                        : request.status === 'rejected'
-                                            ? '<span class="badge badge-danger">رد شده</span>'
-                                            : '<span class="badge badge-warning">در انتظار</span>'
-                                }
-                            </td>
-
-                            <td>
-
-                                <div class="actions-cell">
-
-                                    <button
-                                        class="btn btn-ghost btn-icon sm"
-                                        title="مشاهده"
-                                        onclick="viewRegistrationRequest(${request.id})"
-                                    >
-                                        👁️
-                                    </button>
-
-                                    ${
-                                        request.status === 'pending'
-                                            ? `
-                                                <button
-                                                    class="btn btn-ghost btn-icon sm"
-                                                    title="تأیید"
-                                                    onclick="approveRegistrationRequest(${request.id})"
-                                                >
-                                                    ✓
-                                                </button>
-
-                                                <button
-                                                    class="btn btn-ghost btn-icon sm"
-                                                    title="رد"
-                                                    onclick="rejectRegistrationRequest(${request.id})"
-                                                >
-                                                    ✕
-                                                </button>
-                                            `
-                                            : ''
-                                    }
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-                    `).join('')}
-
+                        </tr>`;
+                    }).join("")}
                 </tbody>
-
             </table>
         `;
-
-    } catch (error) {
-        console.error(
-            'LOAD REGISTRATION REQUESTS ERROR:',
-            error
-        );
-
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="icon">❌</div>
-                <div class="title">
-                    خطا در دریافت درخواست‌ها
-                </div>
-                <div class="description">
-                    ${escapeHtml(error.message)}
-                </div>
-            </div>
-        `;
+    } catch (e) {
+        console.error(e);
+        box.innerHTML = `<div class="empty-state">خطا: ${escapeHtml(e.message)}</div>`;
     }
 }
 
-function updateRegistrationStats(requests) {
-    const pending =
-        requests.filter(
-            r => r.status === 'pending'
-        ).length;
-
-    const approved =
-        requests.filter(
-            r => r.status === 'approved'
-        ).length;
-
-    const rejected =
-        requests.filter(
-            r => r.status === 'rejected'
-        ).length;
-
-    const pendingEl =
-        document.getElementById(
-            'pendingRegistrationCount'
-        );
-
-    const approvedEl =
-        document.getElementById(
-            'approvedRegistrationCount'
-        );
-
-    const rejectedEl =
-        document.getElementById(
-            'rejectedRegistrationCount'
-        );
-
-    if (pendingEl) pendingEl.textContent = pending;
-    if (approvedEl) approvedEl.textContent = approved;
-    if (rejectedEl) rejectedEl.textContent = rejected;
+function updateRegistrationStats(list) {
+    const p = list.filter((r) => r.status === "pending").length;
+    const a = list.filter((r) => r.status === "approved").length;
+    const j = list.filter((r) => r.status === "rejected").length;
+    const el = (id, n) => {
+        const x = document.getElementById(id);
+        if (x) x.textContent = n;
+    };
+    el("pendingRegistrationCount", p);
+    el("approvedRegistrationCount", a);
+    el("rejectedRegistrationCount", j);
 }
 
-async function viewRegistrationRequest(requestId) {
+function approveRegistrationRequest(id, level) {
+    const lvl = Number(level) || 1;
+    if (!confirm(`تایید با سطح ${lvl}؟`)) return;
+    submitApproveRegistration(id, lvl);
+}
+
+async function submitApproveRegistration(id, accessLevel) {
     try {
-        const response = await fetch(
-            `${API_BASE}/api/admin/registration-requests/${requestId}`,
+        const res = await fetch(
+            `${API_BASE}/api/admin/registration-requests/${id}/approve`,
             {
-                credentials: 'include',
+                method: "POST",
+                credentials: "include",
                 headers: {
-                    'Accept': 'application/json'
-                }
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({ access_level: Number(accessLevel) || 1 }),
             }
         );
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.detail ||
-                data.message ||
-                'خطا در دریافت درخواست'
-            );
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+            throw new Error(data.detail || data.message || "تایید ناموفق");
         }
-
-        const request =
-            data.request ||
-            data;
-
-        showModal(
-            'جزئیات درخواست ثبت‌نام',
-            `
-                <div
-                    style="
-                        display:flex;
-                        flex-direction:column;
-                        gap:var(--space-4);
-                    "
-                >
-
-                    <div>
-                        <div class="form-label">
-                            نام و نام خانوادگی
-                        </div>
-
-                        <div>
-                            ${
-                                escapeHtml(
-                                    request.first_name ||
-                                    request.firstName ||
-                                    '-'
-                                )
-                            }
-                            ${
-                                escapeHtml(
-                                    request.last_name ||
-                                    request.lastName ||
-                                    ''
-                                )
-                            }
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="form-label">
-                            نام کاربری
-                        </div>
-
-                        <div dir="ltr">
-                            @${escapeHtml(
-                                request.username || '-'
-                            )}
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="form-label">
-                            سطح دسترسی
-                        </div>
-
-                        <div>
-                            ${levelBadge(
-                                request.access_level ||
-                                request.level ||
-                                1
-                            )}
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="form-label">
-                            سمت سازمانی
-                        </div>
-
-                        <div>
-                            ${
-                                escapeHtml(
-                                    request.organizational_position ||
-                                    request.organizationalPosition ||
-                                    '-'
-                                )
-                            }
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="form-label">
-                            وضعیت
-                        </div>
-
-                        <div>
-                            ${
-                                request.status === 'approved'
-                                    ? '<span class="badge badge-success">تأیید شده</span>'
-                                    : request.status === 'rejected'
-                                        ? '<span class="badge badge-danger">رد شده</span>'
-                                        : '<span class="badge badge-warning">در انتظار</span>'
-                            }
-                        </div>
-                    </div>
-
-                </div>
-            `,
-            [
-                {
-                    label: 'بستن',
-                    class: 'btn-secondary',
-                    action: 'closeModalDirect()'
-                }
-            ]
-        );
-
-    } catch (error) {
-        console.error(
-            'VIEW REGISTRATION REQUEST ERROR:',
-            error
-        );
-
-        showToast(
-            error.message ||
-            'خطا در دریافت درخواست',
-            'error'
-        );
+        showToast("تایید شد", "success");
+        await loadRegistrationRequests();
+        if (typeof loadUsers === "function") await loadUsers();
+    } catch (e) {
+        console.error(e);
+        showToast(e.message || "خطا", "error");
     }
 }
 
-function approveRegistrationRequest(requestId) {
-    showModal(
-        'تأیید درخواست',
-        `
-            <p style="color:var(--gray-600);">
-                آیا از تأیید این درخواست اطمینان دارید؟
-            </p>
+function rejectRegistrationRequest(id) {
+    if (!confirm("رد این درخواست؟")) return;
+    submitRejectRegistration(id);
+}
 
-            <div class="form-group">
-                <label class="form-label">
-                    سطح دسترسی
-                </label>
-
-                <select
-                    class="form-select"
-                    id="approveAccessLevel"
-                >
-                    <option value="1">
-                        سطح ۱
-                    </option>
-
-                    <option value="2">
-                        سطح ۲
-                    </option>
-
-                    <option value="3">
-                        سطح ۳
-                    </option>
-                </select>
-            </div>
-        `,
-        [
+async function submitRejectRegistration(id) {
+    try {
+        const res = await fetch(
+            `${API_BASE}/api/admin/registration-requests/${id}/reject`,
             {
-                label: 'انصراف',
-                class: 'btn-secondary',
-                action: 'closeApproveRegistrationModal()'
-            },
-            {
-                label: 'تأیید',
-                class: 'btn-primary',
-                action: `submitApproveRegistration(${requestId})`
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({ reason: "" }),
             }
-        ]
-    );
+        );
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+            throw new Error(data.detail || data.message || "رد ناموفق");
+        }
+        showToast("رد شد", "success");
+        await loadRegistrationRequests();
+    } catch (e) {
+        console.error(e);
+        showToast(e.message || "خطا", "error");
+    }
 }
 
 function closeApproveRegistrationModal() {
     closeModalDirect();
 }
 
-async function submitApproveRegistration(requestId) {
-    const levelEl =
-        document.getElementById(
-            'approveAccessLevel'
-        );
 
-    const accessLevel =
-        levelEl
-            ? Number(levelEl.value)
-            : 1;
-
-    try {
-        const response = await fetch(
-            `${API_BASE}/api/admin/registration-requests/${requestId}/approve`,
-            {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    access_level: accessLevel
-                })
-            }
-        );
-
-        const data =
-            await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.detail ||
-                data.message ||
-                'تأیید درخواست ناموفق بود'
-            );
-        }
-
-        closeModalDirect();
-
-        showToast(
-            'درخواست با موفقیت تأیید شد',
-            'success'
-        );
-
-        await loadRegistrationRequests();
-
-        await loadUsers();
-
-    } catch (error) {
-        console.error(
-            'APPROVE REGISTRATION ERROR:',
-            error
-        );
-
-        showToast(
-            error.message ||
-            'خطا در تأیید درخواست',
-            'error'
-        );
-    }
-}
-
-function rejectRegistrationRequest(requestId) {
-    showModal(
-        'رد درخواست',
-        `
-            <p style="color:var(--gray-600);">
-                آیا از رد این درخواست اطمینان دارید؟
-            </p>
-
-            <div class="form-group">
-                <label class="form-label">
-                    دلیل رد
-                </label>
-
-                <textarea
-                    class="form-textarea"
-                    id="rejectReason"
-                    placeholder="دلیل رد درخواست..."
-                ></textarea>
-            </div>
-        `,
-        [
-            {
-                label: 'انصراف',
-                class: 'btn-secondary',
-                action: 'closeRejectRegistrationModal()'
-            },
-            {
-                label: 'رد درخواست',
-                class: 'btn-danger',
-                action: `submitRejectRegistration(${requestId})`
-            }
-        ]
-    );
-}
-
-function closeRejectRegistrationModal() {
-    closeModalDirect();
-}
-
-async function submitRejectRegistration(requestId) {
-    const reasonEl =
-        document.getElementById(
-            'rejectReason'
-        );
-
-    const reason =
-        reasonEl
-            ? reasonEl.value.trim()
-            : '';
-
-    try {
-        const response = await fetch(
-            `${API_BASE}/api/admin/registration-requests/${requestId}/reject`,
-            {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    reason
-                })
-            }
-        );
-
-        const data =
-            await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.detail ||
-                data.message ||
-                'رد درخواست ناموفق بود'
-            );
-        }
-
-        closeModalDirect();
-
-        showToast(
-            'درخواست رد شد',
-            'success'
-        );
-
-        await loadRegistrationRequests();
-
-    } catch (error) {
-        console.error(
-            'REJECT REGISTRATION ERROR:',
-            error
-        );
-
-        showToast(
-            error.message ||
-            'خطا در رد درخواست',
-            'error'
-        );
-    }
-}
 
 
 /* =========================================================
@@ -7763,3 +7221,4 @@ function toggleUserStatus(
         'users'
     );
 }
+
