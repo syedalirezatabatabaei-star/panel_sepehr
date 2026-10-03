@@ -863,6 +863,11 @@ function renderRegistrationRequests() {
 
 async function loadRegistrationRequests() {
     const box = document.getElementById("registrationRequestsTable");
+    const requests =
+    data.requests ||
+    data.results ||
+    data.data ||          ن
+    [];
     if (!box) return;
 
     try {
