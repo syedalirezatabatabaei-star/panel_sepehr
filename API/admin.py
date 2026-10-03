@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from API.database import get_connection
 from fastapi import Depends
 from API.permissions import require_permission
+from API.database import get_connection
+from typing import Optional
 
 router = APIRouter(
     prefix="/api/admin",
@@ -29,6 +30,118 @@ class CreateUserRequest(BaseModel):
     password: str
     organizational_position: str | None = None
     access_level: int = 1
+class ApproveBody(BaseModel):
+    access_level: Optional[int] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    organizational_position: Optional[str] = None
+    bale_user_id: Optional[int] = None
+    bale_first_name: Optional[str] = None
+    bale_last_name: Optional[str] = None
+#help fun
+def _admin_id(request: Request) -> int:
+    user = getattr(request.state, "user", None)
+    if isinstance(user, dict) and user.get("id"):
+        return int(user["id"])
+    return 1
+@router.post("/registration-requests/{request_id}/approve")
+def approve_registration(request_id: int, body: ApproveBody, request: Request):
+    admin_id = _admin_id(request)
+    db = get_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT * FROM registration_requests WHERE id=%s AND status='pending'",
+            (request_id,),
+        )
+        req = cursor.fetchone()
+        if not req:
+            raise HTTPException(404, "درخواست پیدا نشد یا قبلاً بررسی شده")
+
+        if not body.bale_user_id:
+            raise HTTPException(400, "bale_user_id الزامی است")
+
+        first_name = body.first_name or req["first_name"]
+        last_name = body.last_name or req["last_name"]
+        username = body.username or req["username"]
+        position = (
+            body.organizational_position
+            if body.organizational_position is not None
+            else req.get("organizational_position")
+        )
+        level = body.access_level
+        if level is None:
+            level = int(req.get("requested_access_level") or 1)
+        level = max(1, min(3, int(level)))
+
+        cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
+        if cursor.fetchone():
+            raise HTTPException(400, "نام کاربری تکراری است")
+
+        cursor.execute(
+            "SELECT id FROM bale_accounts WHERE bale_user_id=%s",
+            (body.bale_user_id,),
+        )
+        if cursor.fetchone():
+            raise HTTPException(400, "این آیدی بله قبلاً ثبت شده")
+
+        cursor.execute(
+            """
+            INSERT INTO users
+            (first_name, last_name, username, password_hash,
+             organizational_position, access_level, is_active)
+            VALUES (%s,%s,%s,%s,%s,%s,1)
+            """,
+            (
+                first_name,
+                last_name,
+                username,
+                req["password_hash"],
+                position,
+                level,
+            ),
+        )
+        user_id = cursor.lastrowid
+
+        cursor.execute(
+            """
+            INSERT INTO bale_accounts
+            (user_id, bale_user_id, bale_first_name, bale_last_name, is_active)
+            VALUES (%s,%s,%s,%s,1)
+            """,
+            (
+                user_id,
+                body.bale_user_id,
+                body.bale_first_name or first_name,
+                body.bale_last_name or last_name,
+            ),
+        )
+
+        cursor.execute(
+            """
+            UPDATE registration_requests
+            SET status='approved', reviewed_at=NOW(), reviewed_by=%s
+            WHERE id=%s
+            """,
+            (admin_id, request_id),
+        )
+        db.commit()
+        return {
+            "success": True,
+            "message": "تأیید شد",
+            "user_id": user_id,
+            "bale_user_id": body.bale_user_id,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, str(e))
+    finally:
+        cursor.close()
+        db.close()
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int):
 
@@ -426,5 +539,6 @@ def get_registration_requests(
 
     return {
         "success": True,
-        "data": data
+        "requests": data,
+        "data": data,
     }
