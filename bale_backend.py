@@ -10,7 +10,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from pages.bale_page import BalePage
 from pages.login_page import LoginPage
 
-
+from bale_media import BaleMediaSender
 
 # =========================================================
 # BALE PLAYWRIGHT EXECUTOR
@@ -109,7 +109,7 @@ class BaleBackend:
 
         self.login = None
 
-
+       self.media_sender = None
 
         # آخرین مخاطب پردازش شده
 
@@ -372,7 +372,9 @@ class BaleBackend:
             self.page
         )
 
-
+        self.media_sender = BaleMediaSender(
+            self.page
+        )
 
         print(
             "[BALE] Browser started."
@@ -1248,7 +1250,55 @@ class BaleBackend:
 
             return False
 
+    # =====================================================
+    # SEND MEDIA
+    # =====================================================
 
+    def send_media(
+        self,
+        media_path,
+        caption="",
+        media_type=None
+    ):
+
+        print(
+            "\n[BALE] SEND MEDIA"
+        )
+
+        if self.page is None:
+            print(
+                "[MEDIA] Page is not initialized."
+            )
+            return False
+
+        if self.media_sender is None:
+            self.media_sender = BaleMediaSender(
+                self.page
+            )
+
+        try:
+
+            result = self.media_sender.send_media(
+                file_path=media_path,
+                caption=caption,
+                media_type=media_type
+            )
+
+            print(
+                "[MEDIA] Result:",
+                result
+            )
+
+            return result
+
+        except Exception as e:
+
+            print(
+                "[MEDIA SEND ERROR]",
+                e
+            )
+
+            return False
     # =====================================================
     # FULL SEND FLOW
     # =====================================================
