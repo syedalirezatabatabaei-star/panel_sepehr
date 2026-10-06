@@ -12,6 +12,7 @@ from fastapi import (
     File,
     Form
 )
+from fastapi.responses import FileResponse
 
 from pydantic import BaseModel
 
@@ -53,6 +54,173 @@ os.makedirs(
     UPLOAD_DIR,
     exist_ok=True
 )
+
+
+# ============================================================
+# EXCEL REPORT (خروجی اکسل نتایج ارسال)
+# ============================================================
+
+REPORT_DIR = "/root/bale_sender/reports"
+
+os.makedirs(
+    REPORT_DIR,
+    exist_ok=True
+)
+
+
+def create_report(results, job_id=None):
+    """
+    ساخت فایل Excel از نتایج ارسال.
+    سازگار با ساختار فعلی results در send_job_worker:
+        phone, name, status, success, error
+    و همچنین ساختار قدیمی:
+        contact_status, message_status, message
+    """
+    from datetime import datetime
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    results = results or []
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    prefix = f"bale_report_{job_id}_" if job_id else "bale_report_"
+    output_file = os.path.join(
+        "/root/bale_sender/reports",
+        f"{prefix}{stamp}.xlsx"
+    )
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "جزئیات"
+
+    headers = [
+        "ردیف",
+        "شماره",
+        "نام",
+        "وضعیت مخاطب",
+        "وضعیت پیام",
+        "توضیحات",
+    ]
+    ws.append(headers)
+
+    header_fill = PatternFill("solid", fgColor="1F4E79")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(1, col)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(
+            horizontal="center",
+            vertical="center"
+        )
+
+    for i, row in enumerate(results, start=1):
+        # نرمال‌سازی فیلدها (فرمت جدید + قدیمی)
+        phone = row.get("phone") or row.get("number") or ""
+        name = row.get("name") or ""
+
+        if "contact_status" in row:
+            contact_status = row.get("contact_status") or ""
+        elif row.get("success"):
+            contact_status = "success"
+        elif row.get("error") and "پیدا نشد" in str(row.get("error")):
+            contact_status = "not_registered"
+        else:
+            contact_status = "error" if not row.get("success") else "success"
+
+        if "message_status" in row:
+            message_status = row.get("message_status") or ""
+        elif row.get("success") or str(row.get("status", "")).lower() in ("success", "sent"):
+            message_status = "sent"
+        else:
+            message_status = "error"
+
+        detail = (
+            row.get("message")
+            or row.get("error")
+            or row.get("detail")
+            or ""
+        )
+
+        ws.append([
+            i,
+            str(phone),
+            str(name),
+            str(contact_status),
+            str(message_status),
+            str(detail),
+        ])
+
+    for idx, width in enumerate([8, 16, 20, 18, 16, 40], start=1):
+        ws.column_dimensions[chr(64 + idx)].width = width
+
+    # خلاصه
+    summary = wb.create_sheet("خلاصه")
+    total = len(results)
+    contact_success = sum(
+        1 for r in results
+        if str(r.get("contact_status", "")).lower() == "success"
+        or (r.get("success") is True)
+    )
+    not_registered = sum(
+        1 for r in results
+        if str(r.get("contact_status", "")).lower() in (
+            "not_registered",
+            "not-registered",
+        )
+        or (
+            r.get("error")
+            and "پیدا نشد" in str(r.get("error"))
+        )
+    )
+    message_sent = sum(
+        1 for r in results
+        if str(r.get("message_status", "")).lower() in ("sent", "success")
+        or (
+            r.get("success") is True
+            and str(r.get("status", "")).lower() in ("success", "sent")
+        )
+    )
+    errors = sum(
+        1 for r in results
+        if (
+            str(r.get("message_status", "")).lower() in ("error", "failed")
+            or str(r.get("status", "")).lower() in ("failed", "error")
+            or r.get("success") is False
+        )
+    )
+
+    summary.append(["عنوان", "مقدار"])
+    summary["A1"].font = Font(bold=True)
+    summary["B1"].font = Font(bold=True)
+    summary.append(["کل مخاطبین", total])
+    summary.append(["مخاطب موفق", contact_success])
+    summary.append(["ثبت‌نام‌نشده / پیدا نشد", not_registered])
+    summary.append(["پیام ارسال‌شده", message_sent])
+    summary.append(["خطا", errors])
+    summary.append([
+        "زمان ساخت گزارش",
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    ])
+    if job_id:
+        summary.append(["شناسه عملیات", job_id])
+
+    summary.column_dimensions["A"].width = 28
+    summary.column_dimensions["B"].width = 24
+
+    wb.save(output_file)
+
+    print("\n================================")
+    print("FINAL REPORT")
+    print("================================")
+    print(f"Total: {total}")
+    print(f"Contacts success-ish: {contact_success}")
+    print(f"Not registered: {not_registered}")
+    print(f"Messages sent: {message_sent}")
+    print(f"Errors: {errors}")
+    print(f"\nReport file:\n{output_file}")
+
+    return output_file
+
 
 
 # ============================================================
@@ -1114,6 +1282,20 @@ def send_job_worker(
                 job_id
             ]["status"] = "completed"
 
+            # ساخت خروجی اکسل گزارش
+            try:
+                report_path = create_report(
+                    bale_jobs[job_id].get("results") or [],
+                    job_id=job_id,
+                )
+                bale_jobs[job_id]["report_file"] = report_path
+            except Exception as report_error:
+                print(
+                    "[BALE JOB] REPORT ERROR:",
+                    report_error
+                )
+                bale_jobs[job_id]["report_file"] = None
+
         print(
             f"[BALE JOB] Completed: "
             f"{job_id}"
@@ -1561,5 +1743,45 @@ def bale_send_status(
 
             "results": job["results"],
 
-            "error": job.get("error")
+            "error": job.get("error"),
+
+            "report_file": job.get("report_file"),
+
+            "has_report": bool(job.get("report_file"))
         }
+
+
+# ============================================================
+# DOWNLOAD EXCEL REPORT
+# ============================================================
+
+@router.get("/send/export/{job_id}")
+def bale_send_export(job_id: str):
+
+    with bale_jobs_lock:
+        job = bale_jobs.get(job_id)
+
+        if not job:
+            raise HTTPException(
+                status_code=404,
+                detail="عملیات ارسال پیدا نشد."
+            )
+
+        report_file = job.get("report_file")
+
+    if not report_file or not os.path.exists(report_file):
+        raise HTTPException(
+            status_code=404,
+            detail="گزارش اکسل هنوز آماده نیست یا پیدا نشد."
+        )
+
+    filename = os.path.basename(report_file)
+
+    return FileResponse(
+        path=report_file,
+        filename=filename,
+        media_type=(
+            "application/vnd.openxmlformats-"
+            "officedocument.spreadsheetml.sheet"
+        ),
+    )

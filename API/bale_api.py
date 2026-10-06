@@ -765,6 +765,8 @@ def send_job_worker(
     job_id,
     contacts,
     message
+    message_type="text";
+    media_path=None
 ):
 
     print(
@@ -1141,11 +1143,30 @@ def send_job_worker(
                     "================================"
                 )
 
-                sent = (
-                    bale_backend.send_message(
-                        message
+                # SEND MESSAGE / MEDIA
+                if message_type == "text":
+                    print("[BALE JOB] Sending TEXT message")
+                    sent = bale_backend.send_message(message)
+
+                elif message_type == "image":
+                    print("[BALE JOB] Sending IMAGE")
+                    sent = bale_backend.send_media(
+                        media_path=media_path,
+                        caption=message,
+                        media_type="image"
                     )
-                )
+
+                elif message_type == "video":
+                    print("[BALE JOB] Sending VIDEO")
+                    sent = bale_backend.send_media(
+                        media_path=media_path,
+                        caption=message,
+                        media_type="video"
+                    )
+
+                else:
+                    raise ValueError(f"نوع پیام نامعتبر است: {message_type}")               
+
 
                 if not sent:
 
@@ -1329,6 +1350,8 @@ def send_job_worker(
 async def bale_send_messages(
     file: UploadFile = File(...),
     message: str = Form(...)
+    message_type: str = Form("text"),
+    media: UploadFile | None = File(None)
 ):
 
     print(
@@ -1339,6 +1362,16 @@ async def bale_send_messages(
         "[BALE API] FILE UPLOAD"
     )
 
+    message_type = message_type.strip().lower()
+
+    if message_type not in {"text", "image", "video"}:
+        raise HTTPException(
+            status_code=400,
+            detail="نوع پیام نامعتبر است."
+        )
+
+    print(f"[BALE API] Message type: {message_type}")
+
     print(
         "================================"
     )
@@ -1346,14 +1379,22 @@ async def bale_send_messages(
     # ========================================================
     # VALIDATE MESSAGE
     # ========================================================
+    
+    message = (
+        message.strip()
+        if message
+        else ""
+    )
 
-    if not message.strip():
+
+
+    if message_type == "text" and not message:
 
         raise HTTPException(
             status_code=400,
             detail="متن پیام وارد نشده است."
         )
-
+    
     # ========================================================
     # VALIDATE FILE
     # ========================================================
@@ -1387,6 +1428,218 @@ async def bale_send_messages(
         f"{file.content_type}"
     )
 
+    # ========================================================
+    # MEDIA FILE
+    # ========================================================
+
+    media_path = None
+    media_file_exists = False
+    media_file_size = 0
+
+
+    if message_type in {
+        "image",
+        "video"
+    }:
+
+        # ---------------------------------------------
+        # Media is required
+        # ---------------------------------------------
+
+        if media is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "برای ارسال تصویر یا ویدیو، "
+                    "فایل رسانه انتخاب نشده است."
+                )
+            )
+
+
+        if not media.filename:
+
+            raise HTTPException(
+                status_code=400,
+                detail="فایل رسانه نامعتبر است."
+            )
+
+
+        # ---------------------------------------------
+        # Extension
+        # ---------------------------------------------
+
+        media_extension = os.path.splitext(
+            media.filename
+        )[1].lower()
+
+
+        image_extensions = {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif",
+            ".bmp"
+        }
+
+
+        video_extensions = {
+            ".mp4",
+            ".webm",
+            ".mov",
+            ".mkv",
+            ".avi",
+            ".m4v"
+        }
+
+
+        if (
+            message_type == "image"
+            and media_extension not in image_extensions
+        ):
+
+            raise HTTPException(
+                status_code=400,
+                detail="فرمت فایل تصویر مجاز نیست."
+            )
+
+
+        if (
+            message_type == "video"
+            and media_extension not in video_extensions
+        ):
+
+            raise HTTPException(
+                status_code=400,
+                detail="فرمت فایل ویدیو مجاز نیست."
+            )
+
+
+        # ---------------------------------------------
+        # Read media
+        # ---------------------------------------------
+
+        try:
+
+            media_bytes = await media.read()
+
+
+            if not media_bytes:
+
+                raise ValueError(
+                    "فایل رسانه خالی است."
+                )
+
+
+        except Exception as e:
+
+            print(
+                "[BALE API] Media read error:",
+                e
+            )
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"خطا در دریافت فایل رسانه: {e}"
+                )
+            )
+
+
+        # ---------------------------------------------
+        # Save media
+        # ---------------------------------------------
+
+        try:
+
+            media_saved_filename = (
+                f"{uuid.uuid4()}"
+                f"{media_extension}"
+            )
+
+
+            media_path = os.path.join(
+                UPLOAD_DIR,
+                media_saved_filename
+            )
+
+
+            with open(
+                media_path,
+                "wb"
+            ) as output_file:
+
+                output_file.write(
+                    media_bytes
+                )
+
+
+            media_file_exists = os.path.exists(
+                media_path
+            )
+
+
+            media_file_size = (
+                os.path.getsize(
+                    media_path
+                )
+                if media_file_exists
+                else 0
+            )
+
+
+            print(
+                "\n================================"
+            )
+
+            print(
+                "[BALE API] MEDIA SAVED"
+            )
+
+            print(
+                "================================"
+            )
+
+            print(
+                f"Type: {message_type}"
+            )
+
+            print(
+                f"Original name: "
+                f"{media.filename}"
+            )
+
+            print(
+                f"Path: "
+                f"{media_path}"
+            )
+
+            print(
+                f"Exists: "
+                f"{media_file_exists}"
+            )
+
+            print(
+                f"Size: "
+                f"{media_file_size} bytes"
+            )
+
+
+        except Exception as e:
+
+            print(
+                "[BALE API] "
+                f"Media save error: {e}"
+            )
+
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "خطا در ذخیره فایل رسانه "
+                    "روی سرور."
+                )
+            )
     # ========================================================
     # READ UPLOADED FILE
     # ========================================================
@@ -1584,13 +1837,14 @@ async def bale_send_messages(
     # ========================================================
     # START WORKER
     # ========================================================
-
     worker = threading.Thread(
         target=send_job_worker,
         args=(
             job_id,
             contacts,
-            message.strip()
+            message,
+            message_type,
+            media_path
         ),
         daemon=True
     )
