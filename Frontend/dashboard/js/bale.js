@@ -17,16 +17,7 @@ function baleSetHeaderTitle(title) {
         headerTitle.textContent = title;
     }
 }
-function openBaleMessaging() {
-    console.log("[BALE] Opening messaging page");
 
-    if (typeof showBaleMessagingPage === "function") {
-        showBaleMessagingPage();
-        return;
-    }
-
-    console.error("[BALE] showBaleMessagingPage is not defined.");
-}
 /*==================
 continueBaleAccount
 ======================*/
@@ -2815,19 +2806,12 @@ window.showBaleSavedAccountPage =
 
 window.continueBaleAccount =
     continueBaleAccount;
+
+window.changeBaleAccount = changeBaleAccount;
+
 window.__baleLastJobId =
     data.job_id;
-window.openBaleMessaging = openBaleMessaging;
-window.showBaleMessagingPage = showBaleMessagingPage;
-window.sendBaleMessages = sendBaleMessages;
 
-window.continueBaleAccount = continueBaleAccount;
-window.changeBaleAccount = changeBaleAccount;
-window.checkBaleAccount = checkBaleAccount;
-
-window.showBaleLoginPage = showBaleLoginPage;
-window.startBaleLogin = startBaleLogin;
-window.verifyBaleOtp = verifyBaleOtp;
 console.log(
     "[BALE] bale.js loaded successfully."
 );
