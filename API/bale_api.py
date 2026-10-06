@@ -764,8 +764,8 @@ def read_excel_contacts(
 def send_job_worker(
     job_id,
     contacts,
-    message
-    message_type="text";
+    message,
+    message_type="text",
     media_path=None
 ):
 
@@ -1349,7 +1349,7 @@ def send_job_worker(
 @router.post("/send")
 async def bale_send_messages(
     file: UploadFile = File(...),
-    message: str = Form(...)
+    message: str = Form(...),
     message_type: str = Form("text"),
     media: UploadFile | None = File(None)
 ):

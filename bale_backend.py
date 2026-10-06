@@ -109,7 +109,7 @@ class BaleBackend:
 
         self.login = None
 
-       self.media_sender = None
+        self.media_sender = None
 
         # آخرین مخاطب پردازش شده
 
