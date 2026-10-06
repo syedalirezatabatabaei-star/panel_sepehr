@@ -877,7 +877,7 @@ function showBaleMessagingPage() {
                     </div>
 
                     <div class="card-subtitle">
-                        فایل مخاطبین و متن پیام را وارد کنید.
+                        فایل مخاطبین و محتوای پیام را وارد کنید.
                     </div>
 
                 </div>
@@ -886,6 +886,11 @@ function showBaleMessagingPage() {
 
 
             <div class="card-body">
+
+
+                <!-- =========================================
+                     Excel
+                     ========================================= -->
 
                 <div class="form-group">
 
@@ -908,10 +913,75 @@ function showBaleMessagingPage() {
                 </div>
 
 
+                <!-- =========================================
+                     Message Type
+                     ========================================= -->
+
+                <div class="form-group">
+
+                    <label for="baleMessageType">
+                        نوع محتوا
+                    </label>
+
+                    <select
+                        id="baleMessageType"
+                        class="form-control"
+                    >
+
+                        <option value="text">
+                            📝 متن
+                        </option>
+
+                        <option value="image">
+                            🖼 تصویر
+                        </option>
+
+                        <option value="video">
+                            🎥 ویدیو
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- =========================================
+                     Media File
+                     ========================================= -->
+
+                <div
+                    class="form-group"
+                    id="baleMediaGroup"
+                    style="display:none;"
+                >
+
+                    <label for="baleMediaFile">
+                        فایل رسانه
+                    </label>
+
+                    <input
+                        type="file"
+                        id="baleMediaFile"
+                        class="form-control"
+                    >
+
+                    <small id="baleMediaHelp">
+                        فایل مورد نظر را انتخاب کنید.
+                    </small>
+
+                </div>
+
+
+                <!-- =========================================
+                     Message / Caption
+                     ========================================= -->
+
                 <div class="form-group">
 
                     <label for="baleMessage">
-                        متن پیام
+                        <span id="baleMessageLabel">
+                            متن پیام
+                        </span>
                     </label>
 
                     <textarea
@@ -921,8 +991,16 @@ function showBaleMessagingPage() {
                         placeholder="متن پیام خود را وارد کنید..."
                     ></textarea>
 
+                    <small id="baleMessageHelp">
+                        متن پیام برای مخاطبین ارسال خواهد شد.
+                    </small>
+
                 </div>
 
+
+                <!-- =========================================
+                     Send
+                     ========================================= -->
 
                 <div class="form-actions">
 
@@ -937,21 +1015,211 @@ function showBaleMessagingPage() {
 
                 </div>
 
+
             </div>
 
         </div>
+
     `;
 
 
-    const fileInput =
+    /* =====================================================
+       Elements
+       ===================================================== */
+
+    const excelInput =
         document.getElementById(
             "baleExcelFile"
         );
 
 
-    if (fileInput) {
+    const messageType =
+        document.getElementById(
+            "baleMessageType"
+        );
 
-        fileInput.addEventListener(
+
+    const mediaGroup =
+        document.getElementById(
+            "baleMediaGroup"
+        );
+
+
+    const mediaInput =
+        document.getElementById(
+            "baleMediaFile"
+        );
+
+
+    const messageLabel =
+        document.getElementById(
+            "baleMessageLabel"
+        );
+
+
+    const messageHelp =
+        document.getElementById(
+            "baleMessageHelp"
+        );
+
+
+    const mediaHelp =
+        document.getElementById(
+            "baleMediaHelp"
+        );
+
+
+    /* =====================================================
+       Update Media UI
+       ===================================================== */
+
+    function updateMediaUI() {
+
+        if (!messageType) {
+            return;
+        }
+
+
+        const type =
+            messageType.value;
+
+
+        /* -----------------------------------------------
+           TEXT
+           ----------------------------------------------- */
+
+        if (type === "text") {
+
+            if (mediaGroup) {
+                mediaGroup.style.display = "none";
+            }
+
+
+            if (mediaInput) {
+                mediaInput.value = "";
+                mediaInput.accept = "";
+            }
+
+
+            if (messageLabel) {
+                messageLabel.textContent =
+                    "متن پیام";
+            }
+
+
+            if (messageHelp) {
+                messageHelp.textContent =
+                    "متن پیام برای مخاطبین ارسال خواهد شد.";
+            }
+
+
+            return;
+        }
+
+
+        /* -----------------------------------------------
+           IMAGE
+           ----------------------------------------------- */
+
+        if (type === "image") {
+
+            if (mediaGroup) {
+                mediaGroup.style.display = "block";
+            }
+
+
+            if (mediaInput) {
+
+                mediaInput.accept =
+                    "image/*";
+
+            }
+
+
+            if (messageLabel) {
+                messageLabel.textContent =
+                    "متن / کپشن تصویر";
+            }
+
+
+            if (messageHelp) {
+                messageHelp.textContent =
+                    "این متن زیر تصویر نمایش داده می‌شود.";
+            }
+
+
+            if (mediaHelp) {
+                mediaHelp.textContent =
+                    "فرمت‌های تصویری مانند JPG، PNG و WEBP.";
+            }
+
+
+            return;
+        }
+
+
+        /* -----------------------------------------------
+           VIDEO
+           ----------------------------------------------- */
+
+        if (type === "video") {
+
+            if (mediaGroup) {
+                mediaGroup.style.display = "block";
+            }
+
+
+            if (mediaInput) {
+
+                mediaInput.accept =
+                    "video/*";
+
+            }
+
+
+            if (messageLabel) {
+                messageLabel.textContent =
+                    "متن / کپشن ویدیو";
+            }
+
+
+            if (messageHelp) {
+                messageHelp.textContent =
+                    "این متن زیر ویدیو نمایش داده می‌شود.";
+            }
+
+
+            if (mediaHelp) {
+                mediaHelp.textContent =
+                    "فرمت‌های ویدیویی مانند MP4 و WEBM.";
+            }
+
+        }
+
+    }
+
+
+    /* =====================================================
+       Type Change
+       ===================================================== */
+
+    if (messageType) {
+
+        messageType.addEventListener(
+            "change",
+            updateMediaUI
+        );
+
+    }
+
+
+    /* =====================================================
+       Excel Change
+       ===================================================== */
+
+    if (excelInput) {
+
+        excelInput.addEventListener(
             "change",
             function () {
 
@@ -982,7 +1250,58 @@ function showBaleMessagingPage() {
         );
 
     }
+
+
+    /* =====================================================
+       Media Change
+       ===================================================== */
+
+    if (mediaInput) {
+
+        mediaInput.addEventListener(
+            "change",
+            function () {
+
+                if (
+                    this.files &&
+                    this.files.length > 0
+                ) {
+
+                    const file =
+                        this.files[0];
+
+
+                    console.log(
+                        "[BALE] Media selected:",
+                        file.name,
+                        file.size,
+                        file.type
+                    );
+
+
+                    showToast(
+                        `فایل «${file.name}» انتخاب شد.`,
+                        "success"
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       Initial State
+       ===================================================== */
+
+    updateMediaUI();
+
 }
+
+
+
 
 
 /* =========================================================
@@ -991,20 +1310,471 @@ function showBaleMessagingPage() {
 
 async function sendBaleMessages() {
 
-    const fileInput =
+    const excelInput =
         document.getElementById(
             "baleExcelFile"
         );
+
 
     const messageInput =
         document.getElementById(
             "baleMessage"
         );
 
+
+    const messageTypeInput =
+        document.getElementById(
+            "baleMessageType"
+        );
+
+
+    const mediaInput =
+        document.getElementById(
+            "baleMediaFile"
+        );
+
+
     const sendButton =
         document.getElementById(
             "baleSendButton"
         );
+
+
+    /* =====================================================
+       Validate Excel
+       ===================================================== */
+
+    if (
+        !excelInput ||
+        !excelInput.files ||
+        excelInput.files.length === 0
+    ) {
+
+        showToast(
+            "لطفاً فایل Excel را انتخاب کنید.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    /* =====================================================
+       Message Type
+       ===================================================== */
+
+    const messageType =
+        messageTypeInput
+            ? messageTypeInput.value
+            : "text";
+
+
+    if (
+        ![
+            "text",
+            "image",
+            "video"
+        ].includes(messageType)
+    ) {
+
+        showToast(
+            "نوع محتوا نامعتبر است.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    /* =====================================================
+       Message
+       ===================================================== */
+
+    if (!messageInput) {
+
+        showToast(
+            "بخش متن پیام پیدا نشد.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const message =
+        messageInput.value.trim();
+
+
+    /* =====================================================
+       Media Validation
+       ===================================================== */
+
+    let mediaFile = null;
+
+
+    if (
+        messageType === "image" ||
+        messageType === "video"
+    ) {
+
+        if (
+            !mediaInput ||
+            !mediaInput.files ||
+            mediaInput.files.length === 0
+        ) {
+
+            showToast(
+                messageType === "image"
+                    ? "لطفاً تصویر را انتخاب کنید."
+                    : "لطفاً ویدیو را انتخاب کنید.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        mediaFile =
+            mediaInput.files[0];
+
+
+        /* -----------------------------------------------
+           Validate MIME type
+           ----------------------------------------------- */
+
+        if (
+            messageType === "image" &&
+            !mediaFile.type.startsWith("image/")
+        ) {
+
+            showToast(
+                "فایل انتخاب‌شده تصویر نیست.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (
+            messageType === "video" &&
+            !mediaFile.type.startsWith("video/")
+        ) {
+
+            showToast(
+                "فایل انتخاب‌شده ویدیو نیست.",
+                "error"
+            );
+
+            return;
+        }
+
+    }
+
+
+    /* =====================================================
+       Text Validation
+       ===================================================== */
+
+    /*
+       در حالت text متن اجباری است.
+
+       در حالت image/video متن اختیاری است.
+       یعنی:
+           تصویر تنها
+           تصویر + کپشن
+           ویدیو تنها
+           ویدیو + کپشن
+       هر دو قابل ارسال هستند.
+    */
+
+    if (
+        messageType === "text" &&
+        !message
+    ) {
+
+        showToast(
+            "لطفاً متن پیام را وارد کنید.",
+            "error"
+        );
+
+        messageInput.focus();
+
+        return;
+    }
+
+
+    /* =====================================================
+       Excel
+       ===================================================== */
+
+    const excelFile =
+        excelInput.files[0];
+
+
+    const excelName =
+        excelFile.name.toLowerCase();
+
+
+    if (
+        !excelName.endsWith(".xlsx") &&
+        !excelName.endsWith(".xlsm")
+    ) {
+
+        showToast(
+            "فرمت فایل باید xlsx یا xlsm باشد.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    /* =====================================================
+       Log
+       ===================================================== */
+
+    console.log(
+        "[BALE] Message type:",
+        messageType
+    );
+
+
+    console.log(
+        "[BALE] Excel:",
+        excelFile.name,
+        excelFile.size
+    );
+
+
+    if (mediaFile) {
+
+        console.log(
+            "[BALE] Media:",
+            mediaFile.name,
+            mediaFile.size,
+            mediaFile.type
+        );
+
+    }
+
+
+    /* =====================================================
+       FormData
+       ===================================================== */
+
+    const formData =
+        new FormData();
+
+
+    /* -----------------------------------------------
+       Excel
+       ----------------------------------------------- */
+
+    formData.append(
+        "file",
+        excelFile
+    );
+
+
+    /* -----------------------------------------------
+       Message
+       ----------------------------------------------- */
+
+    formData.append(
+        "message",
+        message
+    );
+
+
+    /* -----------------------------------------------
+       Message Type
+       ----------------------------------------------- */
+
+    formData.append(
+        "message_type",
+        messageType
+    );
+
+
+    /* -----------------------------------------------
+       Media
+       ----------------------------------------------- */
+
+    if (mediaFile) {
+
+        formData.append(
+            "media",
+            mediaFile
+        );
+
+    }
+
+
+    /* =====================================================
+       Disable Button
+       ===================================================== */
+
+    if (sendButton) {
+
+        sendButton.disabled = true;
+
+        sendButton.textContent =
+            "در حال شروع ارسال...";
+
+    }
+
+
+    /* =====================================================
+       Send
+       ===================================================== */
+
+    try {
+
+        showToast(
+            "در حال ارسال اطلاعات به سرور...",
+            "info"
+        );
+
+
+        const response =
+            await fetch(
+                `${BALE_API_BASE}/send`,
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+
+        let data = {};
+
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch (jsonError) {
+
+            console.warn(
+                "[BALE SEND] Invalid JSON response."
+            );
+
+        }
+
+
+        console.log(
+            "[BALE SEND RESPONSE]",
+            data
+        );
+
+
+        /* =================================================
+           HTTP Error
+           ================================================= */
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                data.message ||
+                "خطا در شروع ارسال."
+            );
+
+        }
+
+
+        /* =================================================
+           Backend Error
+           ================================================= */
+
+        if (!data.success) {
+
+            throw new Error(
+                data.message ||
+                "ارسال شروع نشد."
+            );
+
+        }
+
+
+        /* =================================================
+           Job ID
+           ================================================= */
+
+        if (!data.job_id) {
+
+            throw new Error(
+                "شناسه عملیات ارسال از سرور دریافت نشد."
+            );
+
+        }
+
+
+        window.__baleLastJobId =
+            data.job_id;
+
+
+        console.log(
+            "[BALE] Job started:",
+            data.job_id
+        );
+
+
+        showToast(
+            `ارسال ${data.total || 0} پیام شروع شد.`,
+            "success"
+        );
+
+
+        /* =================================================
+           Progress
+           ================================================= */
+
+        showBaleProgress(
+            data.total || 0
+        );
+
+
+        /* =================================================
+           Polling
+           ================================================= */
+
+        pollBaleProgress(
+            data.job_id
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "[BALE SEND ERROR]",
+            error
+        );
+
+
+        showToast(
+            error.message ||
+            "خطا در ارسال پیام‌ها.",
+            "error"
+        );
+
+
+        if (sendButton) {
+
+            sendButton.disabled = false;
+
+            sendButton.textContent =
+                "ارسال پیام‌ها";
+
+        }
+
+    }
+
+}
+
+
 
 
     /* =====================================================
