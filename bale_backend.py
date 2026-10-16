@@ -1,5 +1,7 @@
 import os
 import shutil
+import re
+from datetime import datetime
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -167,6 +169,45 @@ class BaleBackend:
             digits = "0" + digits
 
         return digits
+    # DEBUG CAPTURE
+    def capture_debug(self, stage, error=None):
+        """Save a screenshot and DOM snapshot for a failed browser action."""
+        if self.page is None:
+            return None
+
+        safe_stage = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(stage)).strip("-") or "error"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        base_path = f"/tmp/bale_{safe_stage}_{timestamp}"
+        screenshot_path = f"{base_path}.png"
+        dom_path = f"{base_path}.html"
+        text_path = f"{base_path}.txt"
+
+        if error is not None:
+            print(f"[BALE DEBUG] Stage={stage}; error={error}")
+
+        try:
+            self.page.screenshot(path=screenshot_path, full_page=True, timeout=10000)
+            print(f"[BALE DEBUG] Screenshot: {screenshot_path}")
+        except Exception as capture_error:
+            print(f"[BALE DEBUG] Screenshot failed: {capture_error}")
+
+        try:
+            with open(dom_path, "w", encoding="utf-8") as output:
+                output.write(self.page.content())
+            print(f"[BALE DEBUG] DOM: {dom_path}")
+        except Exception as capture_error:
+            print(f"[BALE DEBUG] DOM capture failed: {capture_error}")
+
+        try:
+            body_text = self.page.locator("body").inner_text(timeout=3000)
+            with open(text_path, "w", encoding="utf-8") as output:
+                output.write(f"URL: {self.page.url}\nStage: {stage}\nError: {error or ''}\n\n")
+                output.write(body_text)
+        except Exception as capture_error:
+            print(f"[BALE DEBUG] Text capture failed: {capture_error}")
+
+        return {"screenshot": screenshot_path, "dom": dom_path, "text": text_path}
+
     # ADD CONTACT
     def add_contact(self, phone, name):
         if self.bale is None:
@@ -287,127 +328,6 @@ class BaleBackend:
 
 
 
-
-
-    # =====================================================
-    # START BROWSER
-    # =====================================================
-
-
-    def start_browser(self):
-
-
-        if self.context is not None:
-
-
-            print(
-                "[BALE] Browser already running."
-            )
-
-            return
-
-
-
-
-        print(
-            "[BALE] Starting Playwright..."
-        )
-
-
-
-        self.playwright = sync_playwright().start()
-
-
-
-        self.context = self.playwright.chromium.launch_persistent_context(
-
-
-            user_data_dir=BALE_PROFILE,
-
-
-            executable_path=CHROMIUM_PATH,
-
-
-            headless=True,
-
-
-            args=[
-
-                "--no-sandbox",
-
-                "--disable-dev-shm-usage",
-
-                "--disable-gpu"
-
-            ]
-
-        )
-
-
-
-
-
-        if self.context.pages:
-
-
-            self.page = self.context.pages[0]
-
-
-        else:
-
-
-            self.page = self.context.new_page()
-
-
-
-
-
-        self.bale = BalePage(
-            self.page
-        )
-
-
-
-        self.login = LoginPage(
-            self.page
-        )
-
-        self.media_sender = BaleMediaSender(
-            self.page
-        )
-
-        print(
-            "[BALE] Browser started."
-        )
-
-
-
-
-    # =====================================================
-    # OPEN BALE
-    # =====================================================
-
-
-    def open_bale(self):
-
-
-        self.start_browser()
-
-
-
-        print(
-            "[BALE] Opening Bale..."
-        )
-
-
-
-        self.bale.open_bale()
-
-
-
-        print(
-            "[BALE] Bale opened."
-        )
 
 
     # =====================================================
@@ -861,193 +781,6 @@ class BaleBackend:
                 "[SEARCH ERROR]",
                 e
             )
-
-            return False
-
-
-
-    # =====================================================
-    # OPEN CONTACT CHAT
-    # =====================================================
-
-    def open_contact_chat(
-        self,
-        name
-    ):
-
-        print(
-            "Opening chat:",
-            name
-        )
-
-
-        if self.page is None:
-
-            return False
-
-
-        try:
-
-
-            target = str(
-                name
-            ).strip()
-
-
-            dialogs = self.page.locator(
-                '[aria-label="dialog-item"]'
-            )
-
-
-            count = dialogs.count()
-
-
-            for i in range(count):
-
-
-                item = dialogs.nth(i)
-
-
-                try:
-
-
-                    text = item.inner_text(
-                        timeout=1000
-                    )
-
-
-                    if target in text:
-
-
-                        try:
-
-                            item.click(
-                                timeout=5000
-                            )
-
-                        except Exception:
-
-                            item.click(
-                                force=True,
-                                timeout=5000
-                            )
-
-
-                        self.page.wait_for_timeout(
-                            1500
-                        )
-
-
-                        if self._is_chat_open():
-
-                            self.last_contact_name = target
-
-                            return True
-
-
-                except Exception:
-
-                    continue
-
-
-
-            # fallback name
-
-            element = self.page.get_by_text(
-                target,
-                exact=True
-            ).last
-
-
-            if element.count() > 0:
-
-
-                element.click(
-                    force=True
-                )
-
-
-                self.page.wait_for_timeout(
-                    1500
-                )
-
-
-                if self._is_chat_open():
-
-                    self.last_contact_name = target
-
-                    return True
-
-
-
-            return False
-
-
-
-        except Exception as e:
-
-            print(
-                "[CHAT ERROR]",
-                e
-            )
-
-            return False
-
-
-
-    # =====================================================
-    # CHECK CHAT OPEN
-    # =====================================================
-
-    def _is_chat_open(
-        self
-    ):
-
-
-        selectors = [
-
-            '[aria-label="editable-message-text"]',
-
-            '[contenteditable="true"]',
-
-            'textarea'
-
-        ]
-
-
-        try:
-
-
-            for selector in selectors:
-
-
-                loc = self.page.locator(
-                    selector
-                )
-
-
-                for i in range(
-                    loc.count()
-                ):
-
-
-                    if loc.nth(i).is_visible():
-
-                        return True
-
-
-
-            if "/chat/" in self.page.url:
-
-                return True
-
-
-
-            return False
-
-
-
-        except Exception:
 
             return False
 
