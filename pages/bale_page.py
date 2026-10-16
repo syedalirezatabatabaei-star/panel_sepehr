@@ -475,6 +475,22 @@ class BalePage:
         print("================================")
 
         try:
+            # If the form is already open (e.g. prepared after the previous
+            # contact was added), reuse it instead of clicking the button twice.
+            for selector in [
+                'input[aria-label="شماره همراه"]',
+                'input[placeholder*="شماره"]',
+                'input[type="tel"]',
+                'input[name*="phone" i]',
+            ]:
+                try:
+                    existing_field = self.page.locator(selector).first
+                    if existing_field.is_visible(timeout=1000):
+                        print("[ADD CONTACT] Form is already open.")
+                        return True
+                except Exception:
+                    continue
+
             # Ensure the contacts route is loaded before locating controls.
             if "/contacts" not in self.page.url:
                 print("[ADD CONTACT] Navigating to contacts...")
@@ -483,6 +499,13 @@ class BalePage:
                     return False
 
             self.page.wait_for_load_state("domcontentloaded", timeout=10000)
+            # The add-contact control can be below the viewport after prior
+            # interactions; always search from the top of the page.
+            try:
+                self.page.evaluate("window.scrollTo(0, 0)")
+                self.page.wait_for_timeout(300)
+            except Exception:
+                pass
 
             # Prefer accessible names and clickable controls; SVG-only selectors
             # are brittle because Bale can change icon aria-labels between builds.
@@ -768,7 +791,28 @@ class BalePage:
                 2000
             )
 
+            # Reload after each successful addition so the page returns to a
+            # clean top-of-page state. Reopen the form for the next contact.
+            try:
+                print("[ADD CONTACT] Reloading Bale after contact addition...")
+                self.page.reload(wait_until="domcontentloaded", timeout=30000)
+                self.page.wait_for_timeout(2000)
+                try:
+                    self.page.evaluate("window.scrollTo(0, 0)")
+                except Exception:
+                    pass
 
+                if self.open_add_contact():
+                    print("[ADD CONTACT] Form is ready for the next contact.")
+                else:
+                    # The contact has already been added successfully; failure
+                    # to prepare the next form must not undo that success.
+                    print("[ADD CONTACT] WARNING: Contact added, but could not reopen form for next contact.")
+            except Exception as refresh_error:
+                print(
+                    "[ADD CONTACT] WARNING: Contact added, but page refresh failed:",
+                    f"{type(refresh_error).__name__}: {refresh_error}"
+                )
 
             return {
 
