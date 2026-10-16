@@ -925,7 +925,8 @@ def send_job_worker(
                 add_result = {"success": False, "status": "error", "message": str(add_error)}
             add_ok = add_result.get("success") is True and str(add_result.get("status", "")).lower() in ("success", "added", "confirmed")
             add_results[contact_index] = {"success": add_ok, "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"), "message": add_result.get("message") or ""}
-            print(f"[BALE JOB] ADD RESULT {phone}: {add_results[phone]}")
+            # Results are keyed by contact index so duplicate phone numbers do not collide.
+            print(f"[BALE JOB] ADD RESULT {phone}: {add_results[contact_index]}")
             if contact_index < total:
                 time.sleep(random.uniform(1.0, 2.0))
         # ====================================================
