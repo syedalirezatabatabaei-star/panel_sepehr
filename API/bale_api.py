@@ -893,111 +893,30 @@ def send_job_worker(
                 "امکان ورود به بخش مخاطبین بله وجود نداشت."
             )
 
-        # ====================================================
-        # STEP 4
-        # ADD ALL CONTACTS
-        # ====================================================
+        # STEP 4 - ADD CONTACTS
+        # Only contacts with a fresh explicit add confirmation can be searched.
+        print("\\n================================")
+        print("[BALE JOB] STEP 4 - ADD CONTACTS")
+        print("================================")
+        print(f"[BALE JOB] Total contacts to add: {total}")
 
-        print(
-            "\n================================"
-        )
-
-        print(
-            "[BALE JOB] STEP 4 - ADD CONTACTS"
-        )
-
-        print(
-            "================================"
-        )
-
-        print(
-            f"[BALE JOB] Total contacts to add: "
-            f"{total}"
-        )
-
-        for contact_index, contact in enumerate(
-            contacts,
-            start=1
-        ):
-
-            phone = contact["phone"]
-
-            name = (
-                contact.get("name")
-                or phone
-            )
-
-            print(
-                "\n--------------------------------"
-            )
-
-            print(
-                f"[BALE JOB] ADD CONTACT "
-                f"{contact_index}/{total}"
-            )
-
-            print(
-                f"[BALE JOB] Phone: {phone}"
-            )
-
-            print(
-                f"[BALE JOB] Name: {name}"
-            )
-
+        add_results = {}
+        for contact_index, contact in enumerate(contacts, start=1):
+            phone = str(contact.get("phone", "")).strip()
+            name = str(contact.get("name") or phone).strip()
+            print(f"\\n[BALE JOB] ADD CONTACT {contact_index}/{total}: {phone} | {name}")
             try:
-
-                add_result = (
-                    bale_backend.add_contact(
-                        phone,
-                        name
-                    )
-                )
-
-                print(
-                    f"[BALE JOB] ADD RESULT: "
-                    f"{add_result}"
-                )
-
-                if add_result is False:
-
-                    print(
-                        f"[BALE JOB] "
-                        f"Contact add returned False: "
-                        f"{phone}"
-                    )
-
-            except Exception as e:
-
-                print(
-                    f"[BALE JOB] "
-                    f"ADD CONTACT ERROR → "
-                    f"{phone}: {e}"
-                )
-
-                # اگر افزودن مخاطب شکست خورد،
-                # اجرای ارسال متوقف نمی‌شود.
-                # ممکن است مخاطب از قبل وجود داشته باشد.
-                # مرحله SEARCH بعداً مشخص می‌کند قابل دسترسی هست یا نه.
-
-            # =================================================
-            # SMALL DELAY BETWEEN CONTACTS
-            # =================================================
-
+                add_result = bale_backend.add_contact(phone, name)
+                if not isinstance(add_result, dict):
+                    add_result = {"success": add_result is True, "status": "success" if add_result is True else "unconfirmed", "message": "نتیجه افزودن مخاطب قابل‌تأیید نبود"}
+            except Exception as add_error:
+                print(f"[BALE JOB] ADD CONTACT ERROR {phone}: {add_error}")
+                add_result = {"success": False, "status": "error", "message": str(add_error)}
+            add_ok = add_result.get("success") is True and str(add_result.get("status", "")).lower() in ("success", "added", "confirmed")
+            add_results[phone] = {"success": add_ok, "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"), "message": add_result.get("message") or ""}
+            print(f"[BALE JOB] ADD RESULT {phone}: {add_results[phone]}")
             if contact_index < total:
-
-                delay = random.uniform(
-                    1.0,
-                    2.0
-                )
-
-                print(
-                    f"[BALE JOB] "
-                    f"Sleeping after add "
-                    f"{delay:.2f}s"
-                )
-
-                time.sleep(delay)
-
+                time.sleep(random.uniform(1.0, 2.0))
         # ====================================================
         # STEP 5
         # SEND MESSAGES
@@ -1020,6 +939,34 @@ def send_job_worker(
             start=1
         ):
 
+            phone = str(contact.get("phone", "")).strip()
+            name = str(contact.get("name") or phone).strip()
+            add_state = add_results.get(phone, {"success": False, "status": "unconfirmed", "message": ""})
+            result = {
+                "phone": phone,
+                "name": name,
+                "contact_status": "success" if add_state.get("success") else "not_added",
+                "contact_add_status": add_state.get("status", "unconfirmed"),
+                "contact_add_detail": add_state.get("message", ""),
+                "message_status": "skipped",
+                "status": "skipped",
+                "success": False,
+                "error": None,
+            }
+
+            if not add_state.get("success"):
+                result["error"] = "مخاطب اضافه/تأیید نشد؛ جست‌وجو و ارسال پیام انجام نشد. " + str(add_state.get("message") or add_state.get("status") or "")
+                with bale_jobs_lock:
+                    job = bale_jobs[job_id]
+                    job["failed"] += 1
+                    job["results"].append(result)
+                    job["processed"] = index
+                    job["current"] = phone
+                    job["progress"] = int((index / total) * 100)
+                print(f"[BALE JOB] SKIP SEARCH/SEND (add not confirmed): {phone}")
+                continue
+
+            try:
             phone = contact["phone"]
 
             name = (
@@ -1066,6 +1013,13 @@ def send_job_worker(
                     f"Contact name: {name}"
                 )
 
+                # Refresh before searching, only after confirmed add.
+                try:
+                    bale_backend.page.reload(wait_until="domcontentloaded", timeout=30000)
+                    bale_backend.page.wait_for_timeout(1000)
+                except Exception as refresh_error:
+                    print("[BALE JOB] Refresh before search failed:", refresh_error)
+
                 found = (
                     bale_backend.search_contact(
                         name
@@ -1074,9 +1028,8 @@ def send_job_worker(
 
                 if not found:
 
-                    result["error"] = (
-                        "مخاطب پیدا نشد."
-                    )
+                    result["error"] = "مخاطب در جست‌وجو پیدا نشد؛ پیام ارسال نشد."
+                    result["message_status"] = "not_sent"
 
                     with bale_jobs_lock:
 
@@ -1115,9 +1068,8 @@ def send_job_worker(
 
                 if not opened_chat:
 
-                    result["error"] = (
-                        "امکان باز کردن چت وجود نداشت."
-                    )
+                    result["error"] = "امکان باز کردن چت وجود نداشت؛ پیام ارسال نشد."
+                    result["message_status"] = "not_sent"
 
                     with bale_jobs_lock:
 
@@ -1170,9 +1122,8 @@ def send_job_worker(
 
                 if not sent:
 
-                    result["error"] = (
-                        "ارسال پیام انجام نشد."
-                    )
+                    result["error"] = "ارسال پیام انجام نشد."
+                    result["message_status"] = "failed"
 
                     with bale_jobs_lock:
 
@@ -1187,7 +1138,7 @@ def send_job_worker(
                 # =================================================
 
                 result["status"] = "success"
-
+                result["message_status"] = "sent"
                 result["success"] = True
 
                 print(
