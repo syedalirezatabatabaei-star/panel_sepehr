@@ -652,14 +652,16 @@ class BaleBackend:
 
         try:
 
+            # Search results are chat/dialog results, so run the search from
+            # the chat view rather than the contacts-management page. On
+            # /contacts the dialog-item selector is absent and valid contacts
+            # are incorrectly reported as missing.
             self.page.goto(
-                "https://web.bale.ai/contacts",
+                "https://web.bale.ai/chat",
                 wait_until="domcontentloaded"
             )
 
-            self.page.wait_for_timeout(
-                2500
-            )
+            self.page.wait_for_timeout(2000)
 
 
             if self.bale is not None:
