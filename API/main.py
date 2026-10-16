@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from API.registration_admin import router as registration_router
 
 from API.bale_api import router as bale_router
+from API.eitaa_api import router as eitaa_router
 from API.auth import router as auth_router
 from API.admin import router as admin_router
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,6 +48,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(bale_router)
+app.include_router(eitaa_router)
 app.include_router(registration_router)
 # ===============================
 # Root
