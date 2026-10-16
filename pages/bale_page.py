@@ -755,7 +755,95 @@ class BalePage:
                     print("[ADD CONTACT] Contact 6 pre-click screenshot failed:", screenshot_error)
                     review_before_path = None
 
+            # Start observing DOM mutations before clicking: Bale's toast can
+            # disappear in under a second, so polling body text afterwards may miss it.
+            try:
+                self.page.evaluate("""() => {
+                    try {
+                        if (window.__baleToastObserver) window.__baleToastObserver.disconnect();
+                    } catch (_) {}
+                    window.__baleToastCapture = [];
+                    const captureText = (value) => {
+                        const text = String(value || "").replace(/\\s+/g, " ").trim();
+                        if (!text || text.length > 600) return;
+                        if (!window.__baleToastCapture.includes(text)) {
+                            window.__baleToastCapture.push(text);
+                        }
+                    };
+                    const inspect = (node) => {
+                        if (!node) return;
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            captureText(node.nodeValue);
+                            return;
+                        }
+                        if (node.nodeType !== Node.ELEMENT_NODE) return;
+                        const el = node;
+                        const marker = [
+                            el.getAttribute("role"),
+                            el.getAttribute("aria-live"),
+                            el.getAttribute("data-sonner-toast"),
+                            el.getAttribute("class"),
+                            el.getAttribute("data-testid")
+                        ].filter(Boolean).join(" ").toLowerCase();
+                        const text = (el.innerText || el.textContent || "").trim();
+                        if (text && (/(toast|notification|snackbar|alert|status|sonner|message)/i.test(marker)
+                            || text.length <= 240)) captureText(text);
+                        if (el.childNodes) {
+                            for (const child of el.childNodes) {
+                                if (child.nodeType === Node.TEXT_NODE) captureText(child.nodeValue);
+                            }
+                        }
+                    };
+                    window.__baleToastObserver = new MutationObserver((mutations) => {
+                        for (const mutation of mutations) {
+                            if (mutation.type === "characterData") inspect(mutation.target);
+                            for (const node of mutation.addedNodes || []) inspect(node);
+                            if (mutation.type === "childList" && mutation.target) inspect(mutation.target);
+                        }
+                    });
+                    if (document.body) {
+                        window.__baleToastObserver.observe(document.body, {
+                            subtree: true, childList: true, characterData: true
+                        });
+                    }
+                }""")
+            except Exception as observer_error:
+                print("[ADD CONTACT] Could not start toast observer:", observer_error)
+
             add_button.click(timeout=5000)
+
+            # Keep the observer alive briefly to catch short-lived bottom-page toasts.
+            try:
+                self.page.wait_for_timeout(1200)
+                ui_notification = self.page.evaluate("""() => {
+                    try {
+                        if (window.__baleToastObserver) {
+                            window.__baleToastObserver.takeRecords().forEach((mutation) => {
+                                for (const node of mutation.addedNodes || []) {
+                                    const text = (node.nodeType === Node.TEXT_NODE
+                                        ? node.nodeValue
+                                        : (node.innerText || node.textContent || ""));
+                                    const clean = String(text || "").replace(/\\s+/g, " ").trim();
+                                    if (clean && clean.length <= 600 && !window.__baleToastCapture.includes(clean)) {
+                                        window.__baleToastCapture.push(clean);
+                                    }
+                                }
+                            });
+                            window.__baleToastObserver.disconnect();
+                        }
+                        return (window.__baleToastCapture || []).join(" | ").slice(0, 1200);
+                    } catch (_) {
+                        return "";
+                    }
+                }""")
+                ui_notification = str(ui_notification or "").strip()
+                if ui_notification:
+                    print("[ADD CONTACT] Captured transient UI notification:", ui_notification)
+                else:
+                    print("[ADD CONTACT] No transient UI notification text captured.")
+            except Exception as observer_read_error:
+                print("[ADD CONTACT] Could not read toast capture:", observer_read_error)
+                ui_notification = ""
 
             if contact_index == 6:
                 try:
@@ -866,16 +954,16 @@ class BalePage:
                 }
 
             if confirmed and page_ready:
-                return result(True, "success", "تأیید جدید بله دریافت شد و صفحه برای مخاطب بعدی آماده است", **review_images)
+                return result(True, "success", "تأیید جدید بله دریافت شد و صفحه برای مخاطب بعدی آماده است", ui_notification=ui_notification, **review_images)
             if confirmed and not page_ready:
-                return result(False, "refresh_failed", "افزودن تأیید شد اما صفحه مخاطبین و دکمه افزودن پس از رفرش آماده نشد", **review_images)
+                return result(False, "refresh_failed", "افزودن تأیید شد اما صفحه مخاطبین و دکمه افزودن پس از رفرش آماده نشد", ui_notification=ui_notification, **review_images)
 
             print("[ADD CONTACT] No fresh success confirmation; do not count as added.")
             try:
                 self.page.screenshot(path="/tmp/add_contact_unconfirmed.png", full_page=True)
             except Exception:
                 pass
-            return result(False, "unconfirmed", "تأیید جدید بله دریافت نشد؛ مخاطب به‌عنوان موفق ثبت نمی‌شود" + ("" if page_ready else "؛ صفحه پس از رفرش آماده نشد"), **review_images)
+            return result(False, "unconfirmed", "تأیید جدید بله دریافت نشد؛ مخاطب به‌عنوان موفق ثبت نمی‌شود" + ("" if page_ready else "؛ صفحه پس از رفرش آماده نشد"), ui_notification=ui_notification, **review_images)
 
         except Exception as e:
             print("[ADD CONTACT ERROR]", f"{type(e).__name__}: {e}")
