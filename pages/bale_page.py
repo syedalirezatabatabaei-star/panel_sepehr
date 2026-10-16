@@ -632,19 +632,52 @@ class BalePage:
             return {"success": success, "status": status, "message": message}
 
         def refresh_contacts_page():
+            """Return to the clean contacts page and verify the add control is back."""
             try:
-                self.page.reload(wait_until="domcontentloaded", timeout=30000)
-                self.page.wait_for_timeout(1200)
-                if "/contacts" not in self.page.url:
+                if "/contacts" in self.page.url:
+                    self.page.reload(wait_until="domcontentloaded", timeout=30000)
+                else:
                     self.page.goto("https://web.bale.ai/contacts", wait_until="domcontentloaded", timeout=30000)
-                    self.page.wait_for_timeout(1000)
+
+                self.page.wait_for_load_state("domcontentloaded", timeout=10000)
                 try:
                     self.page.evaluate("window.scrollTo(0, 0)")
                 except Exception:
                     pass
-                print("[ADD CONTACT] Page refreshed for the next item.")
+
+                # Wait for the contacts UI to finish rendering. A URL alone is
+                # not enough: the next iteration needs the add-contact control.
+                ready_selectors = [
+                    'button[aria-label*="AddUser" i]',
+                    '[role="button"][aria-label*="AddUser" i]',
+                    '[aria-label="AddUser-icon"]',
+                    'svg[aria-label="AddUser-icon"]',
+                    'button:has-text("افزودن مخاطب")',
+                    '[role="button"]:has-text("افزودن مخاطب")',
+                    'button:has-text("افزودن")',
+                    '[role="button"]:has-text("افزودن")',
+                ]
+                deadline = time.monotonic() + 12
+                while time.monotonic() < deadline:
+                    if "/contacts" not in self.page.url:
+                        self.page.goto("https://web.bale.ai/contacts", wait_until="domcontentloaded", timeout=30000)
+                    for selector in ready_selectors:
+                        try:
+                            loc = self.page.locator(selector)
+                            for idx in range(min(loc.count(), 10)):
+                                if loc.nth(idx).is_visible():
+                                    print("[ADD CONTACT] Contacts page refreshed; add control is visible.")
+                                    return True
+                        except Exception:
+                            continue
+                    self.page.wait_for_timeout(400)
+
+                self.page.screenshot(path="/tmp/add_contact_refresh_not_ready.png", full_page=True)
+                print("[ADD CONTACT] Refresh completed but add-contact control did not become visible.")
+                return False
             except Exception as refresh_error:
                 print("[ADD CONTACT] Refresh failed:", f"{type(refresh_error).__name__}: {refresh_error}")
+                return False
 
         try:
             if not self.open_add_contact():
@@ -772,17 +805,19 @@ class BalePage:
             # Refresh after every submission (success, rejection, or timeout).
             # The next contact starts from the clean contacts page and clicks
             # Add Contact again rather than reusing a stale form.
-            refresh_contacts_page()
+            page_ready = refresh_contacts_page()
 
-            if confirmed:
-                return result(True, "success", "تأیید جدید بله برای افزودن مخاطب دریافت شد")
+            if confirmed and page_ready:
+                return result(True, "success", "تأیید جدید بله دریافت شد و صفحه برای مخاطب بعدی آماده است")
+            if confirmed and not page_ready:
+                return result(False, "refresh_failed", "افزودن تأیید شد اما صفحه مخاطبین و دکمه افزودن پس از رفرش آماده نشد")
 
             print("[ADD CONTACT] No fresh success confirmation; do not count as added.")
             try:
                 self.page.screenshot(path="/tmp/add_contact_unconfirmed.png", full_page=True)
             except Exception:
                 pass
-            return result(False, "unconfirmed", "تأیید جدید بله دریافت نشد؛ مخاطب به‌عنوان موفق ثبت نمی‌شود")
+            return result(False, "unconfirmed", "تأیید جدید بله دریافت نشد؛ مخاطب به‌عنوان موفق ثبت نمی‌شود" + ("" if page_ready else "؛ صفحه پس از رفرش آماده نشد"))
 
         except Exception as e:
             print("[ADD CONTACT ERROR]", f"{type(e).__name__}: {e}")
