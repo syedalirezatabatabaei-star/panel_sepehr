@@ -8,3 +8,4 @@ pyjwt
 requests
 playwright==1.62.0
 openpyxl
+requests==2.32.5
