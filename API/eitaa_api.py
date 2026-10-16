@@ -13,7 +13,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 router = APIRouter(prefix="/api/eitaa", tags=["Eitaa broadcast"])
-SERVICE_URL = os.getenv("EITAA_SERVICE_URL", "http://eitaa-bun:1234").rstrip("/")
+SERVICE_URL = os.getenv("EITAA_SERVICE_URL", "http://127.0.0.1:1234").rstrip("/")
 STATE_DIR = Path(os.getenv("EITAA_STATE_DIR", "/app/data/eitaa-state"))
 MEDIA_DIR = Path(os.getenv("EITAA_MEDIA_DIR", "/shared/eitaa-media"))
 REPORT_DIR = STATE_DIR / "reports"
@@ -70,8 +70,11 @@ def _phone(value):
 def health():
     try:
         response = requests.get(SERVICE_URL + "/", timeout=5)
-        response.raise_for_status()
-        return {"success": True, "service": "eitaa-bun", "status": "online"}
+        # EitaaBun may not define a root route; any HTTP response below 500
+        # confirms that the local process is reachable.
+        if response.status_code >= 500:
+            raise requests.HTTPError(f"EitaaBun returned HTTP {response.status_code}")
+        return {"success": True, "service": "EitaaBun", "status": "online"}
     except requests.RequestException:
         raise HTTPException(503, "سرویس EitaaBun در دسترس نیست")
 
