@@ -1,6 +1,8 @@
 # bale_media.py
 
 import os
+import re
+from datetime import datetime
 from pathlib import Path
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -38,6 +40,38 @@ class BaleMediaSender:
     def __init__(self, page):
         self.page = page
 
+    def _capture_debug(self, stage, error=None):
+        """Save a screenshot and DOM snapshot when a media action fails."""
+        if self.page is None:
+            return
+
+        safe_stage = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(stage)).strip("-") or "media-error"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        base_path = f"/tmp/bale_{safe_stage}_{timestamp}"
+
+        if error is not None:
+            print(f"[MEDIA DEBUG] {stage}: {error}")
+
+        try:
+            self.page.screenshot(path=f"{base_path}.png", full_page=True, timeout=10000)
+            print(f"[MEDIA DEBUG] Screenshot: {base_path}.png")
+        except Exception as capture_error:
+            print(f"[MEDIA DEBUG] Screenshot failed: {capture_error}")
+
+        try:
+            with open(f"{base_path}.html", "w", encoding="utf-8") as output:
+                output.write(self.page.content())
+            print(f"[MEDIA DEBUG] DOM: {base_path}.html")
+        except Exception as capture_error:
+            print(f"[MEDIA DEBUG] DOM capture failed: {capture_error}")
+
+        try:
+            with open(f"{base_path}.txt", "w", encoding="utf-8") as output:
+                output.write(f"URL: {self.page.url}\nStage: {stage}\nError: {error or ''}\n\n")
+                output.write(self.page.locator("body").inner_text(timeout=3000))
+        except Exception as capture_error:
+            print(f"[MEDIA DEBUG] Text capture failed: {capture_error}")
+
     # -----------------------------------------------------
     # VALIDATE
     # -----------------------------------------------------
@@ -64,162 +98,89 @@ class BaleMediaSender:
     # FIND FILE INPUT
     # -----------------------------------------------------
     def _find_file_input(self):
-        print("[MEDIA] Looking for file input...")
+        print("[MEDIA] Looking for a file input...")
 
-        selectors = [
-            'input[type="file"]',
-            'input[type="file"][accept*="image"]',
-            'input[type="file"][accept*="video"]',
-            'input[type="file"][accept*="image/video"]',
-        ]
+        def first_attached_input():
+            inputs = self.page.locator('input[type="file"]')
+            for index in range(inputs.count()):
+                item = inputs.nth(index)
+                try:
+                    if item.is_attached():
+                        print(f"[MEDIA] File input found at index={index}")
+                        return item
+                except Exception:
+                    continue
+            return None
 
-        # ---------------------------------------------------------
-        # STEP 1 - Check existing file inputs
-        # ---------------------------------------------------------
+        existing = first_attached_input()
+        if existing is not None:
+            return existing
 
-        for selector in selectors:
-            try:
-                locator = self.page.locator(selector)
-                count = locator.count()
-
-                if count > 0:
-                    print(
-                        f"[MEDIA] Existing file input found: "
-                        f"{selector} ({count})"
-                    )
-
-                    for i in range(count):
-                        try:
-                            item = locator.nth(i)
-
-                            if item.is_attached():
-                                print(
-                                    f"[MEDIA] Using file input: "
-                                    f"{selector} index={i}"
-                                )
-                                return item
-
-                        except Exception:
-                            continue
-
-            except Exception:
-                continue
-
-        # ---------------------------------------------------------
-        # STEP 2 - Try opening attachment menu
-        # ---------------------------------------------------------
-
-        print("[MEDIA] File input not found.")
-        print("[MEDIA] Trying to open attachment menu...")
-
+        # Some Bale builds add the file input only after the attachment menu opens.
         attachment_selectors = [
-            'svg[aria-label*="Attach"]',
-            'svg[aria-label*="attach"]',
-            '[aria-label*="Attach"]',
-            '[aria-label*="attach"]',
-            '[title*="Attach"]',
-            '[title*="attach"]',
-            'button[aria-label*="Attach"]',
-            'button[aria-label*="attach"]',
+            'button[aria-label*="attach" i]',
+            '[role="button"][aria-label*="attach" i]',
+            '[aria-label*="پیوست"]',
+            '[title*="پیوست"]',
+            'button[aria-label*="file" i]',
+            '[role="button"][aria-label*="file" i]',
+            'button[aria-label*="media" i]',
+            '[role="button"][aria-label*="media" i]',
+            '[aria-label*="تصویر"]',
+            '[aria-label*="رسانه"]',
+            '[aria-label*="ضمیمه"]',
+            '[title*="Attach" i]',
+            '[title*="Upload" i]',
+            '[data-testid*="attach" i]',
         ]
-
-        attachment_clicked = False
 
         for selector in attachment_selectors:
             try:
                 locator = self.page.locator(selector)
-                count = locator.count()
-
-                print(
-                    f"[MEDIA] Attachment selector: "
-                    f"{selector} -> {count}"
-                )
-
-                for i in range(count):
-                    try:
-                        item = locator.nth(i)
-
-                        if not item.is_visible():
-                            continue
-
-                        try:
-                            item.click(timeout=1500)
-                            print(
-                                f"[MEDIA] Attachment clicked: "
-                                f"{selector} index={i}"
-                            )
-                            attachment_clicked = True
-                            break
-                        except Exception:
-                            try:
-                                item.click(
-                                    timeout=1500,
-                                    force=True
-                                )
-                                print(
-                                    f"[MEDIA] Attachment force-clicked: "
-                                    f"{selector} index={i}"
-                                )
-                                attachment_clicked = True
-                                break
-                            except Exception:
-                                continue
-
-                    except Exception:
+                for index in range(locator.count()):
+                    candidate = locator.nth(index)
+                    if not candidate.is_visible():
                         continue
 
-                if attachment_clicked:
+                    try:
+                        tag = candidate.evaluate("(el) => el.tagName.toLowerCase()")
+                    except Exception:
+                        tag = ""
+
+                    if tag == "svg":
+                        parent = candidate.locator(
+                            "xpath=ancestor-or-self::*[self::button or @role='button'][1]"
+                        )
+                        if parent.count() and parent.first.is_visible():
+                            candidate = parent.first
+
+                    try:
+                        candidate.click(timeout=3000)
+                    except Exception:
+                        candidate.click(timeout=3000, force=True)
+
+                    print(f"[MEDIA] Attachment control clicked: {selector}")
                     break
+                else:
+                    continue
 
-            except Exception:
-                continue
+                try:
+                    self.page.locator('input[type="file"]').first.wait_for(
+                        state="attached",
+                        timeout=4000
+                    )
+                except Exception:
+                    pass
 
-        if not attachment_clicked:
-            print("[MEDIA] Attachment button not found.")
+                attached = first_attached_input()
+                if attached is not None:
+                    return attached
+            except Exception as error:
+                print(f"[MEDIA] Attachment selector skipped {selector}: {type(error).__name__}")
 
-        # ---------------------------------------------------------
-        # STEP 3 - Wait for menu / file input
-        # ---------------------------------------------------------
-
-        try:
-            self.page.wait_for_timeout(500)
-        except Exception:
-            pass
-
-        # ---------------------------------------------------------
-        # STEP 4 - Search again
-        # ---------------------------------------------------------
-
-        for selector in selectors:
-            try:
-                locator = self.page.locator(selector)
-                count = locator.count()
-
-                print(
-                    f"[MEDIA] After attachment: "
-                    f"{selector} -> {count}"
-                )
-
-                for i in range(count):
-                    try:
-                        item = locator.nth(i)
-
-                        if item.is_attached():
-                            print(
-                                f"[MEDIA] File input found after "
-                                f"attachment: {selector} index={i}"
-                            )
-                            return item
-
-                    except Exception:
-                        continue
-
-            except Exception:
-                continue
-
-        print("[MEDIA] File input still not found.")
-
+        self._capture_debug("media-file-input-not-found", "No file input or attachment control found")
         return None
+
     # -----------------------------------------------------
     # FIND MESSAGE INPUT
     # -----------------------------------------------------
@@ -236,25 +197,15 @@ class BaleMediaSender:
         ]
 
         for selector in selectors:
-
             try:
-
                 locator = self.page.locator(selector)
-
-                count = locator.count()
-
-                for i in range(count):
-
+                for i in range(locator.count() - 1, -1, -1):
                     item = locator.nth(i)
-
                     try:
-
-                        if item.is_visible():
+                        if item.is_visible() and item.is_enabled():
                             return item
-
                     except Exception:
                         continue
-
             except Exception:
                 continue
 
@@ -412,10 +363,7 @@ class BaleMediaSender:
 
         if file_input is None:
 
-            print(
-                "[MEDIA] File input not found."
-            )
-
+            self._capture_debug("media-file-input-not-found", "File input not found after attachment menu scan")
             return False
 
         try:
@@ -434,11 +382,7 @@ class BaleMediaSender:
 
         except Exception as e:
 
-            print(
-                "[MEDIA] File upload error:",
-                e
-            )
-
+            self._capture_debug("media-file-upload-error", e)
             return False
 
         # ---------------------------------------------
@@ -466,10 +410,7 @@ class BaleMediaSender:
             caption or ""
         ).strip():
 
-            print(
-                "[MEDIA] Caption could not be entered."
-            )
-
+            self._capture_debug("media-caption-error", "Caption could not be entered")
             return False
 
         # ---------------------------------------------
@@ -483,46 +424,42 @@ class BaleMediaSender:
     # -----------------------------------------------------
 
     def _send_media_message(self):
-        """
-        ارسال نهایی مدیا.
-
-        در حالت معمول Enter روی input مربوط به کپشن
-        باعث ارسال مدیا می‌شود.
-        """
-
+        """Send prepared media using the visible send control when available."""
         input_box = self._find_message_input()
+        send_selectors = [
+            'button[aria-label*="send" i]',
+            '[role="button"][aria-label*="send" i]',
+            'button[aria-label*="ارسال"]',
+            '[role="button"][aria-label*="ارسال"]',
+            'button:has-text("ارسال")',
+            '[role="button"]:has-text("ارسال")',
+            'button:has-text("فرستادن")',
+        ]
+
+        for selector in send_selectors:
+            try:
+                locator = self.page.locator(selector)
+                for index in range(locator.count() - 1, -1, -1):
+                    button = locator.nth(index)
+                    if button.is_visible() and button.is_enabled():
+                        button.click(timeout=4000)
+                        self.page.wait_for_timeout(1000)
+                        print(f"[MEDIA] Send control clicked: {selector}")
+                        return True
+            except Exception:
+                continue
 
         if input_box is None:
-
-            print(
-                "[MEDIA] Message input not found for send."
-            )
-
+            self._capture_debug("media-send-control-not-found", "No message editor or send button found")
             return False
 
         try:
-
-            input_box.press(
-                "Enter"
-            )
-
-            self.page.wait_for_timeout(
-                1500
-            )
-
-            print(
-                "[MEDIA] Media sent successfully."
-            )
-
+            input_box.press("Enter")
+            self.page.wait_for_timeout(1500)
+            print("[MEDIA] Media send submitted with Enter.")
             return True
-
-        except Exception as e:
-
-            print(
-                "[MEDIA] Send error:",
-                e
-            )
-
+        except Exception as error:
+            self._capture_debug("media-send-error", error)
             return False
 
     # -----------------------------------------------------
