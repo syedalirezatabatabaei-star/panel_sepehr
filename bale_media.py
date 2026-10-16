@@ -63,15 +63,8 @@ class BaleMediaSender:
     # -----------------------------------------------------
     # FIND FILE INPUT
     # -----------------------------------------------------
-
     def _find_file_input(self):
-        """
-        فایل input مربوط به آپلود مدیا را پیدا می‌کند.
-
-        Bale Web ممکن است input را در DOM نگه دارد
-        ولی hidden باشد؛ بنابراین فقط visible بودن
-        input را ملاک قرار نمی‌دهیم.
-        """
+        print("[MEDIA] Looking for file input...")
 
         selectors = [
             'input[type="file"]',
@@ -80,24 +73,141 @@ class BaleMediaSender:
             'input[type="file"][accept*="image/video"]',
         ]
 
-        for selector in selectors:
+        # ---------------------------------------------------------
+        # STEP 1 - Check existing file inputs
+        # ---------------------------------------------------------
 
+        for selector in selectors:
             try:
                 locator = self.page.locator(selector)
-
                 count = locator.count()
 
-                if count == 0:
-                    continue
+                if count > 0:
+                    print(
+                        f"[MEDIA] Existing file input found: "
+                        f"{selector} ({count})"
+                    )
+
+                    for i in range(count):
+                        try:
+                            item = locator.nth(i)
+
+                            if item.is_attached():
+                                print(
+                                    f"[MEDIA] Using file input: "
+                                    f"{selector} index={i}"
+                                )
+                                return item
+
+                        except Exception:
+                            continue
+
+            except Exception:
+                continue
+
+        # ---------------------------------------------------------
+        # STEP 2 - Try opening attachment menu
+        # ---------------------------------------------------------
+
+        print("[MEDIA] File input not found.")
+        print("[MEDIA] Trying to open attachment menu...")
+
+        attachment_selectors = [
+            'svg[aria-label*="Attach"]',
+            'svg[aria-label*="attach"]',
+            '[aria-label*="Attach"]',
+            '[aria-label*="attach"]',
+            '[title*="Attach"]',
+            '[title*="attach"]',
+            'button[aria-label*="Attach"]',
+            'button[aria-label*="attach"]',
+        ]
+
+        attachment_clicked = False
+
+        for selector in attachment_selectors:
+            try:
+                locator = self.page.locator(selector)
+                count = locator.count()
+
+                print(
+                    f"[MEDIA] Attachment selector: "
+                    f"{selector} -> {count}"
+                )
 
                 for i in range(count):
-
-                    item = locator.nth(i)
-
                     try:
+                        item = locator.nth(i)
+
+                        if not item.is_visible():
+                            continue
+
+                        try:
+                            item.click(timeout=1500)
+                            print(
+                                f"[MEDIA] Attachment clicked: "
+                                f"{selector} index={i}"
+                            )
+                            attachment_clicked = True
+                            break
+                        except Exception:
+                            try:
+                                item.click(
+                                    timeout=1500,
+                                    force=True
+                                )
+                                print(
+                                    f"[MEDIA] Attachment force-clicked: "
+                                    f"{selector} index={i}"
+                                )
+                                attachment_clicked = True
+                                break
+                            except Exception:
+                                continue
+
+                    except Exception:
+                        continue
+
+                if attachment_clicked:
+                    break
+
+            except Exception:
+                continue
+
+        if not attachment_clicked:
+            print("[MEDIA] Attachment button not found.")
+
+        # ---------------------------------------------------------
+        # STEP 3 - Wait for menu / file input
+        # ---------------------------------------------------------
+
+        try:
+            self.page.wait_for_timeout(500)
+        except Exception:
+            pass
+
+        # ---------------------------------------------------------
+        # STEP 4 - Search again
+        # ---------------------------------------------------------
+
+        for selector in selectors:
+            try:
+                locator = self.page.locator(selector)
+                count = locator.count()
+
+                print(
+                    f"[MEDIA] After attachment: "
+                    f"{selector} -> {count}"
+                )
+
+                for i in range(count):
+                    try:
+                        item = locator.nth(i)
+
                         if item.is_attached():
                             print(
-                                f"[MEDIA] File input found: {selector}"
+                                f"[MEDIA] File input found after "
+                                f"attachment: {selector} index={i}"
                             )
                             return item
 
@@ -107,8 +217,9 @@ class BaleMediaSender:
             except Exception:
                 continue
 
-        return None
+        print("[MEDIA] File input still not found.")
 
+        return None
     # -----------------------------------------------------
     # FIND MESSAGE INPUT
     # -----------------------------------------------------

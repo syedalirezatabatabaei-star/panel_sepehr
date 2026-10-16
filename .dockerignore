@@ -12,3 +12,22 @@ logs/
 data/state.db
 
 .env
+
+# Git and development tooling
+.git/
+**/.git/
+openui/
+genui-chat-app/node_modules/
+genui-chat-app/.next/
+genui-chat-app/.git/
+
+# Python virtual environments and caches
+venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/.ruff_cache/
+
+# Local caches and temporary files
+.npm/
+.cache/
