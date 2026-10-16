@@ -1009,11 +1009,13 @@ def send_job_worker(
                 except Exception as refresh_error:
                     print("[BALE JOB] Refresh before search failed:", refresh_error)
 
-                found = (
-                    bale_backend.search_contact(
-                        name
-                    )
-                )
+                # Search by the label first; if Bale did not return it,
+                # retry using the phone number, which is the stable identifier
+                # from the uploaded contact list.
+                found = bale_backend.search_contact(name)
+                if not found and phone and phone != name:
+                    print(f"[BALE JOB] Name search failed; retrying with phone: {phone}")
+                    found = bale_backend.search_contact(phone)
 
                 if not found:
 
@@ -1050,11 +1052,9 @@ def send_job_worker(
                     "================================"
                 )
 
-                opened_chat = (
-                    bale_backend.open_contact_chat(
-                        name
-                    )
-                )
+                # search_contact returns True only after selecting a result
+                # and verifying that a chat is open. Do not click a second time.
+                opened_chat = True
 
                 if not opened_chat:
 
