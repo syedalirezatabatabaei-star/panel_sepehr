@@ -464,323 +464,137 @@ class BalePage:
             return False
 
     # =========================================================
-    # OPEN ADD CONTACT (FIXED)
+    # =========================================================
+    # OPEN ADD CONTACT
     # =========================================================
 
     def open_add_contact(self):
 
-        print("\n================================")
+        print("\\n================================")
         print("OPEN ADD CONTACT")
         print("================================")
 
         try:
-
-            # مطمئن شویم داخل contacts هستیم
+            # Ensure the contacts route is loaded before locating controls.
             if "/contacts" not in self.page.url:
-
-                print(
-                    "[ADD CONTACT] Contacts page required..."
-                )
-
+                print("[ADD CONTACT] Navigating to contacts...")
                 if not self.open_contacts():
-
-                    print(
-                        "[ADD CONTACT] Cannot open contacts."
-                    )
-
+                    print("[ADD CONTACT] Could not open contacts page.")
                     return False
 
+            self.page.wait_for_load_state("domcontentloaded", timeout=10000)
 
-            # -------------------------------------------------
-            # CLOSE OLD MODALS / OVERLAYS
-            # -------------------------------------------------
-
-            try:
-
-                overlays = self.page.locator(
-                    ".ReactModal__Overlay"
-                )
-
-                count = overlays.count()
-
-                print(
-                    "[ADD CONTACT] Existing overlays:",
-                    count
-                )
-
-
-                for i in range(count):
-
-                    try:
-
-                        overlay = overlays.nth(i)
-
-                        if overlay.is_visible():
-
-                            print(
-                                "[ADD CONTACT] Closing old overlay..."
-                            )
-
-                            self.page.keyboard.press(
-                                "Escape"
-                            )
-
-                            self.page.wait_for_timeout(
-                                500
-                            )
-
-                    except Exception:
-                        pass
-
-
-            except Exception:
-
-                pass
-
-
-
-            # -------------------------------------------------
-            # FIND ADD USER ICON
-            # -------------------------------------------------
-
+            # Prefer accessible names and clickable controls; SVG-only selectors
+            # are brittle because Bale can change icon aria-labels between builds.
             selectors = [
-
-                'svg[aria-label="AddUser-icon"]',
-
+                'button[aria-label*="AddUser" i]',
+                '[role="button"][aria-label*="AddUser" i]',
+                'button[title*="افزودن" i]',
+                '[role="button"][title*="افزودن" i]',
+                'button[aria-label*="مخاطب" i]',
+                '[role="button"][aria-label*="مخاطب" i]',
+                'button:has-text("افزودن مخاطب")',
+                '[role="button"]:has-text("افزودن مخاطب")',
+                'button:has-text("افزودن")',
+                '[role="button"]:has-text("افزودن")',
                 '[aria-label="AddUser-icon"]',
-
-                '[aria-label*="AddUser"]',
-
-                '[aria-label*="add"]',
-
-                'svg[title*="Add"]'
-
+                'svg[aria-label="AddUser-icon"]',
+                '[aria-label*="AddUser" i]',
+                '[aria-label*="add contact" i]',
+                '[title*="Add contact" i]',
+                '[data-testid*="add-contact" i]',
+                '[data-testid*="add-user" i]',
             ]
 
-
-            add_user = None
-
-
+            add_control = None
             for selector in selectors:
-
                 try:
+                    locator = self.page.locator(selector)
+                    count = locator.count()
+                    print(f"[ADD CONTACT] {selector} => {count}")
 
-                    loc = self.page.locator(
-                        selector
-                    )
+                    for index in range(count):
+                        candidate = locator.nth(index)
+                        if not candidate.is_visible():
+                            continue
 
-                    count = loc.count()
+                        # If the match is an SVG/icon, click its nearest
+                        # interactive ancestor rather than the decorative SVG.
+                        try:
+                            tag_name = candidate.evaluate("(el) => el.tagName.toLowerCase()")
+                        except Exception:
+                            tag_name = ""
 
-
-                    print(
-                        f"[ADD CONTACT] "
-                        f"{selector} => {count}"
-                    )
-
-
-                    for i in range(count):
-
-                        candidate = loc.nth(i)
-
-                        if candidate.is_visible():
-
-                            add_user = candidate
-
-                            print(
-                                "[ADD CONTACT] Icon found:",
-                                selector
+                        if tag_name == "svg":
+                            parent_button = candidate.locator(
+                                "xpath=ancestor-or-self::*[self::button or @role='button'][1]"
                             )
+                            if parent_button.count() and parent_button.first.is_visible():
+                                candidate = parent_button.first
 
-                            break
-
-
-                    if add_user:
+                        add_control = candidate
+                        print("[ADD CONTACT] Candidate found:", selector)
                         break
 
+                    if add_control is not None:
+                        break
+                except Exception as e:
+                    print("[ADD CONTACT] Selector skipped:", selector, type(e).__name__)
 
+            if add_control is None:
+                # Diagnostic snapshot helps identify a changed UI label/DOM.
+                try:
+                    print("[ADD CONTACT] Visible buttons:")
+                    buttons = self.page.locator('button, [role="button"]')
+                    for i in range(min(buttons.count(), 80)):
+                        item = buttons.nth(i)
+                        if item.is_visible():
+                            label = (item.get_attribute("aria-label") or "").strip()
+                            title = (item.get_attribute("title") or "").strip()
+                            text_value = (item.inner_text(timeout=1000) or "").strip()
+                            print(f"[ADD CONTACT] button[{i}] aria={label!r} title={title!r} text={text_value[:120]!r}")
+                    self.page.screenshot(path="/tmp/add_contact_failed.png", full_page=True)
                 except Exception:
+                    pass
 
-                    continue
-
-
-
-            if add_user is None:
-
-                print(
-                    "[ADD CONTACT] Add icon not found."
-                )
-
+                print("[ADD CONTACT] No supported add-contact control found.")
                 return False
-
-
-
-            # -------------------------------------------------
-            # CLICK ICON
-            # -------------------------------------------------
-
-            clicked = False
-
 
             try:
+                add_control.click(timeout=7000)
+            except Exception as click_error:
+                print("[ADD CONTACT] Normal click failed:", type(click_error).__name__)
+                add_control.click(force=True, timeout=5000)
 
-                add_user.click(
-                    timeout=5000
-                )
-
-                clicked = True
-
-                print(
-                    "[ADD CONTACT] Normal click OK."
-                )
-
-
-            except Exception as e:
-
-                print(
-                    "[ADD CONTACT] Normal click failed:"
-                )
-
-                print(
-                    type(e).__name__
-                )
-
-
-                try:
-
-                    add_user.click(
-                        force=True,
-                        timeout=5000
-                    )
-
-                    clicked = True
-
-
-                    print(
-                        "[ADD CONTACT] Force click OK."
-                    )
-
-
-                except Exception as e:
-
-                    print(
-                        "[ADD CONTACT] Force click failed:"
-                    )
-
-                    print(
-                        e
-                    )
-
-
-            if not clicked:
-
-                return False
-
-
-
-            self.page.wait_for_timeout(
-                1000
-            )
-
-
-
-            # -------------------------------------------------
-            # CHECK MODAL INPUT
-            # -------------------------------------------------
-
+            # Wait for the form by locator state, not a fixed short sleep.
             input_selectors = [
-
                 'input[aria-label="شماره همراه"]',
-
                 'input[placeholder*="شماره"]',
-
                 'input[type="tel"]',
-
-                'input[name*="phone"]'
-
+                'input[name*="phone" i]',
             ]
 
-
             for selector in input_selectors:
-
                 try:
-
-                    field = self.page.locator(
-                        selector
-                    ).first
-
-
-                    if field.is_visible(
-                        timeout=3000
-                    ):
-
-                        print(
-                            "[ADD CONTACT] Modal opened."
-                        )
-
-                        return True
-
-
+                    field = self.page.locator(selector).first
+                    field.wait_for(state="visible", timeout=7000)
+                    print("[ADD CONTACT] Add-contact form opened.")
+                    return True
                 except Exception:
-
                     continue
 
-
-
-            # -------------------------------------------------
-            # DEBUG
-            # -------------------------------------------------
-
-            print(
-                "[ADD CONTACT] Modal not detected."
-            )
-
-
+            print("[ADD CONTACT] Control was clicked but phone field did not appear.")
             try:
-
-                body = self.page.locator(
-                    "body"
-                ).inner_text()
-
-
-                print(
-                    body[:3000]
-                )
-
-
-                self.page.screenshot(
-                    path="/tmp/add_contact_failed.png",
-                    full_page=True
-                )
-
-
+                print(self.page.locator("body").inner_text(timeout=3000)[:3000])
+                self.page.screenshot(path="/tmp/add_contact_failed.png", full_page=True)
             except Exception:
-
                 pass
-
-
-
             return False
-
-
 
         except Exception as e:
-
-
-            print(
-                "[OPEN ADD CONTACT ERROR]"
-            )
-
-            print(
-                f"{type(e).__name__}: {e}"
-            )
-
-
+            print("[OPEN ADD CONTACT ERROR]", f"{type(e).__name__}: {e}")
             return False
 
-
-
-
-    # =========================================================
     # ADD CONTACT (FIXED)
     # =========================================================
 
