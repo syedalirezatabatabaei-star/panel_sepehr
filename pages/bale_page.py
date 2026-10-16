@@ -1,4 +1,5 @@
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+import time
 
 
 class BalePage:
@@ -742,9 +743,13 @@ class BalePage:
             success_phrases = [
                 "مخاطب اضافه شد",
                 "مخاطب با موفقیت اضافه شد",
+                "مخاطب با موفقیت افزوده شد",
+                "مخاطب افزوده شد",
+                "افزوده شد",
                 "با موفقیت اضافه شد",
                 "مخاطب با موفقیت ذخیره شد",
                 "با موفقیت ذخیره شد",
+                "ذخیره شد",
                 "Contact added",
                 "Contact added successfully",
                 "Added successfully",
@@ -798,6 +803,27 @@ class BalePage:
                 )
                 if matched_error:
                     print("[ADD CONTACT] Bale rejected contact:", matched_error)
+                    break
+
+                # Bale may close the add-contact dialog on success without
+                # showing a toast that survives in body text. Treat the form
+                # closing as confirmation only when no new error is visible.
+                try:
+                    phone_form_visible = any(
+                        self.page.locator(selector).first.is_visible()
+                        for selector in [
+                            'input[aria-label="شماره همراه"]',
+                            'input[placeholder*="شماره"]',
+                            'input[type="tel"]',
+                            'input[name*="phone" i]',
+                        ]
+                    )
+                except Exception:
+                    phone_form_visible = False
+
+                if not phone_form_visible and observed_text and not matched_error:
+                    print("[ADD CONTACT] Add form closed after submit; treating as success.")
+                    confirmed = True
                     break
 
                 self.page.wait_for_timeout(500)
