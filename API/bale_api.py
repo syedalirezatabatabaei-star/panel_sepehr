@@ -34,6 +34,13 @@ router = APIRouter(
 )
 
 
+def pause_between_actions(action):
+    """Apply a randomized cooldown between sequential UI actions."""
+    delay = random.uniform(0.0, 20.0)
+    print(f"[BALE JOB] Cooldown after {action}: {delay:.2f}s")
+    time.sleep(delay)
+
+
 # ============================================================
 # PATHS
 # ============================================================
@@ -958,45 +965,31 @@ def send_job_worker(
                     f"{add_result}"
                 )
 
-                if add_result is False:
-
-                    print(
-                        f"[BALE JOB] "
-                        f"Contact add returned False: "
-                        f"{phone}"
+                add_failed = (
+                    add_result is False
+                    or (
+                        isinstance(add_result, dict)
+                        and add_result.get("success") is False
                     )
+                )
+                if add_failed:
+                    error_message = (
+                        add_result.get("message", "Contact add returned failure")
+                        if isinstance(add_result, dict)
+                        else "Contact add returned False"
+                    )
+                    print(f"[BALE JOB] ADD CONTACT FAILED → {phone}: {error_message}")
+                    bale_backend.capture_debug("add-contact-failed", error_message)
 
             except Exception as e:
-
-                print(
-                    f"[BALE JOB] "
-                    f"ADD CONTACT ERROR → "
-                    f"{phone}: {e}"
-                )
-
-                # اگر افزودن مخاطب شکست خورد،
-                # اجرای ارسال متوقف نمی‌شود.
-                # ممکن است مخاطب از قبل وجود داشته باشد.
-                # مرحله SEARCH بعداً مشخص می‌کند قابل دسترسی هست یا نه.
-
-            # =================================================
-            # SMALL DELAY BETWEEN CONTACTS
-            # =================================================
+                print(f"[BALE JOB] ADD CONTACT ERROR → {phone}: {e}")
+                bale_backend.capture_debug("add-contact-exception", e)
+                # Continue: contact may already exist; message phase verifies it.
 
             if contact_index < total:
+                pause_between_actions("contact addition")
 
-                delay = random.uniform(
-                    1.0,
-                    2.0
-                )
-
-                print(
-                    f"[BALE JOB] "
-                    f"Sleeping after add "
-                    f"{delay:.2f}s"
-                )
-
-                time.sleep(delay)
+        pause_between_actions("contact registration phase")
 
         # ====================================================
         # STEP 5
@@ -1066,17 +1059,11 @@ def send_job_worker(
                     f"Contact name: {name}"
                 )
 
-                found = (
-                    bale_backend.search_contact(
-                        name
-                    )
-                )
+                found = bale_backend.search_contact(phone)
 
                 if not found:
-
-                    result["error"] = (
-                        "مخاطب پیدا نشد."
-                    )
+                    result["error"] = "مخاطب پیدا نشد."
+                    bale_backend.capture_debug("search-contact-failed", f"phone={phone}; name={name}")
 
                     with bale_jobs_lock:
 
@@ -1114,10 +1101,8 @@ def send_job_worker(
                 )
 
                 if not opened_chat:
-
-                    result["error"] = (
-                        "امکان باز کردن چت وجود نداشت."
-                    )
+                    result["error"] = "امکان باز کردن چت وجود نداشت."
+                    bale_backend.capture_debug("open-chat-failed", f"phone={phone}; name={name}")
 
                     with bale_jobs_lock:
 
@@ -1126,6 +1111,8 @@ def send_job_worker(
                         ]["failed"] += 1
 
                     continue
+
+                pause_between_actions("contact search and chat selection")
 
                 # =================================================
                 # SEND MESSAGE
@@ -1169,10 +1156,8 @@ def send_job_worker(
 
 
                 if not sent:
-
-                    result["error"] = (
-                        "ارسال پیام انجام نشد."
-                    )
+                    result["error"] = "ارسال پیام انجام نشد."
+                    bale_backend.capture_debug("send-message-failed", f"type={message_type}; phone={phone}")
 
                     with bale_jobs_lock:
 
@@ -1202,13 +1187,9 @@ def send_job_worker(
                     ]["successful"] += 1
 
             except Exception as e:
-
-                print(
-                    f"[BALE JOB] ERROR → "
-                    f"{phone}: {e}"
-                )
-
+                print(f"[BALE JOB] ERROR → {phone}: {e}")
                 result["error"] = str(e)
+                bale_backend.capture_debug("send-job-exception", e)
 
                 with bale_jobs_lock:
 
@@ -1257,17 +1238,7 @@ def send_job_worker(
 
                 if index < total:
 
-                    delay = random.uniform(
-                        2.5,
-                        5.0
-                    )
-
-                    print(
-                        f"[BALE JOB] Sleeping "
-                        f"{delay:.2f}s"
-                    )
-
-                    time.sleep(delay)
+                    pause_between_actions("message delivery")
 
     # ========================================================
     # RUN PLAYWRIGHT JOB
