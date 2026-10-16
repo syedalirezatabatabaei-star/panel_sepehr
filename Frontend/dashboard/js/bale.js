@@ -822,6 +822,19 @@ async function verifyBaleOtp() {
    Bale Messaging Page
    ========================================================= */
 
+/* Post-login diagnostics only. Never records login or OTP inputs. */
+function logBaleUiError(stage, error, details = {}) {
+    const diagnostic = {
+        stage,
+        message: error && error.message ? error.message : String(error || ""),
+        timestamp: new Date().toISOString(),
+        page: window.location.pathname,
+        details
+    };
+    console.error("[BALE UI ERROR]", diagnostic);
+    return diagnostic;
+}
+
 function showBaleMessagingPage() {
 
     const content =
@@ -1438,9 +1451,13 @@ async function sendBaleMessages() {
            Validate MIME type
            ----------------------------------------------- */
 
+        const mediaExtension = mediaFile.name.split(".").pop().toLowerCase();
+        const imageExtensions = ["jpg", "jpeg", "png", "webp", "gif", "bmp"];
+        const videoExtensions = ["mp4", "webm", "mov", "mkv", "avi", "m4v"];
+
         if (
             messageType === "image" &&
-            !mediaFile.type.startsWith("image/")
+            !(mediaFile.type.startsWith("image/") || imageExtensions.includes(mediaExtension))
         ) {
 
             showToast(
@@ -1454,7 +1471,7 @@ async function sendBaleMessages() {
 
         if (
             messageType === "video" &&
-            !mediaFile.type.startsWith("video/")
+            !(mediaFile.type.startsWith("video/") || videoExtensions.includes(mediaExtension))
         ) {
 
             showToast(
@@ -1744,10 +1761,12 @@ async function sendBaleMessages() {
 
     } catch (error) {
 
-        console.error(
-            "[BALE SEND ERROR]",
-            error
-        );
+        logBaleUiError("send-request", error, {
+            messageType,
+            excelName: excelFile ? excelFile.name : null,
+            mediaName: mediaFile ? mediaFile.name : null,
+            mediaSize: mediaFile ? mediaFile.size : null
+        });
 
 
         showToast(
@@ -2074,8 +2093,7 @@ async function pollBaleProgress(
 
         const current =
             Number(
-                data.current ??
-                data.progress ??
+                data.processed ??
                 data.sent ??
                 0
             );
@@ -2160,10 +2178,7 @@ async function pollBaleProgress(
 
     } catch (error) {
 
-        console.error(
-            "[BALE POLL ERROR]",
-            error
-        );
+        logBaleUiError("progress-poll", error, { jobId });
 
 
         const statusElement =
@@ -2271,7 +2286,7 @@ function handleBaleCompleted(
 
     const current =
         Number(
-            data.current ??
+            data.processed ??
             data.sent ??
             total
         );
@@ -2415,87 +2430,57 @@ function handleBaleFailed(
    Render Results
    ========================================================= */
 
-function renderBaleResults(
-    results
-) {
+function renderBaleResults(results) {
+    const container = document.getElementById("baleProgressResults");
+    if (!container) return;
 
-    const container =
-        document.getElementById(
-            "baleProgressResults"
-        );
-
-
-    if (!container) {
+    if (!Array.isArray(results) || results.length === 0) {
+        container.innerHTML = "<p>هنوز نتیجه‌ای ثبت نشده است.</p>";
         return;
     }
-
-
-    if (
-        !Array.isArray(results) ||
-        results.length === 0
-    ) {
-
-        container.innerHTML = "";
-
-        return;
-    }
-
 
     let successCount = 0;
     let failedCount = 0;
 
+    const rows = results.map((item, index) => {
+        const status = String(item.status || "").toLowerCase();
+        const success = status === "success" || status === "sent" || item.success === true;
+        if (success) successCount++;
+        else failedCount++;
 
-    results.forEach(
-        function (item) {
-
-            const status =
-                String(
-                    item.status || ""
-                ).toLowerCase();
-
-
-            if (
-                status === "success" ||
-                status === "sent" ||
-                item.success === true
-            ) {
-
-                successCount++;
-
-            } else {
-
-                failedCount++;
-
-            }
-
-        }
-    );
-
+        const label = success ? "موفق" : "ناموفق";
+        const detail = item.error || item.message || "";
+        return `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${escapeBaleHtml(item.name || "")}</td>
+                <td dir="ltr">${escapeBaleHtml(item.phone || "")}</td>
+                <td>${label}</td>
+                <td>${escapeBaleHtml(detail)}</td>
+            </tr>
+        `;
+    }).join("");
 
     container.innerHTML = `
-
-        <div
-            style="
-                padding:12px;
-                border-radius:8px;
-                background:#f8f9fa;
-            "
-        >
-
-            <strong>
-                نتیجه ارسال
-            </strong>
-
-            <div style="margin-top:8px;">
-                موفق: ${successCount}
-            </div>
-
-            <div>
-                ناموفق: ${failedCount}
-            </div>
-
+        <div style="padding:12px;border-radius:8px;background:#f8f9fa;margin-bottom:12px;">
+            <strong>نتیجه ارسال</strong>
+            <div style="margin-top:8px;">موفق: ${successCount}</div>
+            <div>ناموفق: ${failedCount}</div>
         </div>
-
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align:right;padding:8px;">ردیف</th>
+                        <th style="text-align:right;padding:8px;">نام</th>
+                        <th style="text-align:right;padding:8px;">شماره</th>
+                        <th style="text-align:right;padding:8px;">وضعیت</th>
+                        <th style="text-align:right;padding:8px;">جزئیات</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
     `;
 }
 
