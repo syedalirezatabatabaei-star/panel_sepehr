@@ -772,12 +772,8 @@ class BalePage:
                     };
                     const inspect = (node) => {
                         if (!node) return;
-                        if (node.nodeType === Node.TEXT_NODE) {
-                            captureText(node.nodeValue);
-                            return;
-                        }
-                        if (node.nodeType !== Node.ELEMENT_NODE) return;
-                        const el = node;
+                        const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                        if (!el || el.nodeType !== Node.ELEMENT_NODE) return;
                         const marker = [
                             el.getAttribute("role"),
                             el.getAttribute("aria-live"),
@@ -785,14 +781,18 @@ class BalePage:
                             el.getAttribute("class"),
                             el.getAttribute("data-testid")
                         ].filter(Boolean).join(" ").toLowerCase();
-                        const text = (el.innerText || el.textContent || "").trim();
-                        if (text && (/(toast|notification|snackbar|alert|status|sonner|message)/i.test(marker)
-                            || text.length <= 240)) captureText(text);
-                        if (el.childNodes) {
-                            for (const child of el.childNodes) {
-                                if (child.nodeType === Node.TEXT_NODE) captureText(child.nodeValue);
-                            }
-                        }
+                        const text = (el.innerText || el.textContent || "").replace(/\\s+/g, " ").trim();
+                        if (!text || text.length > 600) return;
+                        let nearBottom = false;
+                        try {
+                            const rect = el.getBoundingClientRect();
+                            nearBottom = rect.top >= window.innerHeight * 0.55
+                                && rect.top <= window.innerHeight + 40;
+                        } catch (_) {}
+                        // Prefer explicit notification semantics; otherwise only capture
+                        // short-lived text rendered in the lower part of the viewport.
+                        if (/(toast|notification|snackbar|alert|status|sonner|message)/i.test(marker)
+                            || nearBottom) captureText(text);
                     };
                     window.__baleToastObserver = new MutationObserver((mutations) => {
                         for (const mutation of mutations) {
@@ -829,17 +829,7 @@ class BalePage:
                 ui_notification = self.page.evaluate("""() => {
                     try {
                         if (window.__baleToastObserver) {
-                            window.__baleToastObserver.takeRecords().forEach((mutation) => {
-                                for (const node of mutation.addedNodes || []) {
-                                    const text = (node.nodeType === Node.TEXT_NODE
-                                        ? node.nodeValue
-                                        : (node.innerText || node.textContent || ""));
-                                    const clean = String(text || "").replace(/\\s+/g, " ").trim();
-                                    if (clean && clean.length <= 600 && !window.__baleToastCapture.includes(clean)) {
-                                        window.__baleToastCapture.push(clean);
-                                    }
-                                }
-                            });
+                            window.__baleToastObserver.takeRecords();
                             window.__baleToastObserver.disconnect();
                         }
                         return (window.__baleToastCapture || []).join(" | ").slice(0, 1200);
