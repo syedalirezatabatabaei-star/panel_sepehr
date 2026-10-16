@@ -812,6 +812,17 @@ class BalePage:
 
             add_button.click(timeout=5000)
 
+            # Preserve an immediate post-click screenshot before the transient toast disappears.
+            if contact_index == 6:
+                try:
+                    os.makedirs("/root/bale_sender/reports", exist_ok=True)
+                    review_after_path = "/root/bale_sender/reports/bale_contact6_after_add.png"
+                    self.page.screenshot(path=review_after_path, full_page=True, timeout=15000)
+                    print(f"[ADD CONTACT] Contact 6 post-click screenshot: {review_after_path}")
+                except Exception as screenshot_error:
+                    print("[ADD CONTACT] Contact 6 post-click screenshot failed:", screenshot_error)
+                    review_after_path = None
+
             # Keep the observer alive briefly to catch short-lived bottom-page toasts.
             try:
                 self.page.wait_for_timeout(1200)
@@ -844,16 +855,6 @@ class BalePage:
             except Exception as observer_read_error:
                 print("[ADD CONTACT] Could not read toast capture:", observer_read_error)
                 ui_notification = ""
-
-            if contact_index == 6:
-                try:
-                    os.makedirs("/root/bale_sender/reports", exist_ok=True)
-                    review_after_path = "/root/bale_sender/reports/bale_contact6_after_add.png"
-                    self.page.screenshot(path=review_after_path, full_page=True, timeout=15000)
-                    print(f"[ADD CONTACT] Contact 6 post-click screenshot: {review_after_path}")
-                except Exception as screenshot_error:
-                    print("[ADD CONTACT] Contact 6 post-click screenshot failed:", screenshot_error)
-                    review_after_path = None
 
             success_phrases = [
                 "مخاطب اضافه شد",
