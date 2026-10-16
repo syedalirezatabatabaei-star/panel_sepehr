@@ -1252,19 +1252,11 @@ class BaleBackend:
                 print("[SEND] Submission was not confirmed in the current chat.")
                 return False
 
-            # Refresh and confirm the newly-added message still appears.
-            try:
-                self.page.reload(wait_until="domcontentloaded", timeout=30000)
-                self.page.wait_for_timeout(1500)
-                refreshed_count = self.page.get_by_text(message, exact=True).count()
-                if refreshed_count <= before_message_count:
-                    print("[SEND] Message could not be confirmed after refresh.")
-                    return False
-            except Exception as verify_error:
-                print("[SEND] Refresh/confirmation failed:", verify_error)
-                return False
-
-            print("[SEND] New message confirmed after refresh.")
+            # A new matching message appeared in the already-verified target
+            # chat after submission. Do not reload here: a reload can reset the
+            # selected chat/virtualized history and create a false "failed"
+            # report even though the outgoing message was visible.
+            print("[SEND] New message confirmed in the current chat.")
             return True
 
         except Exception as e:
