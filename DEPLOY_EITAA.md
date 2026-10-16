@@ -11,7 +11,7 @@
     docker compose -f docker-compose.eitaa.yml logs -f eitaa-bun
     docker compose -f docker-compose.eitaa.yml logs -f panel
 
-پنل روی پورت‌های پیش‌فرض 3002 (وب) و 8005 (API) منتشر می‌شود. برای تغییر آن‌ها می‌توانید PANEL_WEB_PORT و PANEL_API_PORT را در محیط تنظیم کنید. سرویس EitaaBun فقط در شبکه داخلی Docker و روی پورت 1234 در دسترس است.
+پنل روی پورت‌های پیش‌فرض 3002 (وب) و 8005 (API) منتشر می‌شود. پورت API روی 8005 ثابت است تا با فرانت فعلی سازگار بماند؛ برای تغییر پورت وب می‌توانید PANEL_WEB_PORT را تنظیم کنید. سرویس EitaaBun فقط در شبکه داخلی Docker و روی پورت 1234 در دسترس است.
 
 ## نکات استقرار
 
