@@ -1227,39 +1227,42 @@ class BaleBackend:
                 "[SEND] Message entered"
             )
 
-            input_box.press(
-                "Enter"
-            )
-
-            # First wait for the outgoing message to appear in the current chat.
+            message_locator = self.page.get_by_text(message, exact=True)
             try:
-                self.page.get_by_text(message, exact=True).last.wait_for(state="visible", timeout=8000)
+                before_message_count = message_locator.count()
             except Exception:
-                print("[SEND] Message was submitted but no visible confirmation appeared.")
+                before_message_count = 0
+
+            input_box.press("Enter")
+
+            # Wait until a new matching outgoing message appears.
+            sent_in_chat = False
+            for _ in range(16):
+                try:
+                    if self.page.get_by_text(message, exact=True).count() > before_message_count:
+                        sent_in_chat = True
+                        break
+                except Exception:
+                    pass
+                self.page.wait_for_timeout(500)
+
+            if not sent_in_chat:
+                print("[SEND] Submission was not confirmed in the current chat.")
                 return False
 
-            # Refresh the chat and verify the message remains in the conversation.
+            # Refresh and confirm the newly-added message still appears.
             try:
                 self.page.reload(wait_until="domcontentloaded", timeout=30000)
                 self.page.wait_for_timeout(1500)
-                confirmed = False
-                try:
-                    self.page.get_by_text(message, exact=True).last.wait_for(state="visible", timeout=8000)
-                    confirmed = True
-                except Exception:
-                    try:
-                        body_text = self.page.locator("body").inner_text(timeout=3000)
-                        confirmed = message in body_text
-                    except Exception:
-                        confirmed = False
-                if not confirmed:
+                refreshed_count = self.page.get_by_text(message, exact=True).count()
+                if refreshed_count <= before_message_count:
                     print("[SEND] Message could not be confirmed after refresh.")
                     return False
             except Exception as verify_error:
                 print("[SEND] Refresh/confirmation failed:", verify_error)
                 return False
 
-            print("[SEND] Message confirmed after refresh.")
+            print("[SEND] New message confirmed after refresh.")
             return True
 
         except Exception as e:
