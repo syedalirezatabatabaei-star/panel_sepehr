@@ -945,11 +945,7 @@ class BaleBackend:
                     break
 
             if input_box is None:
-
-                print(
-                    "[SEND] Message input not found"
-                )
-
+                self.capture_debug("message-input-not-found", "Message input not found")
                 return False
 
             input_box.fill(
@@ -975,12 +971,7 @@ class BaleBackend:
             return True
 
         except Exception as e:
-
-            print(
-                "[SEND ERROR]",
-                e
-            )
-
+            self.capture_debug("send-message-exception", e)
             return False
 
     # =====================================================
@@ -1017,20 +1008,13 @@ class BaleBackend:
                 media_type=media_type
             )
 
-            print(
-                "[MEDIA] Result:",
-                result
-            )
-
+            print("[MEDIA] Result:", result)
+            if not result:
+                self.capture_debug("send-media-returned-false", "Media sender returned False")
             return result
 
         except Exception as e:
-
-            print(
-                "[MEDIA SEND ERROR]",
-                e
-            )
-
+            self.capture_debug("send-media-exception", e)
             return False
     # =====================================================
     # FULL SEND FLOW
