@@ -99,6 +99,7 @@ def create_report(results, job_id=None):
         "وضعیت مخاطب",
         "وضعیت پیام",
         "توضیحات",
+        "پیغام لحظه‌ای بله هنگام افزودن",
     ]
     ws.append(headers)
 
@@ -148,9 +149,10 @@ def create_report(results, job_id=None):
             str(contact_status),
             str(message_status),
             str(detail),
+            str(row.get("ui_notification") or row.get("add_notification") or ""),
         ])
 
-    for idx, width in enumerate([8, 16, 20, 18, 16, 40], start=1):
+    for idx, width in enumerate([8, 16, 20, 18, 16, 40, 60], start=1):
         ws.column_dimensions[chr(64 + idx)].width = width
 
     # خلاصه
@@ -926,7 +928,12 @@ def send_job_worker(
                 print(f"[BALE JOB] ADD CONTACT ERROR {phone}: {add_error}")
                 add_result = {"success": False, "status": "error", "message": str(add_error)}
             add_ok = add_result.get("success") is True and str(add_result.get("status", "")).lower() in ("success", "added", "confirmed")
-            add_results[contact_index] = {"success": add_ok, "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"), "message": add_result.get("message") or ""}
+            add_results[contact_index] = {
+                "success": add_ok,
+                "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"),
+                "message": add_result.get("message") or "",
+                "ui_notification": add_result.get("ui_notification") or "",
+            }
             # Results are keyed by contact index so duplicate phone numbers do not collide.
             print(f"[BALE JOB] ADD RESULT {phone}: {add_results[contact_index]}")
             # Save contact 6 screenshots in the job status so the UI can fetch them.
@@ -973,6 +980,7 @@ def send_job_worker(
                 "contact_status": "success" if add_state.get("success") else "not_added",
                 "contact_add_status": add_state.get("status", "unconfirmed"),
                 "contact_add_detail": add_state.get("message", ""),
+                "ui_notification": add_state.get("ui_notification", ""),
                 "message_status": "skipped",
                 "status": "skipped",
                 "success": False,
