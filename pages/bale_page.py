@@ -628,26 +628,28 @@ class BalePage:
         print("Phone:", phone)
         print("Name:", name)
 
-        def save_debug_screenshot(path):
-            try:
-                self.page.screenshot(path=path, full_page=True)
-                print("[ADD CONTACT] Diagnostic screenshot:", path)
-            except Exception as screenshot_error:
-                print("[ADD CONTACT] Screenshot failed:", type(screenshot_error).__name__)
-
         def result(success, status, message):
-            return {
-                "success": success,
-                "status": status,
-                "message": message,
-            }
+            return {"success": success, "status": status, "message": message}
+
+        def refresh_contacts_page():
+            try:
+                self.page.reload(wait_until="domcontentloaded", timeout=30000)
+                self.page.wait_for_timeout(1200)
+                if "/contacts" not in self.page.url:
+                    self.page.goto("https://web.bale.ai/contacts", wait_until="domcontentloaded", timeout=30000)
+                    self.page.wait_for_timeout(1000)
+                try:
+                    self.page.evaluate("window.scrollTo(0, 0)")
+                except Exception:
+                    pass
+                print("[ADD CONTACT] Page refreshed for the next item.")
+            except Exception as refresh_error:
+                print("[ADD CONTACT] Refresh failed:", f"{type(refresh_error).__name__}: {refresh_error}")
 
         try:
             if not self.open_add_contact():
-                save_debug_screenshot("/tmp/add_contact_failed.png")
                 return result(False, "form_not_open", "فرم افزودن مخاطب باز نشد")
 
-            # Keep the existing phone normalization expected by Bale's form.
             phone = str(phone).strip()
             if phone.startswith("+98"):
                 phone = phone[3:]
@@ -655,8 +657,7 @@ class BalePage:
                 phone = phone[2:]
             elif phone.startswith("0"):
                 phone = phone[1:]
-
-            print("[ADD CONTACT] Normalized phone:", phone)
+            name = str(name).strip()
 
             phone_input = None
             for selector in [
@@ -672,9 +673,7 @@ class BalePage:
                     break
                 except Exception:
                     continue
-
             if phone_input is None:
-                save_debug_screenshot("/tmp/add_contact_failed.png")
                 return result(False, "phone_field_missing", "فیلد شماره همراه پیدا نشد")
 
             name_input = None
@@ -690,101 +689,99 @@ class BalePage:
                     break
                 except Exception:
                     continue
-
             if name_input is None:
-                save_debug_screenshot("/tmp/add_contact_failed.png")
                 return result(False, "name_field_missing", "فیلد نام پیدا نشد")
 
             phone_input.fill(phone)
-            name_input.fill(str(name).strip())
+            name_input.fill(name)
+
+            # Snapshot the page before submission so old notifications cannot
+            # be mistaken for a new confirmation for this contact.
+            try:
+                before_text = self.page.locator("body").inner_text(timeout=3000)
+            except Exception:
+                before_text = ""
 
             add_button = self.page.get_by_text("افزودن", exact=True).last
             add_button.wait_for(state="visible", timeout=5000)
             add_button.click(timeout=5000)
 
-            # A click is not proof of success. Wait for an explicit UI result.
             success_phrases = [
                 "مخاطب اضافه شد",
                 "مخاطب با موفقیت اضافه شد",
                 "با موفقیت اضافه شد",
+                "مخاطب با موفقیت ذخیره شد",
                 "با موفقیت ذخیره شد",
-                "ذخیره شد",
                 "Contact added",
                 "Contact added successfully",
                 "Added successfully",
             ]
             error_phrases = [
-                "خطا",
-                "ناموفق",
-                "تکراری",
-                "قبلاً وجود دارد",
-                "قبلا وجود دارد",
                 "شماره معتبر نیست",
                 "شماره تلفن نامعتبر",
-                "فیلد الزامی",
-                "اجباری است",
+                "مخاطب پیدا نشد",
+                "کاربر پیدا نشد",
+                "قبلاً وجود دارد",
+                "قبلا وجود دارد",
+                "تکراری",
+                "ناموفق",
                 "Invalid phone",
                 "already exists",
-                "required",
             ]
 
+            confirmed = False
             observed_text = ""
-            for _ in range(16):
+            deadline_seconds = 15
+            for _ in range(deadline_seconds * 2):
                 try:
-                    observed_text = self.page.locator("body").inner_text(timeout=2500)
+                    observed_text = self.page.locator("body").inner_text(timeout=2000)
                 except Exception:
                     observed_text = ""
 
-                lowered = observed_text.casefold()
-                matched_error = next(
-                    (phrase for phrase in error_phrases if phrase.casefold() in lowered),
-                    None,
-                )
-                if matched_error:
-                    print("[ADD CONTACT] UI reported an error:", matched_error)
-                    save_debug_screenshot("/tmp/add_contact_failed.png")
-                    return result(False, "rejected", "بله افزودن مخاطب را تأیید نکرد: " + matched_error)
+                new_text = observed_text[len(before_text):] if observed_text.startswith(before_text) else observed_text
+                lowered = new_text.casefold()
 
                 matched_success = next(
                     (phrase for phrase in success_phrases if phrase.casefold() in lowered),
                     None,
                 )
                 if matched_success:
-                    print("[ADD CONTACT] Explicit success confirmation:", matched_success)
+                    print("[ADD CONTACT] Fresh Bale confirmation:", matched_success)
+                    confirmed = True
+                    break
+
+                matched_error = next(
+                    (phrase for phrase in error_phrases if phrase.casefold() in lowered),
+                    None,
+                )
+                if matched_error:
+                    print("[ADD CONTACT] Bale rejected contact:", matched_error)
                     break
 
                 self.page.wait_for_timeout(500)
-            else:
-                print("[ADD CONTACT] No explicit success confirmation found.")
-                print("[ADD CONTACT] Page text:", observed_text[:2000])
-                save_debug_screenshot("/tmp/add_contact_unconfirmed.png")
-                return result(
-                    False,
-                    "unconfirmed",
-                    "نتیجه افزودن مخاطب از طرف بله تأیید نشد؛ وضعیت نامشخص است و موفقیت ثبت نمی‌شود",
-                )
 
-            # Only refresh/reopen the form after an explicit success signal.
+            # Refresh after every submission (success, rejection, or timeout).
+            # The next contact starts from the clean contacts page and clicks
+            # Add Contact again rather than reusing a stale form.
+            refresh_contacts_page()
+
+            if confirmed:
+                return result(True, "success", "تأیید جدید بله برای افزودن مخاطب دریافت شد")
+
+            print("[ADD CONTACT] No fresh success confirmation; do not count as added.")
             try:
-                self.page.reload(wait_until="domcontentloaded", timeout=30000)
-                self.page.wait_for_timeout(1500)
-                try:
-                    self.page.evaluate("window.scrollTo(0, 0)")
-                except Exception:
-                    pass
-                if not self.open_add_contact():
-                    print("[ADD CONTACT] Contact was confirmed, but next form could not be prepared.")
-            except Exception as refresh_error:
-                print(
-                    "[ADD CONTACT] Contact was confirmed, but refresh failed:",
-                    f"{type(refresh_error).__name__}: {refresh_error}",
-                )
-
-            return result(True, "success", "افزودن مخاطب توسط رابط بله تأیید شد")
+                self.page.screenshot(path="/tmp/add_contact_unconfirmed.png", full_page=True)
+            except Exception:
+                pass
+            return result(False, "unconfirmed", "تأیید جدید بله دریافت نشد؛ مخاطب به‌عنوان موفق ثبت نمی‌شود")
 
         except Exception as e:
             print("[ADD CONTACT ERROR]", f"{type(e).__name__}: {e}")
-            save_debug_screenshot("/tmp/add_contact_failed.png")
+            try:
+                self.page.screenshot(path="/tmp/add_contact_failed.png", full_page=True)
+            except Exception:
+                pass
+            refresh_contacts_page()
             return result(False, "error", "خطا هنگام افزودن مخاطب: " + str(e))
 
     # =========================================================
