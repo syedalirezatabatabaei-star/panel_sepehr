@@ -6,6 +6,37 @@ class BalePage:
     def __init__(self, page):
         self.page = page
 
+    def _capture_debug(self, stage, error=None):
+        """Capture screenshot, DOM, and visible text for a failed UI action."""
+        import re
+        from datetime import datetime
+
+        safe_stage = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(stage)).strip("-") or "ui-error"
+        base_path = f"/tmp/bale_{safe_stage}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+
+        if error is not None:
+            print(f"[BALE PAGE DEBUG] {stage}: {error}")
+
+        try:
+            self.page.screenshot(path=f"{base_path}.png", full_page=True, timeout=10000)
+            print(f"[BALE PAGE DEBUG] Screenshot: {base_path}.png")
+        except Exception as capture_error:
+            print(f"[BALE PAGE DEBUG] Screenshot failed: {capture_error}")
+
+        try:
+            with open(f"{base_path}.html", "w", encoding="utf-8") as output:
+                output.write(self.page.content())
+            print(f"[BALE PAGE DEBUG] DOM: {base_path}.html")
+        except Exception as capture_error:
+            print(f"[BALE PAGE DEBUG] DOM capture failed: {capture_error}")
+
+        try:
+            with open(f"{base_path}.txt", "w", encoding="utf-8") as output:
+                output.write(f"URL: {self.page.url}\nStage: {stage}\nError: {error or ''}\n\n")
+                output.write(self.page.locator("body").inner_text(timeout=3000))
+        except Exception as capture_error:
+            print(f"[BALE PAGE DEBUG] Text capture failed: {capture_error}")
+
 
     # =========================================================
     # OPEN BALE
@@ -557,7 +588,7 @@ class BalePage:
                 except Exception:
                     pass
 
-                print("[ADD CONTACT] No supported add-contact control found.")
+                self._capture_debug("add-contact-control-not-found", "No supported add-contact control found")
                 return False
 
             try:
@@ -583,16 +614,11 @@ class BalePage:
                 except Exception:
                     continue
 
-            print("[ADD CONTACT] Control was clicked but phone field did not appear.")
-            try:
-                print(self.page.locator("body").inner_text(timeout=3000)[:3000])
-                self.page.screenshot(path="/tmp/add_contact_failed.png", full_page=True)
-            except Exception:
-                pass
+            self._capture_debug("add-contact-form-not-detected", "Control clicked but phone field did not appear")
             return False
 
         except Exception as e:
-            print("[OPEN ADD CONTACT ERROR]", f"{type(e).__name__}: {e}")
+            self._capture_debug("open-add-contact-exception", e)
             return False
 
     # ADD CONTACT (FIXED)
@@ -706,10 +732,7 @@ class BalePage:
 
             if phone_input is None:
 
-                print(
-                    "Phone input not found"
-                )
-
+                self._capture_debug("add-contact-phone-input-not-found", "Phone input not found")
                 return False
 
 
@@ -785,18 +808,7 @@ class BalePage:
 
 
         except Exception as e:
-
-
-            print(
-                "[ADD CONTACT ERROR]"
-            )
-
-
-            print(
-                f"{type(e).__name__}: {e}"
-            )
-
-
+            self._capture_debug("add-contact-exception", e)
             return {
 
                 "success": False,
