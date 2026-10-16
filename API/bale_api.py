@@ -967,30 +967,7 @@ def send_job_worker(
                 continue
 
             try:
-            phone = contact["phone"]
 
-            name = (
-                contact.get("name")
-                or phone
-            )
-
-            result = {
-
-                "phone": phone,
-
-                "name": name,
-
-                "status": "failed",
-
-                "success": False,
-
-                "error": None
-            }
-
-            try:
-
-                # =================================================
-                # SEARCH
                 # =================================================
 
                 print(
