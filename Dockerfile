@@ -2,6 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# EitaaBun runs in its own container on the same Docker network.
+ENV EITAA_SERVICE_URL=http://eitaa-bun:1234 \
+    EITAA_STATE_DIR=/app/data/eitaa-state \
+    EITAA_MEDIA_DIR=/shared/eitaa-media
+
 COPY API/requirements.txt /app/API/requirements.txt
 
 RUN pip install --no-cache-dir -r /app/API/requirements.txt
