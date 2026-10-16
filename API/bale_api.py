@@ -93,13 +93,13 @@ def create_report(results, job_id=None):
     ws.title = "جزئیات"
 
     headers = [
+        "پیغام لحظه‌ای بله هنگام افزودن",
         "ردیف",
         "شماره",
         "نام",
         "وضعیت مخاطب",
         "وضعیت پیام",
         "توضیحات",
-        "پیغام لحظه‌ای بله هنگام افزودن",
     ]
     ws.append(headers)
 
@@ -143,16 +143,16 @@ def create_report(results, job_id=None):
         )
 
         ws.append([
+            str(row.get("ui_notification") or row.get("add_notification") or ""),
             i,
             str(phone),
             str(name),
             str(contact_status),
             str(message_status),
             str(detail),
-            str(row.get("ui_notification") or row.get("add_notification") or ""),
         ])
 
-    for idx, width in enumerate([8, 16, 20, 18, 16, 40, 60], start=1):
+    for idx, width in enumerate([60, 8, 16, 20, 18, 16, 40], start=1):
         ws.column_dimensions[chr(64 + idx)].width = width
 
     # خلاصه
@@ -1132,8 +1132,18 @@ def send_job_worker(
                     )
 
                 else:
-                    raise ValueError(f"نوع پیام نامعتبر است: {message_type}")               
+                    raise ValueError(f"نوع پیام نامعتبر است: {message_type}")
 
+                # Refresh the browser after each message send attempt (success or failure)
+                # so the next contact starts from a clean UI state.
+                try:
+                    bale_backend.page.reload(wait_until="domcontentloaded", timeout=30000)
+                    bale_backend.page.wait_for_load_state("domcontentloaded", timeout=10000)
+                    bale_backend.page.wait_for_timeout(1000)
+                    print(f"[BALE JOB] Browser refreshed after message attempt for {phone}")
+                except Exception as refresh_error:
+                    print(f"[BALE JOB] Refresh after message attempt failed for {phone}: {refresh_error}")
+                    result["post_send_refresh_error"] = str(refresh_error)
 
                 if not sent:
 
