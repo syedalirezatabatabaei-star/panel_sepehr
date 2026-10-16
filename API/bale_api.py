@@ -927,6 +927,34 @@ def send_job_worker(
             add_results[contact_index] = {"success": add_ok, "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"), "message": add_result.get("message") or ""}
             # Results are keyed by contact index so duplicate phone numbers do not collide.
             print(f"[BALE JOB] ADD RESULT {phone}: {add_results[contact_index]}")
+            # Diagnostic checkpoint: capture UI after contact 5 and stop for review.
+            if contact_index == 5:
+                screenshot_file = os.path.join(REPORT_DIR, f"bale_review_{job_id}.png")
+                screenshot_error = None
+                try:
+                    if getattr(bale_backend, "page", None) is None:
+                        raise RuntimeError("Playwright page is not available")
+                    bale_backend.page.screenshot(path=screenshot_file, full_page=True, timeout=15000)
+                    print(f"[BALE JOB] REVIEW SCREENSHOT SAVED: {screenshot_file}")
+                except Exception as screenshot_exc:
+                    screenshot_error = str(screenshot_exc)
+                    screenshot_file = None
+                    print(f"[BALE JOB] REVIEW SCREENSHOT ERROR: {screenshot_error}")
+
+                with bale_jobs_lock:
+                    job = bale_jobs[job_id]
+                    job["status"] = "paused_for_review"
+                    job["processed"] = contact_index
+                    job["current"] = phone
+                    job["progress"] = int((contact_index / total) * 100) if total else 0
+                    job["review_contact_index"] = contact_index
+                    job["review_contact_phone"] = phone
+                    job["screenshot_file"] = screenshot_file
+                    job["screenshot_error"] = screenshot_error
+                    job["add_results_preview"] = {str(k): v for k, v in add_results.items()}
+                print("[BALE JOB] Paused after contact 5 for manual review; contacts 6+ were not processed.")
+                return
+
             if contact_index < total:
                 time.sleep(random.uniform(1.0, 2.0))
         # ====================================================
@@ -1227,6 +1255,11 @@ def send_job_worker(
         run_bale(
             process_job
         )
+
+        with bale_jobs_lock:
+            if bale_jobs.get(job_id, {}).get("status") == "paused_for_review":
+                print(f"[BALE JOB] Left paused for review: {job_id}")
+                return
 
         with bale_jobs_lock:
 
@@ -1944,8 +1977,36 @@ def bale_send_status(
 
             "report_file": job.get("report_file"),
 
-            "has_report": bool(job.get("report_file"))
+            "has_report": bool(job.get("report_file")),
+
+            "screenshot_url": (
+                f"/api/bale/send/screenshot/{job_id}"
+                if job.get("screenshot_file") and os.path.exists(job["screenshot_file"])
+                else None
+            ),
+            "screenshot_error": job.get("screenshot_error"),
+            "review_contact_index": job.get("review_contact_index"),
+            "review_contact_phone": job.get("review_contact_phone"),
+            "add_results_preview": job.get("add_results_preview")
         }
+
+
+@router.get("/send/screenshot/{job_id}")
+def bale_send_screenshot(job_id: str):
+    with bale_jobs_lock:
+        job = bale_jobs.get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="عملیات ارسال پیدا نشد.")
+        screenshot_file = job.get("screenshot_file")
+        screenshot_error = job.get("screenshot_error")
+
+    if not screenshot_file or not os.path.isfile(screenshot_file):
+        raise HTTPException(
+            status_code=404,
+            detail="اسکرین‌شات مرحله بررسی موجود نیست؛ خطا: " + str(screenshot_error or "نامشخص")
+        )
+
+    return FileResponse(screenshot_file, media_type="image/png", filename=f"bale_review_{job_id}.png")
 
 
 # ============================================================
