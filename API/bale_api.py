@@ -1045,10 +1045,12 @@ def send_job_worker(
                     result["message_status"] = "not_sent"
 
                     with bale_jobs_lock:
-
-                        bale_jobs[
-                            job_id
-                        ]["failed"] += 1
+                        job = bale_jobs[job_id]
+                        job["failed"] += 1
+                        job["results"].append(result)
+                        job["processed"] = index
+                        job["current"] = phone
+                        job["progress"] = int((index / total) * 100)
 
                     continue
 
@@ -1083,10 +1085,12 @@ def send_job_worker(
                     result["message_status"] = "not_sent"
 
                     with bale_jobs_lock:
-
-                        bale_jobs[
-                            job_id
-                        ]["failed"] += 1
+                        job = bale_jobs[job_id]
+                        job["failed"] += 1
+                        job["results"].append(result)
+                        job["processed"] = index
+                        job["current"] = phone
+                        job["progress"] = int((index / total) * 100)
 
                     continue
 
@@ -1137,10 +1141,12 @@ def send_job_worker(
                     result["message_status"] = "failed"
 
                     with bale_jobs_lock:
-
-                        bale_jobs[
-                            job_id
-                        ]["failed"] += 1
+                        job = bale_jobs[job_id]
+                        job["failed"] += 1
+                        job["results"].append(result)
+                        job["processed"] = index
+                        job["current"] = phone
+                        job["progress"] = int((index / total) * 100)
 
                     continue
 
