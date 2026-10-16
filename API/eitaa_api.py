@@ -160,15 +160,21 @@ def _load_recipients(path):
     return recipients
 
 
-def _resolve_contact(account_phone, target):
-    existing = _request("GET", "/eitaa/contacts/getAll/" + account_phone).get("contacts", [])
-    for item in existing:
-        if _phone(item.get("phone")) == target["phone"] and item.get("id") is not None:
-            return {"id": item["id"], "access_hash": item.get("access_hash", 0)}
+def _contacts_index(account_phone):
+    contacts = _request("GET", "/eitaa/contacts/getAll/" + account_phone).get("contacts", [])
+    return {_phone(item.get("phone")): item for item in contacts if item.get("phone")}
+
+
+def _resolve_contact(account_phone, target, contacts):
+    existing = contacts.get(target["phone"])
+    if existing and existing.get("id") is not None:
+        return {"id": existing["id"], "access_hash": existing.get("access_hash", 0)}
     result = _request("POST", "/eitaa/contacts/add", json={"phone": account_phone, "peerPhone": target["phone"], "firstname": target["name"]})
     if result.get("id") is None:
         raise RuntimeError("مخاطب در ایتا پیدا نشد یا افزودن مخاطب تأیید نشد")
-    return {"id": result["id"], "access_hash": result.get("acces_hash", result.get("access_hash", 0))}
+    peer = {"id": result["id"], "access_hash": result.get("acces_hash", result.get("access_hash", 0))}
+    contacts[target["phone"]] = {"phone": target["phone"], **peer}
+    return peer
 
 
 def _write_report(job_id, results):
@@ -196,13 +202,17 @@ def _write_report(job_id, results):
 
 def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
     results = []
+    try:
+        contacts = _contacts_index(phone)
+    except Exception:
+        contacts = {}
     with JOBS_LOCK:
         JOBS[job_id]["status"] = "running"
         JOBS[job_id]["started_at"] = datetime.now().isoformat(timespec="seconds")
     for index, target in enumerate(recipients, 1):
         row = {"phone": target["phone"], "name": target["name"], "status": "error", "detail": ""}
         try:
-            peer = _resolve_contact(phone, target)
+            peer = _resolve_contact(phone, target, contacts)
             payload = {"phone": phone, "id": peer["id"], "access_hash": peer.get("access_hash", 0), "type": "user", "message": message or ""}
             if media_path:
                 payload.update({"path": media_path, "media_type": media_type or "file"})
