@@ -917,7 +917,9 @@ def send_job_worker(
             name = str(contact.get("name") or phone).strip()
             print(f"\\n[BALE JOB] ADD CONTACT {contact_index}/{total}: {phone} | {name}")
             try:
-                add_result = bale_backend.add_contact(phone, name)
+                # Pass the row number so the backend can capture the UI
+                # immediately before and after clicking Add for contact 6.
+                add_result = bale_backend.add_contact(phone, name, contact_index=contact_index)
                 if not isinstance(add_result, dict):
                     add_result = {"success": add_result is True, "status": "success" if add_result is True else "unconfirmed", "message": "نتیجه افزودن مخاطب قابل‌تأیید نبود"}
             except Exception as add_error:
@@ -927,33 +929,16 @@ def send_job_worker(
             add_results[contact_index] = {"success": add_ok, "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"), "message": add_result.get("message") or ""}
             # Results are keyed by contact index so duplicate phone numbers do not collide.
             print(f"[BALE JOB] ADD RESULT {phone}: {add_results[contact_index]}")
-            # Diagnostic checkpoint: capture UI after contact 5 and stop for review.
-            if contact_index == 5:
-                screenshot_file = os.path.join(REPORT_DIR, f"bale_review_{job_id}.png")
-                screenshot_error = None
-                try:
-                    if getattr(bale_backend, "page", None) is None:
-                        raise RuntimeError("Playwright page is not available")
-                    bale_backend.page.screenshot(path=screenshot_file, full_page=True, timeout=15000)
-                    print(f"[BALE JOB] REVIEW SCREENSHOT SAVED: {screenshot_file}")
-                except Exception as screenshot_exc:
-                    screenshot_error = str(screenshot_exc)
-                    screenshot_file = None
-                    print(f"[BALE JOB] REVIEW SCREENSHOT ERROR: {screenshot_error}")
-
+            # Save contact 6 screenshots in the job status so the UI can fetch them.
+            if contact_index == 6:
                 with bale_jobs_lock:
                     job = bale_jobs[job_id]
-                    job["status"] = "paused_for_review"
-                    job["processed"] = contact_index
-                    job["current"] = phone
-                    job["progress"] = int((contact_index / total) * 100) if total else 0
-                    job["review_contact_index"] = contact_index
-                    job["review_contact_phone"] = phone
-                    job["screenshot_file"] = screenshot_file
-                    job["screenshot_error"] = screenshot_error
-                    job["add_results_preview"] = {str(k): v for k, v in add_results.items()}
-                print("[BALE JOB] Paused after contact 5 for manual review; contacts 6+ were not processed.")
-                return
+                    job["contact6_screenshot_before"] = add_result.get("screenshot_before_add")
+                    job["contact6_screenshot_after"] = add_result.get("screenshot_after_add")
+                    job["contact6_screenshot_error"] = (
+                        None if add_result.get("screenshot_before_add") or add_result.get("screenshot_after_add")
+                        else "Backend did not return contact 6 screenshots"
+                    )
 
             if contact_index < total:
                 time.sleep(random.uniform(1.0, 2.0))
@@ -1255,11 +1240,6 @@ def send_job_worker(
         run_bale(
             process_job
         )
-
-        with bale_jobs_lock:
-            if bale_jobs.get(job_id, {}).get("status") == "paused_for_review":
-                print(f"[BALE JOB] Left paused for review: {job_id}")
-                return
 
         with bale_jobs_lock:
 
@@ -1979,34 +1959,40 @@ def bale_send_status(
 
             "has_report": bool(job.get("report_file")),
 
-            "screenshot_url": (
-                f"/api/bale/send/screenshot/{job_id}"
-                if job.get("screenshot_file") and os.path.exists(job["screenshot_file"])
+            "contact6_screenshot_before_url": (
+                f"/api/bale/send/screenshot/{job_id}/before"
+                if job.get("contact6_screenshot_before") and os.path.exists(job["contact6_screenshot_before"])
                 else None
             ),
-            "screenshot_error": job.get("screenshot_error"),
-            "review_contact_index": job.get("review_contact_index"),
-            "review_contact_phone": job.get("review_contact_phone"),
-            "add_results_preview": job.get("add_results_preview")
+            "contact6_screenshot_after_url": (
+                f"/api/bale/send/screenshot/{job_id}/after"
+                if job.get("contact6_screenshot_after") and os.path.exists(job["contact6_screenshot_after"])
+                else None
+            ),
+            "contact6_screenshot_error": job.get("contact6_screenshot_error")
         }
 
 
-@router.get("/send/screenshot/{job_id}")
-def bale_send_screenshot(job_id: str):
+@router.get("/send/screenshot/{job_id}/{stage}")
+def bale_send_screenshot(job_id: str, stage: str):
+    if stage not in ("before", "after"):
+        raise HTTPException(status_code=400, detail="مرحله اسکرین‌شات نامعتبر است.")
+
+    key = "contact6_screenshot_before" if stage == "before" else "contact6_screenshot_after"
     with bale_jobs_lock:
         job = bale_jobs.get(job_id)
         if not job:
             raise HTTPException(status_code=404, detail="عملیات ارسال پیدا نشد.")
-        screenshot_file = job.get("screenshot_file")
-        screenshot_error = job.get("screenshot_error")
+        screenshot_file = job.get(key)
 
     if not screenshot_file or not os.path.isfile(screenshot_file):
-        raise HTTPException(
-            status_code=404,
-            detail="اسکرین‌شات مرحله بررسی موجود نیست؛ خطا: " + str(screenshot_error or "نامشخص")
-        )
+        raise HTTPException(status_code=404, detail=f"اسکرین‌شات مخاطب ۶ ({stage}) موجود نیست.")
 
-    return FileResponse(screenshot_file, media_type="image/png", filename=f"bale_review_{job_id}.png")
+    return FileResponse(
+        screenshot_file,
+        media_type="image/png",
+        filename=f"bale_contact6_{stage}_{job_id}.png"
+    )
 
 
 # ============================================================
