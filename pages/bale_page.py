@@ -622,15 +622,17 @@ class BalePage:
     # ADD CONTACT (FIXED)
     # =========================================================
 
-    def add_contact(self, phone, name):
+    def add_contact(self, phone, name, contact_index=None):
         print("\\n================================")
         print("ADD CONTACT")
         print("================================")
         print("Phone:", phone)
         print("Name:", name)
 
-        def result(success, status, message):
-            return {"success": success, "status": status, "message": message}
+        def result(success, status, message, **extra):
+            payload = {"success": success, "status": status, "message": message}
+            payload.update(extra)
+            return payload
 
         def refresh_contacts_page():
             """Return to the clean contacts page and verify the add control is back."""
@@ -738,7 +740,31 @@ class BalePage:
 
             add_button = self.page.get_by_text("افزودن", exact=True).last
             add_button.wait_for(state="visible", timeout=5000)
+
+            # Capture the exact state for contact 6 at the submit boundary.
+            review_before_path = None
+            review_after_path = None
+            if contact_index == 6:
+                try:
+                    os.makedirs("/root/bale_sender/reports", exist_ok=True)
+                    review_before_path = "/root/bale_sender/reports/bale_contact6_before_add.png"
+                    self.page.screenshot(path=review_before_path, full_page=True, timeout=15000)
+                    print(f"[ADD CONTACT] Contact 6 pre-click screenshot: {review_before_path}")
+                except Exception as screenshot_error:
+                    print("[ADD CONTACT] Contact 6 pre-click screenshot failed:", screenshot_error)
+                    review_before_path = None
+
             add_button.click(timeout=5000)
+
+            if contact_index == 6:
+                try:
+                    os.makedirs("/root/bale_sender/reports", exist_ok=True)
+                    review_after_path = "/root/bale_sender/reports/bale_contact6_after_add.png"
+                    self.page.screenshot(path=review_after_path, full_page=True, timeout=15000)
+                    print(f"[ADD CONTACT] Contact 6 post-click screenshot: {review_after_path}")
+                except Exception as screenshot_error:
+                    print("[ADD CONTACT] Contact 6 post-click screenshot failed:", screenshot_error)
+                    review_after_path = None
 
             success_phrases = [
                 "مخاطب اضافه شد",
@@ -828,22 +854,27 @@ class BalePage:
 
                 self.page.wait_for_timeout(500)
 
-            # Refresh after every submission (success, rejection, or timeout).
-            # The next contact starts from the clean contacts page and clicks
-            # Add Contact again rather than reusing a stale form.
+            # Refresh after every submission, then let the API expose the
+            # contact-6 diagnostic images for inspection.
             page_ready = refresh_contacts_page()
+            review_images = {}
+            if contact_index == 6:
+                review_images = {
+                    "screenshot_before_add": review_before_path,
+                    "screenshot_after_add": review_after_path,
+                }
 
             if confirmed and page_ready:
-                return result(True, "success", "تأیید جدید بله دریافت شد و صفحه برای مخاطب بعدی آماده است")
+                return result(True, "success", "تأیید جدید بله دریافت شد و صفحه برای مخاطب بعدی آماده است", **review_images)
             if confirmed and not page_ready:
-                return result(False, "refresh_failed", "افزودن تأیید شد اما صفحه مخاطبین و دکمه افزودن پس از رفرش آماده نشد")
+                return result(False, "refresh_failed", "افزودن تأیید شد اما صفحه مخاطبین و دکمه افزودن پس از رفرش آماده نشد", **review_images)
 
             print("[ADD CONTACT] No fresh success confirmation; do not count as added.")
             try:
                 self.page.screenshot(path="/tmp/add_contact_unconfirmed.png", full_page=True)
             except Exception:
                 pass
-            return result(False, "unconfirmed", "تأیید جدید بله دریافت نشد؛ مخاطب به‌عنوان موفق ثبت نمی‌شود" + ("" if page_ready else "؛ صفحه پس از رفرش آماده نشد"))
+            return result(False, "unconfirmed", "تأیید جدید بله دریافت نشد؛ مخاطب به‌عنوان موفق ثبت نمی‌شود" + ("" if page_ready else "؛ صفحه پس از رفرش آماده نشد"), **review_images)
 
         except Exception as e:
             print("[ADD CONTACT ERROR]", f"{type(e).__name__}: {e}")
