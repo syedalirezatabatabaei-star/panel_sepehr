@@ -739,10 +739,15 @@ class BalePage:
                     observed_text = ""
 
                 new_text = observed_text[len(before_text):] if observed_text.startswith(before_text) else observed_text
-                lowered = new_text.casefold()
+                lowered = observed_text.casefold()
+                before_lowered = before_text.casefold()
 
                 matched_success = next(
-                    (phrase for phrase in success_phrases if phrase.casefold() in lowered),
+                    (
+                        phrase for phrase in success_phrases
+                        if phrase.casefold() in lowered
+                        and lowered.count(phrase.casefold()) > before_lowered.count(phrase.casefold())
+                    ),
                     None,
                 )
                 if matched_success:
@@ -751,7 +756,11 @@ class BalePage:
                     break
 
                 matched_error = next(
-                    (phrase for phrase in error_phrases if phrase.casefold() in lowered),
+                    (
+                        phrase for phrase in error_phrases
+                        if phrase.casefold() in lowered
+                        and lowered.count(phrase.casefold()) > before_lowered.count(phrase.casefold())
+                    ),
                     None,
                 )
                 if matched_error:
