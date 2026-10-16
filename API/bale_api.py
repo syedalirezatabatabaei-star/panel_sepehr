@@ -1149,6 +1149,8 @@ def send_job_worker(
                 )
 
                 result["error"] = str(e)
+                result["status"] = "failed"
+                result["message_status"] = "failed"
 
                 with bale_jobs_lock:
 
