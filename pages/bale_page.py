@@ -812,16 +812,16 @@ class BalePage:
 
             add_button.click(timeout=5000)
 
-            # Preserve an immediate post-click screenshot before the transient toast disappears.
+            # Preserve an immediate post-click screenshot, then capture the settled
+            # post-add screen separately after the transient toast has been observed.
             if contact_index == 6:
                 try:
                     os.makedirs("/root/bale_sender/reports", exist_ok=True)
-                    review_after_path = "/root/bale_sender/reports/bale_contact6_after_add.png"
-                    self.page.screenshot(path=review_after_path, full_page=True, timeout=15000)
-                    print(f"[ADD CONTACT] Contact 6 post-click screenshot: {review_after_path}")
+                    immediate_path = "/root/bale_sender/reports/bale_contact6_after_add_immediate.png"
+                    self.page.screenshot(path=immediate_path, full_page=False, timeout=15000)
+                    print(f"[ADD CONTACT] Contact 6 immediate post-click screenshot: {immediate_path}")
                 except Exception as screenshot_error:
-                    print("[ADD CONTACT] Contact 6 post-click screenshot failed:", screenshot_error)
-                    review_after_path = None
+                    print("[ADD CONTACT] Contact 6 immediate screenshot failed:", screenshot_error)
 
             # Keep the observer alive briefly to catch short-lived bottom-page toasts.
             try:
@@ -842,6 +842,15 @@ class BalePage:
                     print("[ADD CONTACT] Captured transient UI notification:", ui_notification)
                 else:
                     print("[ADD CONTACT] No transient UI notification text captured.")
+
+                if contact_index == 6:
+                    try:
+                        review_after_path = "/root/bale_sender/reports/bale_contact6_after_add.png"
+                        self.page.screenshot(path=review_after_path, full_page=False, timeout=15000)
+                        print(f"[ADD CONTACT] Contact 6 settled post-add screenshot: {review_after_path}")
+                    except Exception as screenshot_error:
+                        print("[ADD CONTACT] Contact 6 settled screenshot failed:", screenshot_error)
+                        review_after_path = None
             except Exception as observer_read_error:
                 print("[ADD CONTACT] Could not read toast capture:", observer_read_error)
                 ui_notification = ""
