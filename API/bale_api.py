@@ -163,7 +163,8 @@ def create_report(results, job_id=None):
     contact_not_added = sum(
         1 for r in results
         if str(r.get("contact_status", "")).lower() in (
-            "not_added", "not_registered", "not-registered", "error"
+            "not_added", "not_registered", "not-registered", "error",
+            "add_confirmed_but_not_found"
         )
     )
     message_skipped = sum(
@@ -173,7 +174,8 @@ def create_report(results, job_id=None):
     not_registered = sum(
         1 for r in results
         if str(r.get("contact_status", "")).lower() in (
-            "not_registered", "not-registered", "not_added"
+            "not_registered", "not-registered", "not_added",
+            "add_confirmed_but_not_found"
         )
         or (
             r.get("error")
@@ -922,7 +924,7 @@ def send_job_worker(
                 print(f"[BALE JOB] ADD CONTACT ERROR {phone}: {add_error}")
                 add_result = {"success": False, "status": "error", "message": str(add_error)}
             add_ok = add_result.get("success") is True and str(add_result.get("status", "")).lower() in ("success", "added", "confirmed")
-            add_results[phone] = {"success": add_ok, "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"), "message": add_result.get("message") or ""}
+            add_results[contact_index] = {"success": add_ok, "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"), "message": add_result.get("message") or ""}
             print(f"[BALE JOB] ADD RESULT {phone}: {add_results[phone]}")
             if contact_index < total:
                 time.sleep(random.uniform(1.0, 2.0))
@@ -950,7 +952,7 @@ def send_job_worker(
 
             phone = str(contact.get("phone", "")).strip()
             name = str(contact.get("name") or phone).strip()
-            add_state = add_results.get(phone, {"success": False, "status": "unconfirmed", "message": ""})
+            add_state = add_results.get(index, {"success": False, "status": "unconfirmed", "message": ""})
             result = {
                 "phone": phone,
                 "name": name,
@@ -1014,7 +1016,8 @@ def send_job_worker(
 
                 if not found:
 
-                    result["error"] = "مخاطب در جست‌وجو پیدا نشد؛ پیام ارسال نشد."
+                    result["contact_status"] = "add_confirmed_but_not_found"
+                    result["error"] = "افزودن در رابط تأیید شد، اما مخاطب پس از جست‌وجو پیدا نشد؛ پیام ارسال نشد."
                     result["message_status"] = "not_sent"
 
                     with bale_jobs_lock:
