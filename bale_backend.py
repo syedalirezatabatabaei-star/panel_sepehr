@@ -1231,14 +1231,35 @@ class BaleBackend:
                 "Enter"
             )
 
-            self.page.wait_for_timeout(
-                1000
-            )
+            # First wait for the outgoing message to appear in the current chat.
+            try:
+                self.page.get_by_text(message, exact=True).last.wait_for(state="visible", timeout=8000)
+            except Exception:
+                print("[SEND] Message was submitted but no visible confirmation appeared.")
+                return False
 
-            print(
-                "[SEND] Message sent"
-            )
+            # Refresh the chat and verify the message remains in the conversation.
+            try:
+                self.page.reload(wait_until="domcontentloaded", timeout=30000)
+                self.page.wait_for_timeout(1500)
+                confirmed = False
+                try:
+                    self.page.get_by_text(message, exact=True).last.wait_for(state="visible", timeout=8000)
+                    confirmed = True
+                except Exception:
+                    try:
+                        body_text = self.page.locator("body").inner_text(timeout=3000)
+                        confirmed = message in body_text
+                    except Exception:
+                        confirmed = False
+                if not confirmed:
+                    print("[SEND] Message could not be confirmed after refresh.")
+                    return False
+            except Exception as verify_error:
+                print("[SEND] Refresh/confirmation failed:", verify_error)
+                return False
 
+            print("[SEND] Message confirmed after refresh.")
             return True
 
         except Exception as e:
