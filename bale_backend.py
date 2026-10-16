@@ -168,7 +168,7 @@ class BaleBackend:
 
         return digits
     # ADD CONTACT
-    def add_contact(self, phone, name):
+    def add_contact(self, phone, name, contact_index=None):
         if self.bale is None:
             raise RuntimeError("Bale browser is not initialized.")
 
@@ -182,7 +182,8 @@ class BaleBackend:
 
         return self.bale.add_contact(
             phone,
-            name
+            name,
+            contact_index=contact_index
         )
     def get_saved_account(self):
 
