@@ -159,13 +159,21 @@ def create_report(results, job_id=None):
     contact_success = sum(
         1 for r in results
         if str(r.get("contact_status", "")).lower() == "success"
-        or (r.get("success") is True)
+    )
+    contact_not_added = sum(
+        1 for r in results
+        if str(r.get("contact_status", "")).lower() in (
+            "not_added", "not_registered", "not-registered", "error"
+        )
+    )
+    message_skipped = sum(
+        1 for r in results
+        if str(r.get("message_status", "")).lower() in ("skipped", "not_sent")
     )
     not_registered = sum(
         1 for r in results
         if str(r.get("contact_status", "")).lower() in (
-            "not_registered",
-            "not-registered",
+            "not_registered", "not-registered", "not_added"
         )
         or (
             r.get("error")
@@ -185,7 +193,6 @@ def create_report(results, job_id=None):
         if (
             str(r.get("message_status", "")).lower() in ("error", "failed")
             or str(r.get("status", "")).lower() in ("failed", "error")
-            or r.get("success") is False
         )
     )
 
@@ -194,8 +201,10 @@ def create_report(results, job_id=None):
     summary["B1"].font = Font(bold=True)
     summary.append(["کل مخاطبین", total])
     summary.append(["مخاطب موفق", contact_success])
+    summary.append(["مخاطب افزوده/تأییدنشده", contact_not_added])
     summary.append(["ثبت‌نام‌نشده / پیدا نشد", not_registered])
     summary.append(["پیام ارسال‌شده", message_sent])
+    summary.append(["پیام ارسال‌نشده / ردشده", message_skipped])
     summary.append(["خطا", errors])
     summary.append([
         "زمان ساخت گزارش",
@@ -204,7 +213,7 @@ def create_report(results, job_id=None):
     if job_id:
         summary.append(["شناسه عملیات", job_id])
 
-    summary.column_dimensions["A"].width = 28
+    summary.column_dimensions["A"].width = 32
     summary.column_dimensions["B"].width = 24
 
     wb.save(output_file)
