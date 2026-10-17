@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import unicodedata
 import threading
 import time
 import uuid
@@ -23,6 +25,7 @@ for directory in (STATE_DIR, MEDIA_DIR, REPORT_DIR):
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 HTTP_TIMEOUT = (10, 120)
+logger = logging.getLogger(__name__)
 
 
 def _request(method, path, **kwargs):
@@ -33,12 +36,18 @@ def _request(method, path, **kwargs):
         except ValueError:
             payload = {"detail": response.text[:1000]}
         if response.status_code >= 400:
-            detail = payload.get("error") or payload.get("detail") or payload.get("message") or str(payload)
+            if isinstance(payload, dict):
+                detail = payload.get("error") or payload.get("detail") or payload.get("message") or str(payload)
+            else:
+                detail = str(payload)[:1000]
+            logger.warning("EitaaBun request failed: %s %s status=%s detail=%s", method, path, response.status_code, str(detail)[:300])
             raise HTTPException(response.status_code, str(detail))
         if isinstance(payload, dict) and payload.get("error"):
+            logger.warning("EitaaBun returned an error for %s %s: %s", method, path, str(payload["error"])[:300])
             raise HTTPException(400, str(payload["error"]))
         return payload
     except requests.RequestException as exc:
+        logger.exception("Could not reach EitaaBun for %s %s", method, path)
         raise HTTPException(503, "سرویس ایتا در دسترس نیست: " + str(exc))
 
 
@@ -56,7 +65,16 @@ def _save_account(phone):
 
 
 def _phone(value):
-    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    # Persian (۰۱۲۳...) and Arabic-Indic (٠١٢٣...) numerals must be
+    # converted to ASCII before sending them to the EitaaBun/MTProto API.
+    normalized = []
+    for char in str(value or ""):
+        try:
+            normalized.append(str(unicodedata.digit(char)))
+        except (TypeError, ValueError):
+            if char.isascii() and char.isdigit():
+                normalized.append(char)
+    digits = "".join(normalized)
     if digits.startswith("00"):
         digits = digits[2:]
     if digits.startswith("0") and len(digits) == 11:
