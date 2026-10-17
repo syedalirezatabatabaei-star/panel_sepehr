@@ -63,15 +63,31 @@ class BaleMediaSender:
     # -----------------------------------------------------
     # FIND FILE INPUT
     # -----------------------------------------------------
-    def _find_file_input(self):
+    def _find_file_input(self, media_type=None):
         print("[MEDIA] Looking for file input...")
 
-        selectors = [
-            'input[type="file"]',
-            'input[type="file"][accept*="image"]',
-            'input[type="file"][accept*="video"]',
-            'input[type="file"][accept*="image/video"]',
-        ]
+        # Prefer the input explicitly intended for the requested media type.
+        if media_type == "image":
+            selectors = [
+                'input[type="file"][accept*="image"]',
+                'input[type="file"][accept*="image/*"]',
+                'input[type="file"][accept*="image/video"]',
+                'input[type="file"]',
+            ]
+        elif media_type == "video":
+            selectors = [
+                'input[type="file"][accept*="video"]',
+                'input[type="file"][accept*="video/*"]',
+                'input[type="file"][accept*="image/video"]',
+                'input[type="file"]',
+            ]
+        else:
+            selectors = [
+                'input[type="file"][accept*="image/video"]',
+                'input[type="file"][accept*="image"]',
+                'input[type="file"][accept*="video"]',
+                'input[type="file"]',
+            ]
 
         # ---------------------------------------------------------
         # STEP 1 - Check existing file inputs
@@ -225,39 +241,46 @@ class BaleMediaSender:
     # -----------------------------------------------------
 
     def _find_message_input(self):
-        """
-        input مربوط به نوشتن پیام / کپشن را پیدا می‌کند.
-        """
-
+        """Prefer a caption editor in the media preview, then the chat composer."""
         selectors = [
             '[aria-label="editable-message-text"]',
             '[contenteditable="true"]',
             'textarea',
         ]
 
-        for selector in selectors:
-
+        # A media preview is commonly rendered in a dialog/modal. Prefer its
+        # editor so the caption is not accidentally typed into the chat composer.
+        for scope_selector in ('[role="dialog"]', '[aria-modal="true"]'):
             try:
-
-                locator = self.page.locator(selector)
-
-                count = locator.count()
-
-                for i in range(count):
-
-                    item = locator.nth(i)
-
-                    try:
-
-                        if item.is_visible():
-                            return item
-
-                    except Exception:
+                scopes = self.page.locator(scope_selector)
+                for scope_index in range(scopes.count()):
+                    scope = scopes.nth(scope_index)
+                    if not scope.is_visible():
                         continue
-
+                    for selector in selectors:
+                        items = scope.locator(selector)
+                        for item_index in range(items.count()):
+                            item = items.nth(item_index)
+                            try:
+                                if item.is_visible() and item.is_enabled():
+                                    return item
+                            except Exception:
+                                continue
             except Exception:
                 continue
 
+        for selector in selectors:
+            try:
+                locator = self.page.locator(selector)
+                for i in range(locator.count()):
+                    item = locator.nth(i)
+                    try:
+                        if item.is_visible() and item.is_enabled():
+                            return item
+                    except Exception:
+                        continue
+            except Exception:
+                continue
         return None
 
     # -----------------------------------------------------
@@ -408,7 +431,7 @@ class BaleMediaSender:
         # Find file input
         # ---------------------------------------------
 
-        file_input = self._find_file_input()
+        baseline_media_count = self._count_visible_chat_media()\n\n        file_input = self._find_file_input(media_type)
 
         if file_input is None:
 
@@ -476,53 +499,123 @@ class BaleMediaSender:
         # Send
         # ---------------------------------------------
 
-        return self._send_media_message()
+        return self._send_media_message(\n            baseline_media_count=baseline_media_count\n        )
 
     # -----------------------------------------------------
     # SEND MEDIA MESSAGE
     # -----------------------------------------------------
 
-    def _send_media_message(self):
+    def _count_visible_chat_media(self):
         """
-        ارسال نهایی مدیا.
-
-        در حالت معمول Enter روی input مربوط به کپشن
-        باعث ارسال مدیا می‌شود.
+        Count visible media outside modal previews. A count increase after
+        sending is used as a conservative signal that media appeared in chat.
         """
-
-        input_box = self._find_message_input()
-
-        if input_box is None:
-
-            print(
-                "[MEDIA] Message input not found for send."
+        try:
+            return self.page.locator("img, video").evaluate_all(
+                """els => els.filter(el => {
+                    const rect = el.getBoundingClientRect();
+                    const style = window.getComputedStyle(el);
+                    const visible = rect.width > 0 && rect.height > 0 &&
+                        style.visibility !== 'hidden' && style.display !== 'none';
+                    const inPreview = !!el.closest(
+                        '[role="dialog"], [aria-modal="true"]'
+                    );
+                    return visible && !inPreview;
+                }).length"""
             )
+        except Exception as e:
+            print("[MEDIA] Could not count chat media:", e)
+            return None
 
-            return False
+    def _find_media_send_button(self):
+        """Find a clearly labelled send button, preferring the media preview."""
+        accepted = {
+            "send", "send message", "ارسال", "ارسال پیام",
+            "ارسال رسانه", "ارسال تصویر", "ارسال ویدیو"
+        }
+        scopes = []
+        for scope_selector in ('[role="dialog"]', '[aria-modal="true"]'):
+            try:
+                loc = self.page.locator(scope_selector)
+                for i in range(loc.count()):
+                    scope = loc.nth(i)
+                    if scope.is_visible():
+                        scopes.append(scope)
+            except Exception:
+                continue
+        scopes.append(self.page)
+
+        for scope in scopes:
+            for selector in ('button', '[role="button"]'):
+                try:
+                    buttons = scope.locator(selector)
+                    for i in range(buttons.count()):
+                        button = buttons.nth(i)
+                        try:
+                            if not button.is_visible() or not button.is_enabled():
+                                continue
+                            label = " ".join([
+                                button.get_attribute("aria-label") or "",
+                                button.get_attribute("title") or "",
+                                button.inner_text() or "",
+                            ]).strip().lower()
+                            normalized = " ".join(label.split())
+                            # Exact text matching avoids clicking unrelated controls.
+                            if normalized in accepted:
+                                return button
+                            aria = (button.get_attribute("aria-label") or "").strip().lower()
+                            title = (button.get_attribute("title") or "").strip().lower()
+                            if aria in accepted or title in accepted:
+                                return button
+                        except Exception:
+                            continue
+                except Exception:
+                    continue
+        return None
+
+    def _send_media_message(self, baseline_media_count=None):
+        """
+        Send media and only return True when a new visible chat media item is
+        observed. A click/Enter alone is not treated as delivery confirmation.
+        """
+        input_box = self._find_message_input()
+        send_button = self._find_media_send_button()
 
         try:
+            if send_button is not None:
+                print("[MEDIA] Clicking the labelled media send button.")
+                send_button.click(timeout=2500)
+            elif input_box is not None:
+                print("[MEDIA] No labelled send button found; trying Enter.")
+                input_box.press("Enter", timeout=2500)
+            else:
+                print("[MEDIA] Neither a send button nor an input was found.")
+                return False
 
-            input_box.press(
-                "Enter"
-            )
-
-            self.page.wait_for_timeout(
-                1500
-            )
+            # Wait for a new media item to appear in the chat. Do not infer
+            # success merely because the button was clicked or the preview closed.
+            for attempt in range(16):
+                self.page.wait_for_timeout(500)
+                current_count = self._count_visible_chat_media()
+                if (
+                    baseline_media_count is not None
+                    and current_count is not None
+                    and current_count > baseline_media_count
+                ):
+                    print(
+                        "[MEDIA] Delivery visually confirmed: "
+                        f"chat media count {baseline_media_count} -> {current_count}"
+                    )
+                    return True
 
             print(
-                "[MEDIA] Media sent successfully."
+                "[MEDIA] Send action was triggered, but a new chat media item "
+                "could not be confirmed."
             )
-
-            return True
+            return False
 
         except Exception as e:
-
-            print(
-                "[MEDIA] Send error:",
-                e
-            )
-
+            print("[MEDIA] Send error:", e)
             return False
 
     # -----------------------------------------------------
