@@ -1055,7 +1055,6 @@ def send_job_worker(
                     with bale_jobs_lock:
                         job = bale_jobs[job_id]
                         job["failed"] += 1
-                        job["results"].append(result)
                         job["processed"] = index
                         job["current"] = phone
                         job["progress"] = int((index / total) * 100)
@@ -1095,7 +1094,6 @@ def send_job_worker(
                     with bale_jobs_lock:
                         job = bale_jobs[job_id]
                         job["failed"] += 1
-                        job["results"].append(result)
                         job["processed"] = index
                         job["current"] = phone
                         job["progress"] = int((index / total) * 100)
@@ -1161,7 +1159,6 @@ def send_job_worker(
                     with bale_jobs_lock:
                         job = bale_jobs[job_id]
                         job["failed"] += 1
-                        job["results"].append(result)
                         job["processed"] = index
                         job["current"] = phone
                         job["progress"] = int((index / total) * 100)
