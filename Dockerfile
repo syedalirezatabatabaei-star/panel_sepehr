@@ -10,7 +10,7 @@ ENV EITAA_SERVICE_URL=http://127.0.0.1:1234 \
 COPY API/requirements.txt /app/API/requirements.txt
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl git ca-certificates chromium bash && \
+    apt-get install -y --no-install-recommends curl git ca-certificates chromium bash unzip && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir -r /app/API/requirements.txt && \
     curl -fsSL https://bun.sh/install | bash
