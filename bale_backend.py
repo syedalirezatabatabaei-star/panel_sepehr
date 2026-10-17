@@ -1222,6 +1222,15 @@ class BaleBackend:
 
                 return False
 
+            # Count existing copies BEFORE typing. Counting after fill includes
+            # the composer itself, which can make a successfully sent message
+            # look like a failure when the composer clears after Enter.
+            message_locator = self.page.get_by_text(message, exact=True)
+            try:
+                before_message_count = message_locator.count()
+            except Exception:
+                before_message_count = 0
+
             input_box.fill(
                 message
             )
@@ -1230,19 +1239,25 @@ class BaleBackend:
                 "[SEND] Message entered"
             )
 
-            message_locator = self.page.get_by_text(message, exact=True)
-            try:
-                before_message_count = message_locator.count()
-            except Exception:
-                before_message_count = 0
-
             input_box.press("Enter")
 
-            # Wait until a new matching outgoing message appears.
+            # Confirm that a new matching message appears after submission.
+            # Also require the composer to clear; this catches Enter presses that
+            # merely insert a newline or leave the draft unsent.
             sent_in_chat = False
-            for _ in range(16):
+            for _ in range(20):
                 try:
-                    if self.page.get_by_text(message, exact=True).count() > before_message_count:
+                    current_count = message_locator.count()
+                    try:
+                        composer_value = input_box.inner_text(timeout=500)
+                    except Exception:
+                        composer_value = ""
+                    try:
+                        composer_value = composer_value or input_box.input_value(timeout=500)
+                    except Exception:
+                        pass
+
+                    if current_count > before_message_count and not str(composer_value or "").strip():
                         sent_in_chat = True
                         break
                 except Exception:
@@ -1250,7 +1265,11 @@ class BaleBackend:
                 self.page.wait_for_timeout(500)
 
             if not sent_in_chat:
-                print("[SEND] Submission was not confirmed in the current chat.")
+                print(
+                    "[SEND] Message send not confirmed: "
+                    f"existing_count={before_message_count}, "
+                    f"current_count={message_locator.count() if message_locator else 'unknown'}"
+                )
                 return False
 
             # A new matching message appeared in the already-verified target
