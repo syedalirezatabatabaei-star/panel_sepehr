@@ -93,11 +93,11 @@ def create_report(results, job_id=None):
     ws.title = "جزئیات"
 
     headers = [
-        "پیغام لحظه‌ای بله هنگام افزودن",
         "ردیف",
         "شماره",
         "نام",
         "وضعیت مخاطب",
+        "پیغام لحظه‌ای بله هنگام افزودن",
         "وضعیت پیام",
         "توضیحات",
     ]
@@ -143,16 +143,16 @@ def create_report(results, job_id=None):
         )
 
         ws.append([
-            str(row.get("ui_notification") or row.get("add_notification") or ""),
             i,
             str(phone),
             str(name),
             str(contact_status),
+            str(row.get("ui_notification") or row.get("add_notification") or ""),
             str(message_status),
             str(detail),
         ])
 
-    for idx, width in enumerate([60, 8, 16, 20, 18, 16, 40], start=1):
+    for idx, width in enumerate([8, 16, 20, 18, 60, 16, 40], start=1):
         ws.column_dimensions[chr(64 + idx)].width = width
 
     # خلاصه
@@ -674,6 +674,7 @@ def read_excel_contacts(
         # ====================================================
 
         contacts = []
+        seen_phones = set()
 
         for row_index, row in enumerate(
             rows[1:],
@@ -701,6 +702,13 @@ def read_excel_contacts(
 
             if not phone:
                 continue
+
+            # Deduplicate by normalized phone so a contact repeated in the
+            # uploaded spreadsheet is added/searched/messaged only once.
+            if phone in seen_phones:
+                print(f"[BALE API] Row {row_index}: duplicate phone {phone}; skipping.")
+                continue
+            seen_phones.add(phone)
 
             name = ""
 
