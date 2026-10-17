@@ -267,8 +267,13 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
             row["status"], row["detail"] = "success", "پیام ارسال شد"
         except Exception as exc:
             row["detail"] = str(exc)[:500]
-            if "پیدا نشد" in row["detail"] or "not found" in row["detail"].lower() or "user not found" in row["detail"].lower():
+            detail_lower = row["detail"].lower()
+            if ("پیدا نشد" in row["detail"] or "not found" in detail_lower or
+                    "user not found" in detail_lower or "user_not_found" in detail_lower or
+                    "phone_number_invalid" in detail_lower or "peer_id_invalid" in detail_lower or
+                    "404" in detail_lower):
                 row["contact_status"] = "not_registered"
+                row["status"] = "not_sent"
             else:
                 row["contact_status"] = "error"
             if not row["add_notification"]:
