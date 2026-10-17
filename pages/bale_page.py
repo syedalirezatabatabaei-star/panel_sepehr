@@ -976,15 +976,26 @@ class BalePage:
                 new_text = observed_text[len(before_text):] if observed_text.startswith(before_text) else observed_text
                 lowered = observed_text.casefold()
                 before_lowered = before_text.casefold()
+                notification_lowered = ui_notification.casefold()
 
+                # ui_notification was captured only after this click, so it is
+                # reliable evidence even if Bale's toast disappeared from body.
                 matched_success = next(
                     (
                         phrase for phrase in success_phrases
-                        if phrase.casefold() in lowered
-                        and lowered.count(phrase.casefold()) > before_lowered.count(phrase.casefold())
+                        if phrase.casefold() in notification_lowered
                     ),
                     None,
                 )
+                if matched_success is None:
+                    matched_success = next(
+                        (
+                            phrase for phrase in success_phrases
+                            if phrase.casefold() in lowered
+                            and lowered.count(phrase.casefold()) > before_lowered.count(phrase.casefold())
+                        ),
+                        None,
+                    )
                 if matched_success:
                     print("[ADD CONTACT] Fresh Bale confirmation:", matched_success)
                     confirmed = True
@@ -993,11 +1004,19 @@ class BalePage:
                 matched_error = next(
                     (
                         phrase for phrase in error_phrases
-                        if phrase.casefold() in lowered
-                        and lowered.count(phrase.casefold()) > before_lowered.count(phrase.casefold())
+                        if phrase.casefold() in notification_lowered
                     ),
                     None,
                 )
+                if matched_error is None:
+                    matched_error = next(
+                        (
+                            phrase for phrase in error_phrases
+                            if phrase.casefold() in lowered
+                            and lowered.count(phrase.casefold()) > before_lowered.count(phrase.casefold())
+                        ),
+                        None,
+                    )
                 if matched_error:
                     print("[ADD CONTACT] Bale rejected contact:", matched_error)
                     break
