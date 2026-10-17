@@ -1737,9 +1737,10 @@ async function sendBaleMessages() {
            Polling
            ================================================= */
 
-        pollBaleProgress(
-            data.job_id
-        );
+        window.__balePollState = { jobId: data.job_id, failures: 0, stopped: false };
+        window.__baleResultsFilter = "success";
+        window.__baleOutcome = null;
+        pollBaleProgress(data.job_id);
 
 
     } catch (error) {
@@ -1779,726 +1780,317 @@ async function sendBaleMessages() {
    Bale Progress UI
    ========================================================= */
 
+
 function showBaleProgress(total = 0) {
+    const content = document.getElementById("settingsContent");
+    if (!content) return;
+    const existing = document.getElementById("baleProgressCard");
+    if (existing) existing.remove();
 
-    const content =
-        document.getElementById(
-            "settingsContent"
-        );
-
-
-    if (!content) {
-        return;
-    }
-
-
-    const existing =
-        document.getElementById(
-            "baleProgressCard"
-        );
-
-
-    if (existing) {
-        existing.remove();
-    }
-
-
-    const progressCard =
-        document.createElement("div");
-
-
-    progressCard.id =
-        "baleProgressCard";
-
-
-    progressCard.className =
-        "card";
-
-
+    const progressCard = document.createElement("div");
+    progressCard.id = "baleProgressCard";
+    progressCard.className = "card";
     progressCard.innerHTML = `
-
-        <div class="card-header">
-
-            <div>
-
-                <div class="card-title">
-                    وضعیت ارسال
-                </div>
-
-                <div class="card-subtitle">
-                    ارسال پیام‌ها در حال انجام است.
-                </div>
-
-            </div>
-
-        </div>
-
-
+        <div class="card-header"><div>
+            <div class="card-title">وضعیت ارسال</div>
+            <div class="card-subtitle">ابتدا افزودن مخاطبین، سپس ارسال و بررسی پیام‌ها</div>
+        </div></div>
         <div class="card-body">
-
-            <div style="margin-bottom: 12px;">
-
-                <div
-                    style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        margin-bottom:8px;
-                    "
-                >
-
-                    <span>
-                        پیشرفت ارسال
-                    </span>
-
-                    <strong id="baleProgressPercent">
-                        0%
-                    </strong>
-
+            <div style="margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;">
+                    <span id="baleProgressLabel">مرحله ۱ از ۲: آماده‌سازی و افزودن مخاطبین</span>
+                    <strong id="baleProgressPercent">10%</strong>
                 </div>
-
-
-                <div
-                    style="
-                        width:100%;
-                        height:12px;
-                        background:#e5e7eb;
-                        border-radius:999px;
-                        overflow:hidden;
-                    "
-                >
-
-                    <div
-                        id="baleProgressBar"
-                        style="
-                            width:0%;
-                            height:100%;
-                            transition:width 0.3s ease;
-                        "
-                    ></div>
-
+                <div style="width:100%;height:16px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+                    <div id="baleProgressBar" style="width:10%;height:100%;background:linear-gradient(90deg,#0d9488,#34d399);border-radius:999px;transition:width .45s ease;"></div>
                 </div>
-
             </div>
-
-
-            <div
-                id="baleProgressCount"
-                style="margin-bottom: 12px;"
-            >
-                0 از ${total}
-            </div>
-
-
-            <div
-                id="baleProgressStatus"
-                style="margin-bottom: 12px;"
-            >
-                در حال آماده‌سازی...
-            </div>
-
-
-            <div
-                id="baleProgressResults"
-                style="margin-top: 15px;"
-            ></div>
-
-        </div>
-
-    `;
-
-
-    content.appendChild(
-        progressCard
-    );
-
-
-    updateBaleProgress(
-        0,
-        total
-    );
+            <div id="baleProgressCount" style="margin-bottom:12px;">در حال آماده‌سازی ${total} مخاطب</div>
+            <div id="baleProgressStatus" style="margin-bottom:12px;">در حال افزودن مخاطبین به بله...</div>
+            <div id="baleProgressResults" style="margin-top:15px;"></div>
+        </div>`;
+    content.appendChild(progressCard);
+    updateBaleProgress(0, total, 10, "مرحله ۱ از ۲: آماده‌سازی و افزودن مخاطبین", `در حال آماده‌سازی ${total} مخاطب`);
 }
 
+function updateBaleProgress(current, total, percentOverride = null, label = null, countText = null) {
+    current = Number(current) || 0;
+    total = Number(total) || 0;
+    let percent = percentOverride === null
+        ? (total > 0 ? Math.round((current / total) * 100) : 0)
+        : Math.round(Number(percentOverride) || 0);
+    percent = Math.max(0, Math.min(100, percent));
 
-/* =========================================================
-   Update Progress
-   ========================================================= */
-
-function updateBaleProgress(
-    current,
-    total
-) {
-
-    current =
-        Number(current) || 0;
-
-    total =
-        Number(total) || 0;
-
-
-    let percent = 0;
-
-
-    if (total > 0) {
-
-        percent =
-            Math.round(
-                (current / total) * 100
-            );
-
-    }
-
-
-    percent =
-        Math.max(
-            0,
-            Math.min(
-                100,
-                percent
-            )
-        );
-
-
-    const progressBar =
-        document.getElementById(
-            "baleProgressBar"
-        );
-
-
-    const progressPercent =
-        document.getElementById(
-            "baleProgressPercent"
-        );
-
-
-    const progressCount =
-        document.getElementById(
-            "baleProgressCount"
-        );
-
-
-    if (progressBar) {
-
-        progressBar.style.width =
-            `${percent}%`;
-
-    }
-
-
-    if (progressPercent) {
-
-        progressPercent.textContent =
-            `${percent}%`;
-
-    }
-
-
-    if (progressCount) {
-
-        progressCount.textContent =
-            `${current} از ${total}`;
-
-    }
-
+    const bar = document.getElementById("baleProgressBar");
+    const percentElement = document.getElementById("baleProgressPercent");
+    const countElement = document.getElementById("baleProgressCount");
+    const labelElement = document.getElementById("baleProgressLabel");
+    if (bar) bar.style.width = `${percent}%`;
+    if (percentElement) percentElement.textContent = `${percent}%`;
+    if (countElement) countElement.textContent = countText || `${current} از ${total} مخاطب پردازش شده`;
+    if (labelElement && label) labelElement.textContent = label;
 }
 
+function getBaleResultGroup(item) {
+    const messageStatus = String(item.message_status || "").toLowerCase();
+    const text = [item.ui_notification, item.contact_add_detail, item.error, item.message, item.detail, item.description]
+        .filter(Boolean).join(" ").toLowerCase();
 
-/* =========================================================
-   Poll Bale Progress
-   ========================================================= */
+    if (text.includes("حساب کاربری ندارد") || text.includes("در «بله» حساب کاربری ندارد") || text.includes("در بله حساب کاربری ندارد")) {
+        return "no_account";
+    }
+    if (messageStatus === "sent") return "success";
+    if (messageStatus) return "failed";
 
-async function pollBaleProgress(
-    jobId
-) {
+    const status = String(item.status || "").toLowerCase();
+    if (status === "success" || status === "sent" || item.success === true) return "success";
+    return "failed";
+}
 
+function getBaleResultCounts(results) {
+    const counts = { success: 0, failed: 0, no_account: 0 };
+    (Array.isArray(results) ? results : []).forEach(item => counts[getBaleResultGroup(item)]++);
+    return counts;
+}
+
+async function pollBaleProgress(jobId) {
     if (!jobId) {
-
-        console.error(
-            "[BALE POLL] jobId is missing."
-        );
-
+        console.error("[BALE POLL] jobId is missing.");
         return;
     }
-
-
-    console.log(
-        "[BALE POLL] Checking job:",
-        jobId
-    );
-
+    if (!window.__balePollState || window.__balePollState.jobId !== jobId) {
+        window.__balePollState = { jobId, failures: 0, stopped: false };
+    }
+    const pollState = window.__balePollState;
+    if (pollState.stopped) return;
 
     try {
-
-        const response =
-            await fetch(
-                `${BALE_API_BASE}/send/status/${encodeURIComponent(jobId)}`,
-                {
-                    method: "GET",
-                    cache: "no-store"
-                }
-            );
-
-
+        const response = await fetch(
+            `${BALE_API_BASE}/send/status/${encodeURIComponent(jobId)}`,
+            { method: "GET", cache: "no-store" }
+        );
         let data = {};
+        try { data = await response.json(); } catch (_) {}
+        if (!response.ok) throw new Error(data.detail || data.message || "خطا در دریافت وضعیت ارسال.");
 
-        try {
+        pollState.failures = 0;
+        const total = Number(data.total || 0);
+        const results = Array.isArray(data.results) ? data.results : [];
+        const processed = Math.min(total, results.length);
+        const status = String(data.status || "running").toLowerCase();
+        const isComplete = ["completed", "complete", "done"].includes(status);
 
-            data =
-                await response.json();
-
-        } catch (jsonError) {
-
-            console.warn(
-                "[BALE POLL] Invalid JSON response."
-            );
-
+        let percent, label, countText;
+        if (isComplete) {
+            percent = 100;
+            label = "مرحله ۲ از ۲: پردازش تمام شد";
+            countText = `${total} از ${total} مخاطب بررسی شد`;
+        } else if (processed === 0) {
+            percent = 10;
+            label = "مرحله ۱ از ۲: آماده‌سازی و افزودن مخاطبین";
+            countText = `در حال آماده‌سازی ${total} مخاطب؛ مرحله افزودن در جریان است`;
+        } else {
+            percent = 20 + (total > 0 ? (processed / total) * 80 : 0);
+            label = "مرحله ۲ از ۲: ارسال و بررسی نتیجه پیام‌ها";
+            countText = `${processed} از ${total} مخاطب بررسی شده`;
         }
+        updateBaleProgress(processed, total, percent, label, countText);
+        updateBaleProgressStatus(status, data);
 
-
-        console.log(
-            "[BALE POLL RESPONSE]",
-            data
-        );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.detail ||
-                data.message ||
-                "خطا در دریافت وضعیت ارسال."
-            );
-
-        }
-
-
-        const current =
-            Number(
-                data.current ??
-                data.progress ??
-                data.sent ??
-                0
-            );
-
-
-        const total =
-            Number(
-                data.total ??
-                0
-            );
-
-
-        const status =
-            String(
-                data.status ||
-                "running"
-            ).toLowerCase();
-
-
-        updateBaleProgress(
-            current,
-            total
-        );
-
-
-        updateBaleProgressStatus(
-            status,
-            data
-        );
-
-
-        /* =================================================
-           Completed
-           ================================================= */
-
-        if (
-            status === "completed" ||
-            status === "complete" ||
-            status === "done"
-        ) {
-
-            handleBaleCompleted(
-                data
-            );
-
+        if (isComplete) {
+            handleBaleCompleted(data);
             return;
         }
-
-
-        /* =================================================
-           Failed
-           ================================================= */
-
-        if (
-            status === "failed" ||
-            status === "error"
-        ) {
-
-            handleBaleFailed(
-                data
-            );
-
+        if (status === "failed" || status === "error") {
+            handleBaleFailed(data);
             return;
         }
-
-
-        /* =================================================
-           Continue Polling
-           ================================================= */
-
-        setTimeout(
-            function () {
-
-                pollBaleProgress(
-                    jobId
-                );
-
-            },
-            1000
-        );
-
-
+        setTimeout(() => pollBaleProgress(jobId), 1000);
     } catch (error) {
+        console.error("[BALE POLL ERROR]", error);
+        if (pollState.stopped) return;
+        pollState.failures += 1;
 
-        console.error(
-            "[BALE POLL ERROR]",
-            error
-        );
-
-
-        const statusElement =
-            document.getElementById(
-                "baleProgressStatus"
-            );
-
-
-        if (statusElement) {
-
-            statusElement.textContent =
-                "خطا در دریافت وضعیت. تلاش مجدد...";
-
+        if (pollState.failures >= 5) {
+            pollState.stopped = true;
+            handleBalePollEmergencyStop(jobId);
+            return;
         }
-
-
-        setTimeout(
-            function () {
-
-                pollBaleProgress(
-                    jobId
-                );
-
-            },
-            2000
-        );
-
+        const statusElement = document.getElementById("baleProgressStatus");
+        if (statusElement) {
+            statusElement.textContent = `خطا در دریافت وضعیت؛ تلاش ${pollState.failures} از ۵. تلاش بعدی حداقل یک دقیقه دیگر انجام می‌شود.`;
+        }
+        setTimeout(() => pollBaleProgress(jobId), 60000);
     }
 }
 
-
-/* =========================================================
-   Progress Status
-   ========================================================= */
-
-function updateBaleProgressStatus(
-    status,
-    data
-) {
-
-    const statusElement =
-        document.getElementById(
-            "baleProgressStatus"
-        );
-
-
-    if (!statusElement) {
-        return;
-    }
-
-
+function updateBaleProgressStatus(status, data) {
+    const element = document.getElementById("baleProgressStatus");
+    if (!element) return;
     switch (status) {
-
-        case "pending":
-            statusElement.textContent =
-                "در انتظار شروع ارسال...";
-            break;
-
-
+        case "pending": element.textContent = "در انتظار شروع ارسال..."; break;
         case "running":
-        case "processing":
-            statusElement.textContent =
-                "در حال ارسال پیام‌ها...";
-            break;
-
-
+        case "processing": element.textContent = "در حال پردازش مخاطبین و ارسال پیام‌ها..."; break;
         case "completed":
         case "complete":
-        case "done":
-            statusElement.textContent =
-                "ارسال به پایان رسید.";
-            break;
-
-
+        case "done": element.textContent = "پردازش به پایان رسید."; break;
         case "failed":
-        case "error":
-            statusElement.textContent =
-                data.message ||
-                "ارسال با خطا متوقف شد.";
-            break;
-
-
-        default:
-            statusElement.textContent =
-                "در حال پردازش...";
-            break;
-
+        case "error": element.textContent = data.message || data.error || "پردازش با خطا متوقف شد."; break;
+        default: element.textContent = "در حال پردازش...";
     }
 }
 
+function renderBaleOutcome(message, imagePath, kind = "error") {
+    window.__baleOutcome = { message, image: imagePath, kind };
+    const container = document.getElementById("baleProgressResults");
+    if (!container) return;
+    const old = container.querySelector(".baleOutcomeBanner");
+    if (old) old.remove();
 
-/* =========================================================
-   Handle Completed
-   ========================================================= */
+    const banner = document.createElement("div");
+    banner.className = "baleOutcomeBanner";
+    banner.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:18px;margin:0 0 16px;border-radius:14px;background:" +
+        (kind === "success" ? "#ecfdf5" : "#fff1f2") + ";border:1px solid " +
+        (kind === "success" ? "#a7f3d0" : "#fecdd3") + ";";
+    const image = document.createElement("img");
+    image.src = imagePath;
+    image.alt = "";
+    image.loading = "eager";
+    image.style.cssText = "display:block;max-width:min(100%,280px);max-height:240px;object-fit:contain;border-radius:12px;";
+    image.onerror = function () {
+        this.style.display = "none";
+        console.error("[BALE UI] Outcome image could not be loaded:", imagePath);
+    };
+    const text = document.createElement("div");
+    text.textContent = message;
+    text.style.cssText = "font-size:20px;font-weight:700;line-height:1.7;color:" +
+        (kind === "success" ? "#065f46" : "#9f1239") + ";";
+    banner.append(image, text);
+    container.insertBefore(banner, container.firstChild);
+}
 
-function handleBaleCompleted(
-    data
-) {
+function handleBalePollEmergencyStop(jobId) {
+    const statusElement = document.getElementById("baleProgressStatus");
+    if (statusElement) statusElement.textContent = "توقف اضطراری: پس از ۵ تلاش ناموفق، بررسی خودکار وضعیت متوقف شد.";
+    renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "./img/patrik.jpg", "error");
 
-    const total =
-        Number(
-            data.total || 0
-        );
+    const sendButton = document.getElementById("baleSendButton");
+    if (sendButton) {
+        sendButton.disabled = false;
+        sendButton.textContent = "ارسال پیام‌ها";
+    }
+    console.error("[BALE POLL] Frontend stopped checking after five consecutive status failures. Server job may still be running:", jobId);
+}
 
+function handleBaleCompleted(data) {
+    const total = Number(data.total || 0);
+    const results = Array.isArray(data.results) ? data.results : [];
+    const counts = getBaleResultCounts(results);
+    const sentCount = counts.success;
+    const percentSuccessful = total > 0 ? (sentCount / total) * 100 : 0;
 
-    const current =
-        Number(
-            data.current ??
-            data.sent ??
-            total
-        );
+    updateBaleProgress(total, total, 100, "مرحله ۲ از ۲: پردازش تمام شد", `${total} از ${total} مخاطب بررسی شد`);
+    const statusElement = document.getElementById("baleProgressStatus");
+    if (statusElement) statusElement.textContent = "پردازش به پایان رسید.";
 
-
-    updateBaleProgress(
-        current,
-        total
-    );
-
-
-    const statusElement =
-        document.getElementById(
-            "baleProgressStatus"
-        );
-
-
-    if (statusElement) {
-
-        statusElement.textContent =
-            "✅ ارسال پیام‌ها با موفقیت تمام شد.";
-
+    renderBaleResults(results);
+    if (percentSuccessful >= 50) {
+        renderBaleOutcome("شد بالاخره شد :)", "./img/babesfanch.jpg", "success");
+    } else {
+        renderBaleOutcome("ما تمام تلاش خودمون رو کردیم اما نشد :(", "./img/patrik.jpg", "error");
     }
 
-
-    renderBaleResults(
-        data.results || []
-    );
-
-
-    showToast(
-        `ارسال ${current} پیام به پایان رسید.`,
-        "success"
-    );
-
-
-    const sendButton =
-        document.getElementById(
-            "baleSendButton"
-        );
-
-
+    showToast(`پردازش تمام شد؛ پیام موفق برای ${sentCount} از ${total} مخاطب.`, "success");
+    const sendButton = document.getElementById("baleSendButton");
     if (sendButton) {
-
         sendButton.disabled = false;
-
-        sendButton.textContent =
-            "ارسال پیام‌ها";
-
+        sendButton.textContent = "ارسال پیام‌ها";
     }
 
     const jobId = data.job_id || window.__baleLastJobId;
     const box = document.getElementById("baleProgressResults");
-
-    if (box && jobId && data.has_report === true) {
-        if (!document.getElementById("baleExportBtn")) {
-            box.insertAdjacentHTML("beforeend", `
-                <div style="margin-top:16px;display:flex;justify-content:center;">
-                    <a id="baleExportBtn"
-                       href="${BALE_API_BASE}/send/export/${encodeURIComponent(jobId)}"
-                       target="_blank"
-                       rel="noopener"
-                       style="
-                           display:inline-flex;
-                           align-items:center;
-                           gap:8px;
-                           padding:12px 22px;
-                           border-radius:10px;
-                           background:linear-gradient(135deg,#0d9488,#0f766e);
-                           color:#fff;
-                           font-weight:600;
-                           text-decoration:none;
-                           box-shadow:0 4px 12px rgba(13,148,136,.35);
-                       ">
-                        📥 دانلود گزارش اکسل
-                    </a>
-                </div>
-            `);
-        }
+    if (box && jobId && data.has_report === true && !document.getElementById("baleExportBtn")) {
+        box.insertAdjacentHTML("beforeend", `
+            <div style="margin-top:16px;display:flex;justify-content:center;">
+                <a id="baleExportBtn" href="${BALE_API_BASE}/send/export/${encodeURIComponent(jobId)}" target="_blank" rel="noopener"
+                   style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:10px;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;font-weight:600;text-decoration:none;box-shadow:0 4px 12px rgba(13,148,136,.35);">
+                    📥 دانلود گزارش اکسل
+                </a>
+            </div>`);
     }
-
 }
 
+function handleBaleFailed(data) {
+    const statusElement = document.getElementById("baleProgressStatus");
+    if (statusElement) statusElement.textContent = data.message || data.error || "پردازش با خطا متوقف شد.";
+    renderBaleResults(data.results || []);
+    renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "./img/patrik.jpg", "error");
+    showToast(data.message || data.error || "پردازش با خطا متوقف شد.", "error");
 
-/* =========================================================
-   Handle Failed
-   ========================================================= */
-
-function handleBaleFailed(
-    data
-) {
-
-    const statusElement =
-        document.getElementById(
-            "baleProgressStatus"
-        );
-
-
-    if (statusElement) {
-
-        statusElement.textContent =
-            data.message ||
-            data.error ||
-            "ارسال پیام‌ها با خطا متوقف شد.";
-
-    }
-
-
-    renderBaleResults(
-        data.results || []
-    );
-
-
-    showToast(
-        data.message ||
-        data.error ||
-        "ارسال پیام‌ها با خطا متوقف شد.",
-        "error"
-    );
-
-
-    const sendButton =
-        document.getElementById(
-            "baleSendButton"
-        );
-
-
+    const sendButton = document.getElementById("baleSendButton");
     if (sendButton) {
-
         sendButton.disabled = false;
-
-        sendButton.textContent =
-            "ارسال پیام‌ها";
-
+        sendButton.textContent = "ارسال پیام‌ها";
     }
-
 }
 
-
-/* =========================================================
-   Render Results
-   ========================================================= */
-
-function renderBaleResults(
-    results
-) {
-
-    const container =
-        document.getElementById(
-            "baleProgressResults"
-        );
-
-
-    if (!container) {
-        return;
-    }
-
-
-    if (
-        !Array.isArray(results) ||
-        results.length === 0
-    ) {
-
+function renderBaleResults(results) {
+    const container = document.getElementById("baleProgressResults");
+    if (!container) return;
+    if (!Array.isArray(results) || results.length === 0) {
         container.innerHTML = "";
-
         return;
     }
 
-
-    let successCount = 0;
-    let failedCount = 0;
-
-
-    results.forEach(
-        function (item) {
-
-            const status =
-                String(
-                    item.status || ""
-                ).toLowerCase();
-
-
-            if (
-                status === "success" ||
-                status === "sent" ||
-                item.success === true
-            ) {
-
-                successCount++;
-
-            } else {
-
-                failedCount++;
-
-            }
-
-        }
-    );
-
+    const groups = { success: [], failed: [], no_account: [] };
+    results.forEach(item => groups[getBaleResultGroup(item)].push(item));
+    const counts = { success: groups.success.length, failed: groups.failed.length, no_account: groups.no_account.length };
+    const activeFilter = ["success", "failed", "no_account"].includes(window.__baleResultsFilter)
+        ? window.__baleResultsFilter : "success";
 
     container.innerHTML = `
-
-        <div
-            style="
-                padding:12px;
-                border-radius:8px;
-                background:#f8f9fa;
-            "
-        >
-
-            <strong>
-                نتیجه ارسال
-            </strong>
-
-            <div style="margin-top:8px;">
-                موفق: ${successCount}
+        <div style="padding:14px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:12px;">
+            <strong style="display:block;margin-bottom:10px;">نتیجه ارسال پیام‌ها</strong>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <span style="padding:6px 10px;border-radius:8px;background:#dcfce7;color:#166534;">موفق: ${counts.success}</span>
+                <span style="padding:6px 10px;border-radius:8px;background:#fee2e2;color:#991b1b;">ناموفق: ${counts.failed}</span>
+                <span style="padding:6px 10px;border-radius:8px;background:#fef3c7;color:#92400e;">حساب بله نداشته‌اند: ${counts.no_account}</span>
             </div>
-
-            <div>
-                ناموفق: ${failedCount}
-            </div>
-
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" role="tablist" aria-label="فیلتر نتایج">
+            <button type="button" data-bale-filter="success" aria-pressed="${activeFilter === "success"}" style="padding:8px 12px;border:1px solid #86efac;border-radius:8px;background:${activeFilter === "success" ? "#dcfce7" : "#fff"};cursor:pointer;">موفق (${counts.success})</button>
+            <button type="button" data-bale-filter="failed" aria-pressed="${activeFilter === "failed"}" style="padding:8px 12px;border:1px solid #fca5a5;border-radius:8px;background:${activeFilter === "failed" ? "#fee2e2" : "#fff"};cursor:pointer;">ناموفق (${counts.failed})</button>
+            <button type="button" data-bale-filter="no_account" aria-pressed="${activeFilter === "no_account"}" style="padding:8px 12px;border:1px solid #fcd34d;border-radius:8px;background:${activeFilter === "no_account" ? "#fef3c7" : "#fff"};cursor:pointer;">حساب بله نداشته‌اند (${counts.no_account})</button>
+        </div>
+        <div id="baleResultRows"></div>`;
 
-    `;
+    const rowsContainer = container.querySelector("#baleResultRows");
+    const selected = groups[activeFilter];
+    if (!selected.length) {
+        rowsContainer.innerHTML = '<div style="padding:14px;color:#64748b;text-align:center;">موردی در این دسته وجود ندارد.</div>';
+    } else {
+        rowsContainer.innerHTML = selected.map((item, index) => {
+            const phone = escapeBaleHtml(item.phone || "");
+            const name = escapeBaleHtml(item.name || item.phone || "بدون نام");
+            const detail = escapeBaleHtml(item.error || item.contact_add_detail || item.message || "");
+            return `<div style="padding:11px 12px;margin-bottom:7px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;">
+                <div style="font-weight:700;">${index + 1}. ${name}</div>
+                <div style="direction:ltr;text-align:right;color:#475569;margin-top:4px;">${phone}</div>
+                ${detail ? `<div style="margin-top:6px;color:#64748b;font-size:13px;">${detail}</div>` : ""}
+            </div>`;
+        }).join("");
+    }
+
+    container.querySelectorAll("[data-bale-filter]").forEach(button => {
+        button.addEventListener("click", () => {
+            window.__baleResultsFilter = button.dataset.baleFilter;
+            renderBaleResults(results);
+            if (window.__baleOutcome) {
+                renderBaleOutcome(window.__baleOutcome.message, window.__baleOutcome.image, window.__baleOutcome.kind);
+            }
+        });
+    });
 }
-
 
 /* =========================================================
    Escape HTML
