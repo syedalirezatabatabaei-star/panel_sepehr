@@ -2548,6 +2548,7 @@ a {
   font-weight: 700;
 }
 .eitaa-send-form input[type="file"],
+.eitaa-send-form input[type="number"],
 .eitaa-send-form textarea {
   display: block;
   width: 100%;
