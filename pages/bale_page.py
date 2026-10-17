@@ -739,8 +739,86 @@ class BalePage:
             except Exception:
                 before_text = ""
 
-            add_button = self.page.get_by_text("افزودن", exact=True).last
-            add_button.wait_for(state="visible", timeout=5000)
+            # Locate the submit control inside the active add-contact form.
+            # Avoid clicking an unrelated "افزودن" label elsewhere on the page.
+            add_button = None
+            form_selectors = [
+                'input[aria-label="شماره همراه"]',
+                'input[placeholder*="شماره"]',
+                'input[type="tel"]',
+                'input[name*="phone" i]',
+            ]
+            active_form = None
+            for form_selector in form_selectors:
+                try:
+                    field = self.page.locator(form_selector).last
+                    if field.is_visible():
+                        active_form = field.locator(
+                            "xpath=ancestor::*[.//button or .//*[@role='button']][1]"
+                        )
+                        if active_form.count() == 0:
+                            active_form = None
+                        break
+                except Exception:
+                    continue
+
+            # Try the actual button/role control first, then a text match only
+            # if it resolves to a clickable element.
+            if active_form is not None:
+                for selector in [
+                    'button:has-text("افزودن")',
+                    '[role="button"]:has-text("افزودن")',
+                ]:
+                    try:
+                        candidates = active_form.locator(selector)
+                        for candidate_index in range(candidates.count() - 1, -1, -1):
+                            candidate = candidates.nth(candidate_index)
+                            if candidate.is_visible() and candidate.is_enabled():
+                                add_button = candidate
+                                break
+                        if add_button is not None:
+                            break
+                    except Exception:
+                        continue
+
+            if add_button is None:
+                for selector in [
+                    'button:has-text("افزودن")',
+                    '[role="button"]:has-text("افزودن")',
+                    'button[aria-label="افزودن"]',
+                ]:
+                    try:
+                        candidates = self.page.locator(selector)
+                        for candidate_index in range(candidates.count() - 1, -1, -1):
+                            candidate = candidates.nth(candidate_index)
+                            if candidate.is_visible() and candidate.is_enabled():
+                                add_button = candidate
+                                break
+                        if add_button is not None:
+                            break
+                    except Exception:
+                        continue
+
+            if add_button is None:
+                print("[ADD CONTACT] No visible, enabled submit button found.")
+                self.page.screenshot(path="/tmp/add_contact_button_missing.png", full_page=True)
+                return result(False, "add_button_missing", "دکمه فعال افزودن مخاطب در فرم پیدا نشد")
+
+            try:
+                add_button.scroll_into_view_if_needed(timeout=5000)
+                add_button.wait_for(state="visible", timeout=5000)
+                if not add_button.is_enabled():
+                    return result(False, "add_button_disabled", "دکمه افزودن مخاطب غیرفعال است")
+                # Trial click detects overlays/obstructions without submitting.
+                add_button.click(trial=True, timeout=3000)
+                print("[ADD CONTACT] Submit button is visible, enabled and clickable.")
+            except Exception as clickability_error:
+                print("[ADD CONTACT] Button clickability check failed:", clickability_error)
+                try:
+                    self.page.screenshot(path="/tmp/add_contact_button_not_clickable.png", full_page=True)
+                except Exception:
+                    pass
+                return result(False, "add_button_not_clickable", "دکمه افزودن قابل کلیک نیست؛ احتمال وجود پوشش یا مانع روی دکمه وجود دارد")
 
             # Capture the exact state for contact 6 at the submit boundary.
             review_before_path = None
@@ -810,7 +888,9 @@ class BalePage:
             except Exception as observer_error:
                 print("[ADD CONTACT] Could not start toast observer:", observer_error)
 
-            add_button.click(timeout=5000)
+            # Use a real user-like click only after the trial click succeeded.
+            # Do not force-click: that can report success while the UI is obstructed.
+            add_button.click(timeout=7000)
 
             # Preserve an immediate post-click screenshot, then capture the settled
             # post-add screen separately after the transient toast has been observed.
@@ -856,6 +936,7 @@ class BalePage:
                 ui_notification = ""
 
             success_phrases = [
+                "مخاطب مورد نظر به مخاطبین اضافه شد",
                 "مخاطب اضافه شد",
                 "مخاطب با موفقیت اضافه شد",
                 "مخاطب با موفقیت افزوده شد",
@@ -873,6 +954,7 @@ class BalePage:
                 "شماره معتبر نیست",
                 "شماره تلفن نامعتبر",
                 "مخاطب پیدا نشد",
+                "حساب کاربری ندارد",
                 "کاربر پیدا نشد",
                 "قبلاً وجود دارد",
                 "قبلا وجود دارد",
@@ -937,9 +1019,11 @@ class BalePage:
                     phone_form_visible = False
 
                 if not phone_form_visible and observed_text and not matched_error:
-                    print("[ADD CONTACT] Add form closed after submit; treating as success.")
-                    confirmed = True
-                    break
+                    # A closed dialog alone is not proof of success: Bale also
+                    # closes it for some rejected numbers. Only a fresh explicit
+                    # success notification may mark the add as successful.
+                    print("[ADD CONTACT] Form closed without explicit success confirmation; waiting for a fresh confirmation.")
+
 
                 self.page.wait_for_timeout(500)
 
