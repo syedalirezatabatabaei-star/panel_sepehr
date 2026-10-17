@@ -242,8 +242,15 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
         JOBS[job_id]["started_at"] = datetime.now().isoformat(timespec="seconds")
     for index, target in enumerate(recipients, 1):
         row = {"phone": target["phone"], "name": target["name"], "status": "error", "contact_status": "error", "add_notification": "", "detail": ""}
+        with JOBS_LOCK:
+            JOBS[job_id]["phase"] = "در حال افزودن مخاطب"
+            JOBS[job_id]["current"] = target["phone"]
+            JOBS[job_id]["progress"] = int(((index - 1) / max(1, len(recipients))) * 100)
         try:
             peer = _resolve_contact(phone, target, contacts)
+            with JOBS_LOCK:
+                JOBS[job_id]["phase"] = "در حال ارسال پیام"
+                JOBS[job_id]["progress"] = int(((index - 0.5) / max(1, len(recipients))) * 100)
             row["contact_status"] = peer.get("contact_status", "success")
             row["add_notification"] = peer.get("add_notification", "")
             row["peer_id"] = peer.get("id")
@@ -260,8 +267,13 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
             row["status"], row["detail"] = "success", "پیام ارسال شد"
         except Exception as exc:
             row["detail"] = str(exc)[:500]
-            if "پیدا نشد" in row["detail"] or "not found" in row["detail"].lower() or "user not found" in row["detail"].lower():
+            detail_lower = row["detail"].lower()
+            if ("پیدا نشد" in row["detail"] or "not found" in detail_lower or
+                    "user not found" in detail_lower or "user_not_found" in detail_lower or
+                    "phone_number_invalid" in detail_lower or "peer_id_invalid" in detail_lower or
+                    "404" in detail_lower):
                 row["contact_status"] = "not_registered"
+                row["status"] = "not_sent"
             else:
                 row["contact_status"] = "error"
             if not row["add_notification"]:
@@ -269,6 +281,8 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
         results.append(row)
         with JOBS_LOCK:
             JOBS[job_id]["processed"] = index
+            JOBS[job_id]["progress"] = int((index / max(1, len(recipients))) * 100)
+            JOBS[job_id]["phase"] = "در حال پردازش مخاطبان" if index < len(recipients) else "در حال ساخت گزارش"
             JOBS[job_id]["success"] = sum(1 for item in results if item["status"] == "success")
             JOBS[job_id]["failed"] = len(results) - JOBS[job_id]["success"]
             JOBS[job_id]["results"] = list(results)
@@ -282,6 +296,8 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
             JOBS[job_id]["report_error"] = str(exc)
     with JOBS_LOCK:
         JOBS[job_id]["status"] = "completed"
+        JOBS[job_id]["progress"] = 100
+        JOBS[job_id]["phase"] = "پایان یافت"
         JOBS[job_id]["finished_at"] = datetime.now().isoformat(timespec="seconds")
         JOBS[job_id]["report_path"] = report
 
