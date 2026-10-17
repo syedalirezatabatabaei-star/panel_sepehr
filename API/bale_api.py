@@ -936,11 +936,18 @@ def send_job_worker(
                 print(f"[BALE JOB] ADD CONTACT ERROR {phone}: {add_error}")
                 add_result = {"success": False, "status": "error", "message": str(add_error)}
             add_ok = add_result.get("success") is True and str(add_result.get("status", "")).lower() in ("success", "added", "confirmed")
+            # If Bale's transient toast observer missed the popup but the
+            # add-contact flow itself returned an explicit success status, keep
+            # a concise, truthful success notification in the Excel report.
+            add_notification = str(add_result.get("ui_notification") or "").strip()
+            if add_ok and not add_notification:
+                add_notification = "مخاطب مورد نظر به مخاطبین اضافه شد."
+
             add_results[contact_index] = {
                 "success": add_ok,
                 "status": add_result.get("status") or ("success" if add_ok else "unconfirmed"),
                 "message": add_result.get("message") or "",
-                "ui_notification": add_result.get("ui_notification") or "",
+                "ui_notification": add_notification,
             }
             # Results are keyed by contact index so duplicate phone numbers do not collide.
             print(f"[BALE JOB] ADD RESULT {phone}: {add_results[contact_index]}")
@@ -1116,6 +1123,18 @@ def send_job_worker(
                     "================================"
                 )
 
+                # Capture a baseline before submitting text. If the backend's
+                # own exact-text check misses a virtualized message bubble, this
+                # independent post-submit check can still confirm the send.
+                message_count_before_send = None
+                if message_type == "text":
+                    try:
+                        message_count_before_send = bale_backend.page.get_by_text(
+                            message, exact=True
+                        ).count()
+                    except Exception:
+                        message_count_before_send = None
+
                 # SEND MESSAGE / MEDIA
                 if message_type == "text":
                     print("[BALE JOB] Sending TEXT message")
@@ -1139,6 +1158,61 @@ def send_job_worker(
 
                 else:
                     raise ValueError(f"نوع پیام نامعتبر است: {message_type}")
+
+                # Secondary verification before refreshing the page. This is
+                # deliberately stricter than "composer empty": require both an
+                # empty composer and a new matching message in the current chat.
+                if message_type == "text" and not sent and message_count_before_send is not None:
+                    try:
+                        current_message_count = bale_backend.page.get_by_text(
+                            message, exact=True
+                        ).count()
+                        composer = None
+                        for selector in [
+                            '[aria-label="editable-message-text"]',
+                            '[contenteditable="true"]',
+                            'textarea'
+                        ]:
+                            loc = bale_backend.page.locator(selector)
+                            for composer_index in range(loc.count()):
+                                candidate = loc.nth(composer_index)
+                                if candidate.is_visible():
+                                    composer = candidate
+                                    break
+                            if composer is not None:
+                                break
+
+                        composer_value = ""
+                        if composer is not None:
+                            try:
+                                composer_value = composer.input_value(timeout=700) or ""
+                            except Exception:
+                                try:
+                                    composer_value = composer.inner_text(timeout=700) or ""
+                                except Exception:
+                                    composer_value = ""
+
+                        if (
+                            current_message_count > message_count_before_send
+                            and not str(composer_value).strip()
+                        ):
+                            sent = True
+                            print(
+                                "[BALE JOB] Secondary verification confirmed text message "
+                                "before refresh: composer empty and new matching message visible."
+                            )
+                        else:
+                            print(
+                                "[BALE JOB] Secondary verification inconclusive: "
+                                f"before={message_count_before_send}, "
+                                f"after={current_message_count}, "
+                                f"composer_chars={len(str(composer_value))}"
+                            )
+                    except Exception as verification_error:
+                        print(
+                            "[BALE JOB] Secondary text verification failed:",
+                            verification_error
+                        )
 
                 # Refresh the browser after each message send attempt (success or failure)
                 # so the next contact starts from a clean UI state.
