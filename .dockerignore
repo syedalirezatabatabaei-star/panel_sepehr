@@ -1,33 +1,40 @@
-venv/
-__pycache__/
-*.pyc
-.git/
-.gitignore
-
-browser_profile/
-browser_profile_backup_*/
-reports/
-logs/
-
-data/state.db
-
-.env
-
-# Git and development tooling
+# Git metadata and local secrets
 .git/
 **/.git/
-openui/
-genui-chat-app/node_modules/
-genui-chat-app/.next/
-genui-chat-app/.git/
+.env
+.env.*
+!.env.example
+.gitignore
 
-# Python virtual environments and caches
+# Python caches and virtual environments
 venv/
 **/venv/
+__pycache__/
 **/__pycache__/
-**/*.py[cod]
+*.py[cod]
 **/.ruff_cache/
 
-# Local caches and temporary files
+# Browser state and local runtime data
+browser_profile/
+browser_profile_backup_*/
+data/eitaa-state/
+data/eitaa-sessions/
+data/eitaa-media/
+data/state.db
+reports/
+logs/
+*.log
+build.log
+
+# JavaScript/build caches
 .npm/
 .cache/
+genui-chat-app/
+openui
+
+# The Eitaa service is fetched at its pinned commit in the Dockerfile
+eitaa-service/
+
+# Never bake local authentication artifacts into an image
+cookies.txt
+bale_session.json
