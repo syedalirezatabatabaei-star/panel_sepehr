@@ -235,7 +235,7 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
             JOBS[job_id]["success"] = sum(1 for item in results if item["status"] == "success")
             JOBS[job_id]["failed"] = len(results) - JOBS[job_id]["success"]
             JOBS[job_id]["results"] = list(results)
-        if index < len(recipients):
+        if index < len(recipients) and delay > 0:
             time.sleep(delay)
     try:
         report = _write_report(job_id, results)
@@ -250,12 +250,10 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
 
 
 @router.post("/send")
-async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""), media: UploadFile | None = File(None), consent_confirmed: bool = Form(False), delay_seconds: int = Form(3)):
+async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""), media: UploadFile | None = File(None), delay_seconds: int = Form(0)):
     saved = _account()
     if not saved or not saved.get("phone"):
         raise HTTPException(401, "ابتدا وارد حساب ایتا شوید")
-    if not consent_confirmed:
-        raise HTTPException(400, "تأیید کنید که مخاطبان اجازه دریافت این پیام را دارند")
     if not message.strip() and not (media and media.filename):
         raise HTTPException(400, "متن پیام یا فایل رسانه‌ای الزامی است")
     if not excel.filename or Path(excel.filename).suffix.lower() not in {".xlsx", ".xlsm"}:
@@ -274,11 +272,14 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
             suffix = Path(media.filename).suffix.lower()
             if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".pdf", ".doc", ".docx"}:
                 raise HTTPException(400, "فرمت فایل رسانه‌ای پشتیبانی نمی‌شود")
+            media_bytes = await media.read()
+            if suffix in {".mp4", ".mov"} and len(media_bytes) > 20 * 1024 * 1024:
+                raise HTTPException(400, "حجم ویدئو نباید بیشتر از ۲۰ مگابایت باشد")
             media_path = MEDIA_DIR / (job_id + "_media" + suffix)
-            media_path.write_bytes(await media.read())
+            media_path.write_bytes(media_bytes)
         with JOBS_LOCK:
             JOBS[job_id] = {"job_id": job_id, "status": "queued", "total": len(recipients), "processed": 0, "success": 0, "failed": 0, "results": [], "created_at": datetime.now().isoformat(timespec="seconds")}
-        delay = max(2, min(int(delay_seconds), 30))
+        delay = max(0, min(int(delay_seconds), 30))
         media_type = "photo" if media_path and media_path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else "file"
         background_tasks.add_task(_run_job, job_id, saved["phone"], recipients, message, str(media_path) if media_path else None, media_type, delay)
         return {"success": True, "job_id": job_id, "total": len(recipients)}
