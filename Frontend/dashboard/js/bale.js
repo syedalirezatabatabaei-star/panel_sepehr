@@ -1807,6 +1807,7 @@ function showBaleProgress(total = 0) {
             </div>
             <div id="baleProgressCount" style="margin-bottom:12px;">در حال آماده‌سازی ${total} مخاطب</div>
             <div id="baleProgressStatus" style="margin-bottom:12px;">در حال افزودن مخاطبین به بله...</div>
+            <div id="baleRefreshErrorLog" role="log" aria-live="polite" style="display:none;margin:10px 0;padding:10px 12px;border:1px solid #fecaca;background:#fff7f7;border-radius:10px;color:#991b1b;font-size:13px;line-height:1.8;"></div>
             <div id="baleProgressResults" style="margin-top:15px;"></div>
         </div>`;
     content.appendChild(progressCard);
@@ -1928,6 +1929,14 @@ async function pollBaleProgress(jobId) {
         const statusElement = document.getElementById("baleProgressStatus");
         if (statusElement) {
             statusElement.textContent = `خطا در دریافت وضعیت؛ تلاش ${pollState.failures} از ۵. تلاش بعدی حداقل یک دقیقه دیگر انجام می‌شود.`;
+        }
+        const logElement = document.getElementById("baleRefreshErrorLog");
+        if (logElement) {
+            logElement.style.display = "block";
+            const entry = document.createElement("div");
+            const timestamp = new Date().toLocaleString("fa-IR");
+            entry.textContent = `[${timestamp}] خطای رفرش ${pollState.failures}/۵: ${error && error.message ? error.message : "خطای نامشخص"}`;
+            logElement.appendChild(entry);
         }
         setTimeout(() => pollBaleProgress(jobId), 60000);
     }
