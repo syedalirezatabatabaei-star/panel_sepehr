@@ -1859,7 +1859,12 @@ async function pollBaleProgress(jobId) {
         return;
     }
     if (!window.__balePollState || window.__balePollState.jobId !== jobId) {
-        window.__balePollState = { jobId, failures: 0, stopped: false };
+        window.__balePollState = {
+            jobId,
+            failures: 0,
+            stopped: false,
+            startedAt: Date.now()
+        };
     }
     const pollState = window.__balePollState;
     if (pollState.stopped) return;
@@ -1886,9 +1891,13 @@ async function pollBaleProgress(jobId) {
             label = "مرحله ۲ از ۲: پردازش تمام شد";
             countText = `${total} از ${total} مخاطب بررسی شد`;
         } else if (processed === 0) {
-            percent = 10;
+            // The current API does not expose add-contact progress separately.
+            // Show a small, time-based movement for this stage, capped at 19%,
+            // then map actual processed contacts to the remaining 80%.
+            const elapsedSeconds = Math.max(0, (Date.now() - pollState.startedAt) / 1000);
+            percent = Math.min(19, 10 + Math.floor(elapsedSeconds / 12));
             label = "مرحله ۱ از ۲: آماده‌سازی و افزودن مخاطبین";
-            countText = `در حال آماده‌سازی ${total} مخاطب؛ مرحله افزودن در جریان است`;
+            countText = `در حال افزودن ${total} مخاطب؛ پیشرفت این مرحله تقریبی است`;
         } else {
             percent = 20 + (total > 0 ? (processed / total) * 80 : 0);
             label = "مرحله ۲ از ۲: ارسال و بررسی نتیجه پیام‌ها";
