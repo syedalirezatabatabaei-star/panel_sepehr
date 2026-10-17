@@ -19,7 +19,10 @@
   }
   function render(html) {
     const content = el("settingsContent");
-    if (content) content.innerHTML = html;
+    if (content) {
+      content.classList.toggle("eitaa-broadcast-view", html.indexOf("eitaa-broadcast-page") !== -1);
+      content.innerHTML = html;
+    }
   }
   function header(text) {
     const target = el("headerTitle");
@@ -72,19 +75,44 @@
   }
 
   function showSendPage(phone) {
-    render('<div class="page-header"><h1 class="page-title">ارسال پیام شخصی ایتا</h1><p class="page-description">حساب فعال: <b dir="ltr">' + esc(phone) + '</b></p></div><div class="card"><div class="card-body"><form id="eitaaBroadcastForm"><div class="form-group"><label>فایل Excel مخاطبان</label><input id="eitaaExcel" type="file" accept=".xlsx,.xlsm" required><small>ستون شماره تلفن الزامی و نام اختیاری است. بدون عنوان ستون، ستون اول شماره و ستون دوم نام است.</small></div><div class="form-group"><label>متن پیام یا کپشن</label><textarea id="eitaaMessage" rows="5" placeholder="متن پیام..."></textarea></div><div class="form-group"><label>رسانه (اختیاری)</label><input id="eitaaMedia" type="file" accept="image/*,video/mp4,video/quicktime,.pdf,.doc,.docx"><small>تصویر به‌صورت عکس؛ ویدئو و فایل‌ها به‌صورت پیوست فایل ارسال می‌شوند.</small></div><div class="form-group"><label>فاصله بین ارسال‌ها (ثانیه)</label><input id="eitaaDelay" type="number" min="2" max="30" value="3" required></div><div class="form-group"><label><input id="eitaaConsent" type="checkbox" required> تأیید می‌کنم مخاطبان اجازه دریافت این پیام را دارند.</label></div><div class="form-actions"><button class="btn btn-primary" id="eitaaStartButton" type="submit">شروع ارسال</button><button class="btn btn-secondary" type="button" onclick="eitaaResetAccount()">خروج / تغییر حساب</button></div></form></div></div><div class="card" style="margin-top:20px"><div class="card-body" id="eitaaJobPanel">پس از شروع، پیشرفت و نتیجه هر مخاطب نمایش داده می‌شود.</div></div>');
+    render('<div class="eitaa-broadcast-page"><div class="page-header"><h1 class="page-title">ارسال پیام شخصی ایتا</h1><p class="page-description">حساب فعال: <b dir="ltr">' + esc(phone) + '</b></p></div><div class="card eitaa-send-card"><div class="card-body"><form id="eitaaBroadcastForm" class="eitaa-send-form"><div class="form-group eitaa-field"><label for="eitaaExcel">فایل Excel مخاطبان</label><input id="eitaaExcel" type="file" accept=".xlsx,.xlsm" required><small>ستون شماره تلفن الزامی و نام اختیاری است. بدون عنوان ستون، ستون اول شماره و ستون دوم نام است.</small></div><div class="form-group eitaa-field eitaa-caption-field"><label for="eitaaMessage">متن پیام یا کپشن</label><textarea id="eitaaMessage" rows="5" placeholder="متن پیام یا کپشن را اینجا بنویسید..."></textarea></div><div class="form-group eitaa-field"><label for="eitaaMedia">رسانه (اختیاری)</label><input id="eitaaMedia" type="file" accept="image/*,video/mp4,video/quicktime,.pdf,.doc,.docx"><small>تصویر به‌صورت عکس ارسال می‌شود. حجم ویدئو حداکثر ۲۰ مگابایت است.</small><p id="eitaaMediaError" class="eitaa-media-error" role="alert" hidden></p></div><div class="eitaa-actions"><button class="btn btn-primary" id="eitaaStartButton" type="submit">شروع ارسال</button><button class="btn btn-secondary" type="button" onclick="eitaaResetAccount()">خروج / تغییر حساب</button></div></form></div></div><div class="card eitaa-job-card"><div class="card-body" id="eitaaJobPanel">پس از شروع، پیشرفت و نتیجه هر مخاطب نمایش داده می‌شود.</div></div></div>');
     el("eitaaBroadcastForm").addEventListener("submit", startSend);
+    el("eitaaMedia").addEventListener("change", validateEitaaMedia);
+  }
+
+  function validateEitaaMedia() {
+    const fileInput = el("eitaaMedia");
+    const error = el("eitaaMediaError");
+    if (!fileInput || !error) return true;
+    const file = fileInput.files && fileInput.files[0];
+    const isVideo = !!file && (/^video\\//i.test(file.type) || /\\.(mp4|mov|m4v|webm)$/i.test(file.name));
+    if (isVideo && file.size > 20 * 1024 * 1024) {
+      error.textContent = "حجم ویدئو نباید بیشتر از ۲۰ مگابایت باشد.";
+      error.hidden = false;
+      fileInput.value = "";
+      return false;
+    }
+    error.hidden = true;
+    error.textContent = "";
+    return true;
   }
 
   async function startSend(event) {
     event.preventDefault();
     if (activeJob) return;
+    if (!validateEitaaMedia()) return;
+    const mediaFile = el("eitaaMedia").files[0];
+    const message = el("eitaaMessage").value.trim();
+    if (!message && !mediaFile) {
+      toast("متن پیام یا یک فایل رسانه‌ای انتخاب کنید.", "error");
+      return;
+    }
     const formData = new FormData();
     formData.append("excel", el("eitaaExcel").files[0]);
     formData.append("message", el("eitaaMessage").value);
-    formData.append("consent_confirmed", el("eitaaConsent").checked ? "true" : "false");
-    formData.append("delay_seconds", el("eitaaDelay").value || "3");
-    if (el("eitaaMedia").files[0]) formData.append("media", el("eitaaMedia").files[0]);
+    if (mediaFile) formData.append("media", mediaFile);
+    // ارسال بدون مکث اجباری بین مخاطبان؛ سرور مقدار صفر را می‌پذیرد.
+    formData.append("delay_seconds", "0");
     const button = el("eitaaStartButton");
     button.disabled = true;
     button.textContent = "در حال شروع...";
