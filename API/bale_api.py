@@ -1243,6 +1243,48 @@ def send_job_worker(
                 # DELAY
                 # =================================================
 
+                # Every five processed contacts, explicitly reset the
+                # browser page state before continuing with the next batch.
+                # The per-message refresh above remains in place as well.
+                if index % 5 == 0 and index < total:
+                    print(
+                        f"[BALE JOB] Batch boundary reached ({index}/{total}); "
+                        "refreshing Bale before the next group of five."
+                    )
+                    try:
+                        if bale_backend.page is None:
+                            raise RuntimeError("Bale page is not initialized")
+                        bale_backend.page.goto(
+                            "https://web.bale.ai/contacts",
+                            wait_until="domcontentloaded",
+                            timeout=30000,
+                        )
+                        bale_backend.page.wait_for_load_state(
+                            "domcontentloaded",
+                            timeout=10000,
+                        )
+                        bale_backend.page.wait_for_timeout(1500)
+
+                        # Confirm the contacts view has loaded before starting
+                        # the next batch. If the app redirects, open contacts
+                        # through the existing backend flow.
+                        if "/contacts" not in str(bale_backend.page.url):
+                            bale_backend.open_contacts()
+                        print(
+                            f"[BALE JOB] Batch refresh complete; "
+                            f"next batch starts at contact {index + 1}."
+                        )
+                    except Exception as batch_refresh_error:
+                        print(
+                            "[BALE JOB] Batch refresh failed:",
+                            batch_refresh_error,
+                        )
+                        # Do not silently proceed with an unknown browser state.
+                        raise RuntimeError(
+                            f"تازه‌سازی بله پس از مخاطب {index} ناموفق بود: "
+                            f"{batch_refresh_error}"
+                        )
+
                 if index < total:
 
                     delay = random.uniform(
