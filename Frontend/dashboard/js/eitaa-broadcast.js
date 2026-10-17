@@ -148,19 +148,77 @@
     pollTimer = window.setTimeout(pollJob, 1800);
   }
 
+  function getEitaaResultGroup(row) {
+    const contact = String(row.contact_status || "").toLowerCase();
+    const detail = String(row.detail || "").toLowerCase();
+    if (["not_registered", "no_account", "not_found"].includes(contact) ||
+        detail.includes("حساب ایتا ندارد") || detail.includes("مخاطب در ایتا پیدا نشد") ||
+        detail.includes("user not found") || detail.includes("not found")) return "no_account";
+    if (row.status === "success") return "success";
+    return "failed";
+  }
+
+  function getEitaaContactLabel(row) {
+    const group = getEitaaResultGroup(row);
+    if (group === "no_account") return "حساب ایتا ندارد / پیدا نشد";
+    if (row.contact_status === "success") return "موجود / افزوده شد";
+    return "افزودن ناموفق";
+  }
+
   function renderJob(job) {
     const panel = el("eitaaJobPanel");
     if (!panel) return;
     const total = Number(job.total || 0), processed = Number(job.processed || 0);
     const percent = total ? Math.round(processed * 100 / total) : 0;
-    const rows = (job.results || []).slice(-100).map(function (row) {
-      const ok = row.status === "success";
-      return '<tr><td dir="ltr">' + esc(row.phone) + '</td><td>' + esc(row.name) + '</td><td style="color:' + (ok ? '#15803d' : '#b91c1c') + '">' + (ok ? "موفق" : "ناموفق") + '</td><td>' + esc(row.detail) + '</td></tr>';
+    const results = Array.isArray(job.results) ? job.results : [];
+    const groups = { success: [], failed: [], no_account: [] };
+    results.forEach(function (row) { groups[getEitaaResultGroup(row)].push(row); });
+    const activeFilter = ["success", "failed", "no_account"].includes(window.__eitaaResultsFilter)
+      ? window.__eitaaResultsFilter : "success";
+    const selected = groups[activeFilter];
+    const rows = selected.map(function (row, index) {
+      const group = getEitaaResultGroup(row);
+      const contactLabel = getEitaaContactLabel(row);
+      const messageLabel = row.status === "success" ? "موفق" : (group === "no_account" ? "ارسال نشد" : "ناموفق");
+      const color = group === "success" ? "#166534" : (group === "no_account" ? "#92400e" : "#991b1b");
+      return '<tr style="background:' + (index % 2 ? '#f8fafc' : '#fff') + '">' +
+        '<td style="padding:10px;border-bottom:1px solid #e2e8f0">' + (index + 1) + '</td>' +
+        '<td dir="ltr" style="padding:10px;white-space:nowrap;border-bottom:1px solid #e2e8f0">' + esc(row.phone || "") + '</td>' +
+        '<td style="padding:10px;border-bottom:1px solid #e2e8f0">' + esc(row.name || "") + '</td>' +
+        '<td style="padding:10px;border-bottom:1px solid #e2e8f0">' + esc(contactLabel) + '</td>' +
+        '<td style="padding:10px;min-width:220px;white-space:normal;border-bottom:1px solid #e2e8f0">' + esc(row.add_notification || "") + '</td>' +
+        '<td style="padding:10px;color:' + color + ';font-weight:700;border-bottom:1px solid #e2e8f0">' + messageLabel + '</td>' +
+        '<td style="padding:10px;min-width:220px;white-space:normal;border-bottom:1px solid #e2e8f0">' + esc(row.detail || "—") + '</td></tr>';
     }).join("");
-    let html = '<h3>وضعیت ارسال: ' + esc(job.status) + '</h3><p>پیشرفت: ' + processed + ' از ' + total + ' (' + percent + '%) — موفق: ' + Number(job.success || 0) + ' — ناموفق: ' + Number(job.failed || 0) + '</p><div style="height:10px;background:#e5e7eb;border-radius:8px;overflow:hidden"><div style="height:10px;width:' + percent + '%;background:#2563eb"></div></div>';
-    if (job.status === "completed") html += '<p>ارسال پایان یافت.</p><a class="btn btn-primary" href="' + API + '/send/export/' + encodeURIComponent(job.job_id) + '">دانلود گزارش Excel</a>';
-    if (rows) html += '<div style="overflow:auto;margin-top:16px"><table class="table"><thead><tr><th>شماره</th><th>نام</th><th>نتیجه</th><th>توضیحات</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    let html = '<h3>وضعیت ارسال: ' + esc(job.status) + '</h3>' +
+      '<p>پیشرفت: ' + processed + ' از ' + total + ' (' + percent + '%) — موفق: ' + Number(job.success || 0) + ' — ناموفق: ' + Number(job.failed || 0) + '</p>' +
+      '<div style="height:12px;background:#e5e7eb;border-radius:8px;overflow:hidden"><div style="height:12px;width:' + percent + '%;background:linear-gradient(90deg,#2563eb,#22c55e);transition:width .3s"></div></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 12px">' +
+      '<button type="button" data-eitaa-filter="success">موفق (' + groups.success.length + ')</button>' +
+      '<button type="button" data-eitaa-filter="failed">ناموفق (' + groups.failed.length + ')</button>' +
+      '<button type="button" data-eitaa-filter="no_account">حساب ایتا نداشته‌اند (' + groups.no_account.length + ')</button></div>';
+    if (job.status === "completed") {
+      const successRate = total ? Number(job.success || 0) * 100 / total : 0;
+      const outcomeText = successRate < 50 ? "ما تمام تلاش خودمون رو کردیم اما نشد :(" : "شد بالاخره شد :)";
+      const outcomeImage = successRate < 50 ? "/dashboard/img/patrik.jpg" : "/dashboard/img/babesfanch.jpg";
+      html += '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:18px 0;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc">' +
+        '<img src="' + outcomeImage + '" alt="" style="width:100px;height:100px;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'">' +
+        '<strong style="font-size:17px">' + outcomeText + '</strong></div>' +
+        '<p>ارسال پایان یافت.</p><a class="btn btn-primary" href="' + API + '/send/export/' + encodeURIComponent(job.job_id) + '">دانلود گزارش Excel</a>';
+    }
+    html += '<div style="width:100%;overflow-x:auto;margin-top:16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff"><table style="width:100%;min-width:1050px;border-collapse:collapse;text-align:right;font-size:13px;line-height:1.8"><thead style="background:#f1f5f9"><tr>' +
+      '<th style="padding:11px">ردیف</th><th style="padding:11px">شماره</th><th style="padding:11px">نام</th><th style="padding:11px">وضعیت مخاطب</th><th style="padding:11px">پیغام لحظه‌ای ایتا هنگام افزودن</th><th style="padding:11px">وضعیت پیام</th><th style="padding:11px">توضیحات</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="7" style="padding:18px;text-align:center;color:#64748b">موردی در این دسته وجود ندارد.</td></tr>') +
+      '</tbody></table></div>';
     panel.innerHTML = html;
+    panel.querySelectorAll("[data-eitaa-filter]").forEach(function (button) {
+      button.style.cssText = "padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer";
+      if (button.dataset.eitaaFilter === activeFilter) button.style.background = "#dbeafe";
+      button.addEventListener("click", function () {
+        window.__eitaaResultsFilter = button.dataset.eitaaFilter;
+        renderJob(job);
+      });
+    });
   }
 
   window.eitaaResetAccount = async function () {
