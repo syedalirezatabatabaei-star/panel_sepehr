@@ -85,7 +85,7 @@
     const error = el("eitaaMediaError");
     if (!fileInput || !error) return true;
     const file = fileInput.files && fileInput.files[0];
-    const isVideo = !!file && (/^video\\//i.test(file.type) || /\\.(mp4|mov|m4v|webm)$/i.test(file.name));
+    const isVideo = !!file && (/^video\//i.test(file.type) || /\.(mp4|mov|m4v|webm)$/i.test(file.name));
     if (isVideo && file.size > 20 * 1024 * 1024) {
       error.textContent = "حجم ویدئو نباید بیشتر از ۲۰ مگابایت باشد.";
       error.hidden = false;
