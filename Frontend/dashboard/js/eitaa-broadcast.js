@@ -230,7 +230,7 @@
       const outcomeText = successRate < 50 ? "ما تمام تلاش خودمون رو کردیم اما نشد :(" : "شد بالاخره شد :)";
       const outcomeImage = successRate < 50 ? "/dashboard/img/patrik.jpg" : "/dashboard/img/babesfanch.jpg";
       html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;margin:18px 0;padding:18px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;text-align:center">' +
-        '<img src="' + outcomeImage + '" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:10px;display:block;margin:0 auto" onerror="this.style.display=\\\'none\\\'">' +
+        '<img src="' + outcomeImage + '" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:10px;display:block;margin:0 auto" onerror="this.remove()">' +
         '<strong style="font-size:17px;text-align:center">' + outcomeText + '</strong></div>' +
         '<p>ارسال پایان یافت.</p><a class="btn btn-primary" href="' + API + '/send/export/' + encodeURIComponent(job.job_id) + '">دانلود گزارش Excel</a>';
     }
