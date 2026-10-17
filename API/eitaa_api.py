@@ -171,11 +171,22 @@ def _contacts_index(account_phone):
 def _resolve_contact(account_phone, target, contacts):
     existing = contacts.get(target["phone"])
     if existing and existing.get("id") is not None:
-        return {"id": existing["id"], "access_hash": existing.get("access_hash", 0)}
+        return {
+            "id": existing["id"],
+            "access_hash": existing.get("access_hash", 0),
+            "contact_status": "success",
+            "add_notification": "مخاطب از قبل در فهرست مخاطبان ایتا وجود داشت.",
+        }
     result = _request("POST", "/eitaa/contacts/add", json={"phone": account_phone, "peerPhone": target["phone"], "firstname": target["name"]})
     if result.get("id") is None:
-        raise RuntimeError("مخاطب در ایتا پیدا نشد یا افزودن مخاطب تأیید نشد")
-    peer = {"id": result["id"], "access_hash": result.get("acces_hash", result.get("access_hash", 0))}
+        detail = result.get("message") or result.get("error") or "مخاطب در ایتا پیدا نشد یا افزودن مخاطب تأیید نشد"
+        raise RuntimeError(str(detail))
+    peer = {
+        "id": result["id"],
+        "access_hash": result.get("acces_hash", result.get("access_hash", 0)),
+        "contact_status": "success",
+        "add_notification": result.get("message") or result.get("detail") or "مخاطب به ایتا اضافه شد.",
+    }
     contacts[target["phone"]] = {"phone": target["phone"], **peer}
     return peer
 
@@ -185,20 +196,37 @@ def _write_report(job_id, results):
     wb = Workbook()
     ws = wb.active
     ws.title = "نتایج"
-    ws.append(["ردیف", "شماره", "نام", "وضعیت", "توضیحات"])
+    headers = [
+        "ردیف", "شماره", "نام", "وضعیت مخاطب",
+        "پیغام لحظه‌ای ایتا هنگام افزودن", "وضعیت پیام", "توضیحات",
+    ]
+    ws.append(headers)
     for cell in ws[1]:
         cell.fill = PatternFill("solid", fgColor="1F4E79")
         cell.font = Font(color="FFFFFF", bold=True)
-        cell.alignment = Alignment(horizontal="center")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     for index, item in enumerate(results, 1):
-        ws.append([index, item.get("phone", ""), item.get("name", ""), item.get("status", ""), item.get("detail", "")])
-    for col, width in {"A": 8, "B": 20, "C": 24, "D": 18, "E": 55}.items():
+        contact_status = item.get("contact_status") or ("success" if item.get("peer_id") else "not_registered" if "پیدا نشد" in str(item.get("detail", "")) else "error")
+        contact_label = {
+            "success": "مخاطب موجود/افزوده شد",
+            "not_registered": "حساب ایتا ندارد یا پیدا نشد",
+            "error": "افزودن ناموفق",
+        }.get(contact_status, contact_status)
+        message_label = {"success": "موفق", "error": "ناموفق", "not_sent": "ارسال نشد"}.get(item.get("status"), item.get("status", "نامشخص"))
+        ws.append([
+            index, item.get("phone", ""), item.get("name", ""), contact_label,
+            item.get("add_notification", ""), message_label, item.get("detail", ""),
+        ])
+    for col, width in {"A": 8, "B": 20, "C": 24, "D": 26, "E": 55, "F": 18, "G": 55}.items():
         ws.column_dimensions[col].width = width
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
     summary = wb.create_sheet("خلاصه")
     summary.append(["شاخص", "مقدار"])
     summary.append(["کل", len(results)])
     summary.append(["موفق", sum(1 for item in results if item.get("status") == "success")])
     summary.append(["ناموفق", sum(1 for item in results if item.get("status") != "success")])
+    summary.append(["حساب ایتا ندارد/مخاطب پیدا نشد", sum(1 for item in results if item.get("contact_status") == "not_registered")])
     wb.save(output)
     return str(output)
 
@@ -213,9 +241,12 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
         JOBS[job_id]["status"] = "running"
         JOBS[job_id]["started_at"] = datetime.now().isoformat(timespec="seconds")
     for index, target in enumerate(recipients, 1):
-        row = {"phone": target["phone"], "name": target["name"], "status": "error", "detail": ""}
+        row = {"phone": target["phone"], "name": target["name"], "status": "error", "contact_status": "error", "add_notification": "", "detail": ""}
         try:
             peer = _resolve_contact(phone, target, contacts)
+            row["contact_status"] = peer.get("contact_status", "success")
+            row["add_notification"] = peer.get("add_notification", "")
+            row["peer_id"] = peer.get("id")
             payload = {"phone": phone, "id": peer["id"], "access_hash": peer.get("access_hash", 0), "type": "user", "message": message or ""}
             if media_path:
                 payload.update({"path": media_path, "media_type": media_type or "file"})
@@ -229,13 +260,19 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
             row["status"], row["detail"] = "success", "پیام ارسال شد"
         except Exception as exc:
             row["detail"] = str(exc)[:500]
+            if "پیدا نشد" in row["detail"] or "not found" in row["detail"].lower() or "user not found" in row["detail"].lower():
+                row["contact_status"] = "not_registered"
+            else:
+                row["contact_status"] = "error"
+            if not row["add_notification"]:
+                row["add_notification"] = row["detail"]
         results.append(row)
         with JOBS_LOCK:
             JOBS[job_id]["processed"] = index
             JOBS[job_id]["success"] = sum(1 for item in results if item["status"] == "success")
             JOBS[job_id]["failed"] = len(results) - JOBS[job_id]["success"]
             JOBS[job_id]["results"] = list(results)
-        if index < len(recipients):
+        if index < len(recipients) and delay > 0:
             time.sleep(delay)
     try:
         report = _write_report(job_id, results)
@@ -250,12 +287,10 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
 
 
 @router.post("/send")
-async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""), media: UploadFile | None = File(None), consent_confirmed: bool = Form(False), delay_seconds: int = Form(3)):
+async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""), media: UploadFile | None = File(None), delay_seconds: int = Form(0)):
     saved = _account()
     if not saved or not saved.get("phone"):
         raise HTTPException(401, "ابتدا وارد حساب ایتا شوید")
-    if not consent_confirmed:
-        raise HTTPException(400, "تأیید کنید که مخاطبان اجازه دریافت این پیام را دارند")
     if not message.strip() and not (media and media.filename):
         raise HTTPException(400, "متن پیام یا فایل رسانه‌ای الزامی است")
     if not excel.filename or Path(excel.filename).suffix.lower() not in {".xlsx", ".xlsm"}:
@@ -274,11 +309,14 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
             suffix = Path(media.filename).suffix.lower()
             if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".pdf", ".doc", ".docx"}:
                 raise HTTPException(400, "فرمت فایل رسانه‌ای پشتیبانی نمی‌شود")
+            media_bytes = await media.read()
+            if suffix in {".mp4", ".mov"} and len(media_bytes) > 20 * 1024 * 1024:
+                raise HTTPException(400, "حجم ویدئو نباید بیشتر از ۲۰ مگابایت باشد")
             media_path = MEDIA_DIR / (job_id + "_media" + suffix)
-            media_path.write_bytes(await media.read())
+            media_path.write_bytes(media_bytes)
         with JOBS_LOCK:
             JOBS[job_id] = {"job_id": job_id, "status": "queued", "total": len(recipients), "processed": 0, "success": 0, "failed": 0, "results": [], "created_at": datetime.now().isoformat(timespec="seconds")}
-        delay = max(2, min(int(delay_seconds), 30))
+        delay = max(0, min(int(delay_seconds), 30))
         media_type = "photo" if media_path and media_path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else "file"
         background_tasks.add_task(_run_job, job_id, saved["phone"], recipients, message, str(media_path) if media_path else None, media_type, delay)
         return {"success": True, "job_id": job_id, "total": len(recipients)}
