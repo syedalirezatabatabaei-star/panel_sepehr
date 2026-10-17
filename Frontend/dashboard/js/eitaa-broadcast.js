@@ -1,7 +1,7 @@
 (function () {
   "use strict";
   const API = window.location.protocol + "//" + window.location.hostname + ":8005/api/eitaa";
-  let activeJob = null, pollTimer = null, pendingPhone = "";
+  let activeJob = null, pollTimer = null, pendingPhone = "", pollFailures = 0;
 
   function el(id) { return document.getElementById(id); }
   function toast(message, type) {
@@ -119,7 +119,8 @@
     try {
       const result = await api("/send", {method:"POST",body:formData});
       activeJob = result.job_id;
-      renderJob({job_id:activeJob,status:"queued",total:result.total,processed:0,success:0,failed:0,results:[]});
+      pollFailures = 0;
+      renderJob({job_id:activeJob,status:"queued",phase:"در صف انتظار",progress:0,total:result.total,processed:0,success:0,failed:0,results:[]});
       pollJob();
     } catch (error) {
       toast(error.message, "error");
@@ -132,6 +133,7 @@
     if (!activeJob) return;
     try {
       const job = await api("/send/status/" + encodeURIComponent(activeJob));
+      pollFailures = 0;
       renderJob(job);
       if (job.status === "completed") {
         activeJob = null;
@@ -141,11 +143,35 @@
         }
         return;
       }
+      pollTimer = window.setTimeout(pollJob, 1800);
     } catch (error) {
+      pollFailures += 1;
       const panel = el("eitaaJobPanel");
-      if (panel) panel.insertAdjacentHTML("beforeend", '<p style="color:#b91c1c">' + esc(error.message) + '</p>');
+      if (panel) {
+        let log = panel.querySelector("#eitaaRefreshErrorLog");
+        if (!log) {
+          log = document.createElement("div");
+          log.id = "eitaaRefreshErrorLog";
+          log.style.cssText = "margin-top:12px;padding:12px;border:1px solid #fecaca;background:#fff7f7;border-radius:10px;color:#991b1b;line-height:1.8";
+          panel.appendChild(log);
+        }
+        const line = document.createElement("div");
+        line.textContent = "[" + new Date().toLocaleString("fa-IR") + "] خطای رفرش " + pollFailures + "/۵: " + (error.message || "خطای نامشخص");
+        log.appendChild(line);
+        if (pollFailures >= 5) {
+          line.textContent += " — تلاش مجدد متوقف شد.";
+          log.insertAdjacentHTML("beforeend", '<div style="display:flex;align-items:center;gap:12px;margin-top:10px"><img src="/dashboard/img/patrik.jpg" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:8px" onerror="this.style.display=\'none\'"><strong>پیام بله خراب شده بالا نمیاد</strong></div>');
+          const button = el("eitaaStartButton");
+          if (button) { button.disabled = false; button.textContent = "شروع ارسال جدید"; }
+          activeJob = null;
+          return;
+        }
+        const note = document.createElement("div");
+        note.textContent = "تلاش بعدی برای رفرش حداقل یک دقیقه دیگر انجام می‌شود.";
+        log.appendChild(note);
+      }
+      pollTimer = window.setTimeout(pollJob, 60000);
     }
-    pollTimer = window.setTimeout(pollJob, 1800);
   }
 
   function getEitaaResultGroup(row) {
@@ -169,7 +195,8 @@
     const panel = el("eitaaJobPanel");
     if (!panel) return;
     const total = Number(job.total || 0), processed = Number(job.processed || 0);
-    const percent = total ? Math.round(processed * 100 / total) : 0;
+    const fallbackPercent = total ? Math.round(processed * 100 / total) : 0;
+    const percent = Math.max(0, Math.min(100, Number.isFinite(Number(job.progress)) ? Number(job.progress) : fallbackPercent));
     const results = Array.isArray(job.results) ? job.results : [];
     const groups = { success: [], failed: [], no_account: [] };
     results.forEach(function (row) { groups[getEitaaResultGroup(row)].push(row); });
@@ -191,7 +218,7 @@
         '<td style="padding:10px;min-width:220px;white-space:normal;border-bottom:1px solid #e2e8f0">' + esc(row.detail || "—") + '</td></tr>';
     }).join("");
     let html = '<h3>وضعیت ارسال: ' + esc(job.status) + '</h3>' +
-      '<p>پیشرفت: ' + processed + ' از ' + total + ' (' + percent + '%) — موفق: ' + Number(job.success || 0) + ' — ناموفق: ' + Number(job.failed || 0) + '</p>' +
+      '<p>مرحله: ' + esc(job.phase || job.status) + ' — پیشرفت: ' + percent + '% (' + processed + ' از ' + total + ') — موفق: ' + Number(job.success || 0) + ' — ناموفق: ' + Number(job.failed || 0) + '</p>' +
       '<div style="height:12px;background:#e5e7eb;border-radius:8px;overflow:hidden"><div style="height:12px;width:' + percent + '%;background:linear-gradient(90deg,#2563eb,#22c55e);transition:width .3s"></div></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 12px">' +
       '<button type="button" data-eitaa-filter="success">موفق (' + groups.success.length + ')</button>' +
