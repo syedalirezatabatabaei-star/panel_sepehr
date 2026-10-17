@@ -1990,7 +1990,7 @@ function renderBaleOutcome(message, imagePath, kind = "error") {
 function handleBalePollEmergencyStop(jobId) {
     const statusElement = document.getElementById("baleProgressStatus");
     if (statusElement) statusElement.textContent = "توقف اضطراری: پس از ۵ تلاش ناموفق، بررسی خودکار وضعیت متوقف شد.";
-    renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "./img/patrik.jpg", "error");
+    renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "/dashboard/img/patrik.jpg", "error");
 
     const sendButton = document.getElementById("baleSendButton");
     if (sendButton) {
@@ -2013,9 +2013,9 @@ function handleBaleCompleted(data) {
 
     renderBaleResults(results);
     if (percentSuccessful >= 50) {
-        renderBaleOutcome("شد بالاخره شد :)", "./img/babesfanch.jpg", "success");
+        renderBaleOutcome("شد بالاخره شد :)", "/dashboard/img/babesfanch.jpg", "success");
     } else {
-        renderBaleOutcome("ما تمام تلاش خودمون رو کردیم اما نشد :(", "./img/patrik.jpg", "error");
+        renderBaleOutcome("ما تمام تلاش خودمون رو کردیم اما نشد :(", "/dashboard/img/patrik.jpg", "error");
     }
 
     showToast(`پردازش تمام شد؛ پیام موفق برای ${sentCount} از ${total} مخاطب.`, "success");
@@ -2042,7 +2042,7 @@ function handleBaleFailed(data) {
     const statusElement = document.getElementById("baleProgressStatus");
     if (statusElement) statusElement.textContent = data.message || data.error || "پردازش با خطا متوقف شد.";
     renderBaleResults(data.results || []);
-    renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "./img/patrik.jpg", "error");
+    renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "/dashboard/img/patrik.jpg", "error");
     showToast(data.message || data.error || "پردازش با خطا متوقف شد.", "error");
 
     const sendButton = document.getElementById("baleSendButton");
@@ -2050,6 +2050,23 @@ function handleBaleFailed(data) {
         sendButton.disabled = false;
         sendButton.textContent = "ارسال پیام‌ها";
     }
+}
+
+function getBaleContactStatusLabel(item) {
+    const status = String(item.contact_status || item.contact_add_status || "").toLowerCase();
+    if (["success", "added", "confirmed"].includes(status)) return "افزوده شد";
+    if (status === "add_confirmed_but_not_found") return "افزودن تأیید شد؛ پیدا نشد";
+    if (["not_registered", "not-registered"].includes(status)) return "حساب بله ندارد";
+    if (["not_added", "error", "failed", "unconfirmed"].includes(status)) return "افزودن ناموفق";
+    return status || "نامشخص";
+}
+
+function getBaleMessageStatusLabel(item) {
+    const status = String(item.message_status || item.status || "").toLowerCase();
+    if (["sent", "success"].includes(status) || item.success === true) return "موفق";
+    if (["skipped", "not_sent"].includes(status)) return "ارسال نشد";
+    if (["failed", "error"].includes(status)) return "ناموفق";
+    return status || "نامشخص";
 }
 
 function renderBaleResults(results) {
@@ -2080,22 +2097,45 @@ function renderBaleResults(results) {
             <button type="button" data-bale-filter="failed" aria-pressed="${activeFilter === "failed"}" style="padding:8px 12px;border:1px solid #fca5a5;border-radius:8px;background:${activeFilter === "failed" ? "#fee2e2" : "#fff"};cursor:pointer;">ناموفق (${counts.failed})</button>
             <button type="button" data-bale-filter="no_account" aria-pressed="${activeFilter === "no_account"}" style="padding:8px 12px;border:1px solid #fcd34d;border-radius:8px;background:${activeFilter === "no_account" ? "#fef3c7" : "#fff"};cursor:pointer;">حساب بله نداشته‌اند (${counts.no_account})</button>
         </div>
-        <div id="baleResultRows"></div>`;
+        <div style="width:100%;overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;">
+          <table style="width:100%;min-width:1050px;border-collapse:collapse;text-align:right;font-size:13px;line-height:1.8;">
+            <thead style="background:#f1f5f9;color:#0f172a;">
+              <tr>
+                <th style="padding:11px;border-bottom:1px solid #cbd5e1;white-space:nowrap;">ردیف</th>
+                <th style="padding:11px;border-bottom:1px solid #cbd5e1;white-space:nowrap;">شماره</th>
+                <th style="padding:11px;border-bottom:1px solid #cbd5e1;white-space:nowrap;">نام</th>
+                <th style="padding:11px;border-bottom:1px solid #cbd5e1;white-space:nowrap;">وضعیت مخاطب</th>
+                <th style="padding:11px;border-bottom:1px solid #cbd5e1;min-width:220px;">پیغام لحظه‌ای بله هنگام افزودن</th>
+                <th style="padding:11px;border-bottom:1px solid #cbd5e1;white-space:nowrap;">وضعیت پیام</th>
+                <th style="padding:11px;border-bottom:1px solid #cbd5e1;min-width:220px;">توضیحات</th>
+              </tr>
+            </thead>
+            <tbody id="baleResultRows"></tbody>
+          </table>
+        </div>`;
 
     const rowsContainer = container.querySelector("#baleResultRows");
     const selected = groups[activeFilter];
     if (!selected.length) {
-        rowsContainer.innerHTML = '<div style="padding:14px;color:#64748b;text-align:center;">موردی در این دسته وجود ندارد.</div>';
+        rowsContainer.innerHTML = '<tr><td colspan="7" style="padding:18px;color:#64748b;text-align:center;">موردی در این دسته وجود ندارد.</td></tr>';
     } else {
         rowsContainer.innerHTML = selected.map((item, index) => {
             const phone = escapeBaleHtml(item.phone || "");
             const name = escapeBaleHtml(item.name || item.phone || "بدون نام");
-            const detail = escapeBaleHtml(item.error || item.contact_add_detail || item.message || "");
-            return `<div style="padding:11px 12px;margin-bottom:7px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;">
-                <div style="font-weight:700;">${index + 1}. ${name}</div>
-                <div style="direction:ltr;text-align:right;color:#475569;margin-top:4px;">${phone}</div>
-                ${detail ? `<div style="margin-top:6px;color:#64748b;font-size:13px;">${detail}</div>` : ""}
-            </div>`;
+            const contactStatus = escapeBaleHtml(getBaleContactStatusLabel(item));
+            const addNotification = escapeBaleHtml(item.ui_notification || item.add_notification || item.contact_add_detail || "");
+            const messageStatus = escapeBaleHtml(getBaleMessageStatusLabel(item));
+            const detail = escapeBaleHtml(item.error || item.detail || item.description || item.message || "");
+            const messageColor = getBaleResultGroup(item) === "success" ? "#166534" : (getBaleResultGroup(item) === "no_account" ? "#92400e" : "#991b1b");
+            return `<tr style="background:${index % 2 ? "#f8fafc" : "#fff"};">
+                <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;">${index + 1}</td>
+                <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;direction:ltr;text-align:right;white-space:nowrap;">${phone}</td>
+                <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;">${name}</td>
+                <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${contactStatus}</td>
+                <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;white-space:normal;">${addNotification || "—"}</td>
+                <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;color:${messageColor};font-weight:700;white-space:nowrap;">${messageStatus}</td>
+                <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;white-space:normal;">${detail || "—"}</td>
+            </tr>`;
         }).join("");
     }
 
