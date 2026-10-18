@@ -111,10 +111,8 @@
     formData.append("excel", el("eitaaExcel").files[0]);
     formData.append("message", el("eitaaMessage").value);
     if (mediaFile) formData.append("media", mediaFile);
-    const delayInput = el("eitaaDelaySeconds");
-    const rawDelay = delayInput ? Number.parseInt(delayInput.value, 10) : 0;
-    const delaySeconds = Number.isFinite(rawDelay) ? Math.max(0, Math.min(30, rawDelay)) : 0;
-    // فاصله انتخاب‌شده بین پیام‌ها؛ سرور مقدار صفر تا ۳۰ را می‌پذیرد.
+    // فاصله انتخاب‌شده بین پیام‌ها؛ سرور بازه ۰ تا ۳۰ ثانیه را می‌پذیرد.
+    const delaySeconds = Math.max(0, Math.min(30, parseInt(el("eitaaDelaySeconds").value, 10) || 0));
     formData.append("delay_seconds", String(delaySeconds));
     const button = el("eitaaStartButton");
     button.disabled = true;
@@ -231,9 +229,9 @@
       const successRate = total ? Number(job.success || 0) * 100 / total : 0;
       const outcomeText = successRate < 50 ? "ما تمام تلاش خودمون رو کردیم اما نشد :(" : "شد بالاخره شد :)";
       const outcomeImage = successRate < 50 ? "/dashboard/img/patrik.jpg" : "/dashboard/img/babesfanch.jpg";
-      html += '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:18px 0;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc">' +
-        '<img src="' + outcomeImage + '" alt="" style="width:100px;height:100px;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'">' +
-        '<strong style="font-size:17px">' + outcomeText + '</strong></div>' +
+      html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;margin:18px 0;padding:18px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;text-align:center">' +
+        '<img src="' + outcomeImage + '" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:10px;display:block;margin:0 auto" onerror="this.remove()">' +
+        '<strong style="font-size:17px;text-align:center">' + outcomeText + '</strong></div>' +
         '<p>ارسال پایان یافت.</p><a class="btn btn-primary" href="' + API + '/send/export/' + encodeURIComponent(job.job_id) + '">دانلود گزارش Excel</a>';
     }
     html += '<div style="width:100%;overflow-x:auto;margin-top:16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff"><table style="width:100%;min-width:1050px;border-collapse:collapse;text-align:right;font-size:13px;line-height:1.8"><thead style="background:#f1f5f9"><tr>' +
