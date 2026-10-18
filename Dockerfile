@@ -16,9 +16,36 @@ ARG EITAABUN_REF=7c03eaf0c8de5d81822441a179413e5ea18e8db2
 RUN git init . \
     && git remote add origin https://github.com/ghaemifard/EitaaBun.git \
     && git fetch --depth 1 origin "${EITAABUN_REF}" \
-    && git checkout --detach FETCH_HEAD \
-    && bun install --production \
-    && rm -rf .git
+    && git checkout --detach FETCH_HEAD
+
+# Fix a bug that masks the actual Eitaa RPC error: sendError must receive
+# Express's response object, not the Eitaa RPC result. Log the RPC error and
+# caught exception so FLOOD_WAIT / protocol errors remain diagnosable.
+RUN python - <<'PY'
+from pathlib import Path
+p = Path("/opt/EitaaBun/src/web/AuthController.ts")
+s = p.read_text()
+old = '''            }else{
+                this.sendError(res,"error in sending code")
+            }
+        }catch(e){
+            this.sendError(resp,"error in connection");
+        }'''
+new = '''            }else{
+                console.error("[EITAA SEND CODE RPC ERROR]", JSON.stringify(res));
+                const rpcError = res && (res.text || res.error_message || res._);
+                this.sendError(resp, typeof rpcError === "string" ? rpcError : "error in sending code");
+            }
+        }catch(e){
+            console.error("[EITAA SEND CODE EXCEPTION]", e);
+            this.sendError(resp,"error in connection");
+        }'''
+if old not in s:
+    raise SystemExit("AuthController target block not found; refusing to build with an unapplied patch")
+p.write_text(s.replace(old, new, 1))
+PY
+
+RUN cd /opt/EitaaBun && bun install --production && rm -rf .git
 
 FROM python:3.12-slim
 
