@@ -1,6 +1,9 @@
 # Build the Eitaa service separately so Bun, Git and build-time files
 # are not kept in the final Python runtime image.
-FROM oven/bun:1.1.38 AS eitaa-build
+FROM python:3.12-slim AS eitaa-build
+
+# Reuse the Bun image already available on the build host instead of using its older Debian base.
+COPY --from=oven/bun:1.1.38 /usr/local/bin/bun /usr/local/bin/bun
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
