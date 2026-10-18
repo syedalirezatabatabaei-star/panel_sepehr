@@ -431,7 +431,9 @@ class BaleMediaSender:
         # Find file input
         # ---------------------------------------------
 
-        baseline_media_count = self._count_visible_chat_media()\n\n        file_input = self._find_file_input(media_type)
+        baseline_media_count = self._count_visible_chat_media()
+
+        file_input = self._find_file_input(media_type)
 
         if file_input is None:
 
@@ -499,7 +501,7 @@ class BaleMediaSender:
         # Send
         # ---------------------------------------------
 
-        return self._send_media_message(\n            baseline_media_count=baseline_media_count\n        )
+        return self._send_media_message(baseline_media_count=baseline_media_count)
 
     # -----------------------------------------------------
     # SEND MEDIA MESSAGE
