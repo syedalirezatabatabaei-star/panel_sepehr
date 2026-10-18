@@ -2558,24 +2558,39 @@ function confirmDeleteUser(userId) {
     );
 }
 
-function deleteUser(userId) {
-    const idx =
-        USERS.findIndex(
-            u => u.id === userId
-        );
+async function deleteUser(userId) {
+    const user = USERS.find(u => Number(u.id) === Number(userId));
+    if (!user) return;
 
-    if (idx >= 0) {
-        USERS.splice(idx, 1);
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        const raw = await response.text();
+        let data = {};
+        try {
+            data = raw ? JSON.parse(raw) : {};
+        } catch (_) {
+            throw new Error(`پاسخ نامعتبر از سرور (HTTP ${response.status})`);
+        }
+
+        if (!response.ok || data.success !== true) {
+            const detail = typeof data.detail === 'string'
+                ? data.detail
+                : data.detail?.message;
+            throw new Error(detail || data.message || 'حذف کاربر ناموفق بود');
+        }
+
+        closeModalDirect();
+        showToast(data.message || 'کاربر با موفقیت حذف شد', 'success');
+        navigateTo('users');
+    } catch (error) {
+        console.error('DELETE USER ERROR:', error);
+        showToast(error.message || 'خطا در حذف کاربر از دیتابیس', 'error');
     }
-
-    closeModalDirect();
-
-    showToast(
-        'کاربر حذف شد',
-        'success'
-    );
-
-    navigateTo('users');
 }
 
 
@@ -7364,35 +7379,55 @@ function showToast(
    USER STATUS
    ========================================================= */
 
-function toggleUserStatus(
-    userId
-) {
-
-    const user =
-        USERS.find(
-            u =>
-                u.id ===
-                userId
-        );
-
+async function toggleUserStatus(userId) {
+    const user = USERS.find(u => Number(u.id) === Number(userId));
     if (!user) return;
 
-    user.status =
-        user.status === 'active'
-            ? 'inactive'
-            : 'active';
+    const isActive = user.status !== 'active';
 
-    showToast(
-        `کاربر ${user.firstName} ${user.lastName} ${
-            user.status === 'active'
-                ? 'فعال'
-                : 'غیرفعال'
-        } شد`,
-        'success'
-    );
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                first_name: user.firstName || '',
+                last_name: user.lastName || '',
+                username: user.username || '',
+                new_password: null,
+                organizational_position: user.organizationalPosition || user.role || null,
+                access_level: Number(user.level || user.access_level || 1),
+                is_active: isActive ? 1 : 0
+            })
+        });
 
-    navigateTo(
-        'users'
-    );
+        const raw = await response.text();
+        let data = {};
+        try {
+            data = raw ? JSON.parse(raw) : {};
+        } catch (_) {
+            throw new Error(`پاسخ نامعتبر از سرور (HTTP ${response.status})`);
+        }
+
+        if (!response.ok || data.success !== true) {
+            const detail = typeof data.detail === 'string'
+                ? data.detail
+                : data.detail?.message;
+            throw new Error(detail || data.message || 'تغییر وضعیت کاربر ناموفق بود');
+        }
+
+        // وضعیت را از دیتابیس دوباره می‌خوانیم تا UI فقط بعد از موفقیت API به‌روز شود.
+        await loadUsers();
+        showToast(
+            `کاربر ${user.firstName} ${user.lastName} ${isActive ? 'فعال' : 'غیرفعال'} شد`,
+            'success'
+        );
+    } catch (error) {
+        console.error('TOGGLE USER STATUS ERROR:', error);
+        showToast(error.message || 'خطا در تغییر وضعیت کاربر در دیتابیس', 'error');
+    }
 }
 
