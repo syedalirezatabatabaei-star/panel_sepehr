@@ -211,6 +211,7 @@ function navigateTo(page, data) {
     // ورود به صفحات تنظیمات → nav ساخته شود
     openSettingsSection();
 
+    const previousPage = AppState.currentPage;
     AppState.currentPage = page;
 
     closeSettingsNav();
@@ -258,6 +259,9 @@ function navigateTo(page, data) {
     }
 
     renderPage(page);
+    if (page === 'users' && previousPage !== 'users' && typeof loadUsers === 'function') {
+        loadUsers().catch(() => {});
+    }
 }
 
 function renderPage(page) {
@@ -325,10 +329,10 @@ function avatarColor(id) {
 }
 
 function renderAvatar(user, size = 'md') {
-    const initials =
-        user.firstName.charAt(0) +
-        ' ' +
-        user.lastName.charAt(0);
+    const firstName = String(user.firstName || '');
+    const lastName = String(user.lastName || '');
+    const initials = (firstName.charAt(0) || lastName.charAt(0) || '?') +
+        (firstName && lastName ? ' ' + lastName.charAt(0) : '');
 
     return `
         <div
@@ -1203,9 +1207,9 @@ function renderUsers() {
 
         filtered =
             filtered.filter(user =>
-                user.firstName.toLowerCase().includes(q) ||
-                user.lastName.toLowerCase().includes(q) ||
-                user.username.toLowerCase().includes(q)
+                String(user.firstName || '').toLowerCase().includes(q) ||
+                String(user.lastName || '').toLowerCase().includes(q) ||
+                String(user.username || '').toLowerCase().includes(q)
             );
     }
 

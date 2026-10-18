@@ -321,7 +321,7 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
 
 
 @router.post("/send")
-async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""), media: UploadFile | None = File(None), delay_seconds: int = Form(0)):
+async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""), media: UploadFile | None = File(None), delay_seconds: int = Form(0, ge=0, le=30)):
     saved = _account()
     if not saved or not saved.get("phone"):
         raise HTTPException(401, "ابتدا وارد حساب ایتا شوید")
@@ -350,7 +350,7 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
             media_path.write_bytes(media_bytes)
         with JOBS_LOCK:
             JOBS[job_id] = {"job_id": job_id, "status": "queued", "total": len(recipients), "processed": 0, "success": 0, "failed": 0, "results": [], "created_at": datetime.now().isoformat(timespec="seconds")}
-        delay = max(0, min(int(delay_seconds), 30))
+        delay = int(delay_seconds)
         media_type = "photo" if media_path and media_path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else "file"
         background_tasks.add_task(_run_job, job_id, saved["phone"], recipients, message, str(media_path) if media_path else None, media_type, delay)
         return {"success": True, "job_id": job_id, "total": len(recipients)}
