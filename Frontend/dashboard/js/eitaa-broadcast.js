@@ -114,9 +114,8 @@
     const delayInput = el("eitaaDelaySeconds");
     const rawDelay = delayInput ? Number.parseInt(delayInput.value, 10) : 0;
     const delaySeconds = Number.isFinite(rawDelay) ? Math.max(0, Math.min(30, rawDelay)) : 0;
+    // فاصله انتخاب‌شده بین پیام‌ها؛ سرور مقدار صفر تا ۳۰ را می‌پذیرد.
     formData.append("delay_seconds", String(delaySeconds));
-    // ارسال بدون مکث اجباری بین مخاطبان؛ سرور مقدار صفر را می‌پذیرد.
-    formData.append("delay_seconds", "0");
     const button = el("eitaaStartButton");
     button.disabled = true;
     button.textContent = "در حال شروع...";
