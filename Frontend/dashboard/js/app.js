@@ -6,7 +6,7 @@
    config
    ========================= */
 
-const API_BASE = 'http://95.38.187.123:8005';
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:8005`;
 let CURRENT_USER = null;
 
 /* =========================
@@ -96,32 +96,50 @@ async function loadUsers() {
     try {
         const response = await fetch(`${API_BASE}/api/auth/users`, {
             method: 'GET',
-            credentials: 'include'
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
         });
-
         const text = await response.text();
-
-        console.log('USERS STATUS:', response.status);
-        //console.log('USERS RESPONSE:', text);
-
-        if (!response.ok) {
-            throw new Error(`USERS API ${response.status}: ${text}`);
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (_) {
+            throw new Error(`پاسخ نامعتبر از API کاربران (HTTP ${response.status})`);
         }
 
-        const data = JSON.parse(text);
-
-        if (Array.isArray(data)) {
-            USERS = data;
-        } else if (Array.isArray(data.users)) {
-            USERS = data.users;
-        } else {
-            USERS = [];
+        if (!response.ok || data.success === false) {
+            throw new Error(data.detail || data.message || `خطا در دریافت کاربران (HTTP ${response.status})`);
         }
 
-        updateUserUI();
+        const rows = Array.isArray(data) ? data : data.users;
+        if (!Array.isArray(rows)) {
+            throw new Error('ساختار پاسخ API کاربران معتبر نیست');
+        }
 
+        USERS = rows.map(user => ({
+            ...user,
+            id: Number(user.id),
+            firstName: String(user.firstName ?? user.first_name ?? ''),
+            lastName: String(user.lastName ?? user.last_name ?? ''),
+            username: String(user.username ?? ''),
+            organizationalPosition: String(user.organizationalPosition ?? user.organizational_position ?? user.role ?? '-'),
+            role: String(user.role ?? user.organizationalPosition ?? user.organizational_position ?? '-'),
+            status: user.status ?? ((user.is_active ?? user.isActive) ? 'active' : 'inactive'),
+            level: Number(user.level ?? user.access_level ?? user.accessLevel ?? 1),
+            createdAt: user.createdAt ?? user.created_at ?? ''
+        }));
+
+        if (typeof updateUserUI === 'function') updateUserUI();
+        if (AppState.currentPage === 'users' && typeof renderPage === 'function') {
+            renderPage('users');
+        }
+        return USERS;
     } catch (error) {
         console.error('loadUsers:', error);
+        if (typeof showToast === 'function') {
+            showToast(error.message || 'دریافت کاربران از دیتابیس ناموفق بود', 'error');
+        }
+        throw error;
     }
 }
 
