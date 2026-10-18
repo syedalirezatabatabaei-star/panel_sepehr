@@ -15,7 +15,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 router = APIRouter(prefix="/api/eitaa", tags=["Eitaa broadcast"])
-SERVICE_URL = os.getenv("EITAA_SERVICE_URL", "http://127.0.0.1:1234").rstrip("/")
+SERVICE_URL = os.getenv("EITAA_SERVICE_URL", "http://eitaa-service:1234").rstrip("/")
 STATE_DIR = Path(os.getenv("EITAA_STATE_DIR", "/app/data/eitaa-state"))
 MEDIA_DIR = Path(os.getenv("EITAA_MEDIA_DIR", "/shared/eitaa-media"))
 REPORT_DIR = STATE_DIR / "reports"
