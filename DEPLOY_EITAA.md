@@ -1,40 +1,69 @@
-# راه‌اندازی ایتا داخل همان کانتینر bale_sender
+# اجرای EitaaBun در کانتینر مستقل
 
-در این نسخه، EitaaBun، API پایتون و وب‌پنل همگی داخل یک کانتینر با نام `bale_sender` اجرا می‌شوند. کانتینر مستقل `eitaa-bun` و Docker Compose لازم نیست.
+EitaaBun در مخزن جداگانه `eitasrc` و کانتینر `eitaa-service` اجرا می‌شود. پنل فقط از شبکه داخلی Docker به آن متصل می‌شود؛ پورت 1234 روی میزبان منتشر نمی‌شود.
 
-## ساخت و اجرا
+## 1) ساخت شبکه مشترک
 
-ابتدا از داده‌های مهم پشتیبان بگیرید؛ این دستورات کانتینر قبلی را حذف و دوباره می‌سازند.
+اگر شبکه از قبل وجود دارد، این مرحله را رد کنید:
+
+```bash
+docker network create internal_net
+```
+
+## 2) ساخت و اجرای سرویس ایتا
+
+```bash
+git clone https://github.com/syedalirezatabatabaei-star/eitasrc.git
+cd eitasrc
+docker compose up -d --build
+docker logs --tail 100 eitaa-service
+```
+
+اگر مخزن را قبلاً دریافت کرده‌اید، به پوشه آن بروید و `git pull` بزنید.
+
+## 3) اتصال پنل به سرویس جدا
+
+در مخزن پنل:
 
 ```bash
 cd ~/bale_sender
 git pull origin main
-mkdir -p data/eitaa-state data/eitaa-sessions data/eitaa-media
+docker build --no-cache -t bale_sender:latest .
+```
+
+کانتینر پنل باید روی شبکه `internal_net` باشد و متغیر `EITAA_SERVICE_URL=http://eitaa-service:1234` را داشته باشد. اگر کانتینر قبلی را با `docker run` می‌سازید، هنگام اجرای مجدد آن این گزینه‌ها را اضافه کنید:
+
+```bash
+-e EITAA_SERVICE_URL=http://eitaa-service:1234
+--network internal_net
+```
+
+نمونه اجرای پنل (مسیر داده‌ها را با محل واقعی داده‌های خودتان هماهنگ کنید):
+
+```bash
 docker rm -f bale_sender 2>/dev/null || true
-docker rmi -f bale_sender:1.8 2>/dev/null || true
-docker build --no-cache -t bale_sender:1.8 .
 docker run -d \
   --name bale_sender \
   --restart unless-stopped \
   --network internal_net \
+  -e EITAA_SERVICE_URL=http://eitaa-service:1234 \
   -p 3002:8085 \
   -p 8005:8005 \
   -v "$PWD/data/eitaa-state:/app/data/eitaa-state" \
-  -v "$PWD/data/eitaa-sessions:/root/eitaSessions" \
   -v "$PWD/data/eitaa-media:/shared/eitaa-media" \
-  bale_sender:1.8
+  bale_sender:latest
 ```
 
-اگر شبکه internal_net وجود ندارد، پیش از اجرا `docker network create internal_net` را بزنید.
+قبل از حذف کانتینر قبلی، از داده‌های مهم نسخه پشتیبان بگیرید. مسیر نشست‌ها و فایل‌های موجود را بدون بررسی حذف یا جابه‌جا نکنید.
 
-## بررسی
+## 4) بررسی اتصال و خطاها
+
 ```bash
-docker ps --filter name=bale_sender
+docker ps
+docker logs --tail 100 eitaa-service
 docker logs --tail 100 bale_sender
-docker exec bale_sender python -c "import requests; print(requests.get('http://127.0.0.1:1234/', timeout=5).status_code)"
+docker exec bale_sender python -c "import requests; r=requests.get('http://eitaa-service:1234/', timeout=5); print(r.status_code, r.text[:200])"
 docker exec bale_sender python -c "import requests; r=requests.get('http://127.0.0.1:8005/api/eitaa/health', timeout=10); print(r.status_code, r.text)"
 ```
 
-ممکن است مسیر ریشه EitaaBun پاسخ 404 بدهد؛ این به‌تنهایی نشانه خرابی اتصال نیست. نشست‌ها و گزارش‌ها را از پوشه‌های data پاک نکنید مگر اینکه قصد حذف آن‌ها را دارید.
-
-فقط برای مخاطبانی پیام ارسال کنید که رضایت دریافت آن را داده‌اند.
+در لاگ سرویس مستقل، خطاهای احراز هویت با پیشوندهای `[EITAA SEND CODE RPC ERROR]` و `[EITAA SEND CODE EXCEPTION]` قابل جست‌وجو هستند. اگر خطای محدودیت یا `FLOOD_WAIT` مشاهده شد، درخواست کد را پشت سر هم تکرار نکنید.
