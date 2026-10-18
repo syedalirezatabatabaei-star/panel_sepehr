@@ -75,7 +75,7 @@
   }
 
   function showSendPage(phone) {
-    render('<div class="eitaa-broadcast-page"><div class="page-header"><h1 class="page-title">ارسال پیام شخصی ایتا</h1><p class="page-description">حساب فعال: <b dir="ltr">' + esc(phone) + '</b></p></div><div class="card eitaa-send-card"><div class="card-body"><form id="eitaaBroadcastForm" class="eitaa-send-form"><div class="form-group eitaa-field"><label for="eitaaExcel">فایل Excel مخاطبان</label><input id="eitaaExcel" type="file" accept=".xlsx,.xlsm" required><small>ستون شماره تلفن الزامی و نام اختیاری است. بدون عنوان ستون، ستون اول شماره و ستون دوم نام است.</small></div><div class="form-group eitaa-field eitaa-caption-field"><label for="eitaaMessage">متن پیام یا کپشن</label><textarea id="eitaaMessage" rows="5" placeholder="متن پیام یا کپشن را اینجا بنویسید..."></textarea></div><div class="form-group eitaa-field"><label for="eitaaMedia">رسانه (اختیاری)</label><input id="eitaaMedia" type="file" accept="image/*,video/mp4,video/quicktime,.pdf,.doc,.docx"><small>تصویر به‌صورت عکس ارسال می‌شود. حجم ویدئو حداکثر ۲۰ مگابایت است.</small><p id="eitaaMediaError" class="eitaa-media-error" role="alert" hidden></p></div><div class="eitaa-actions"><button class="btn btn-primary" id="eitaaStartButton" type="submit">شروع ارسال</button><button class="btn btn-secondary" type="button" onclick="eitaaResetAccount()">خروج / تغییر حساب</button></div></form></div></div><div class="card eitaa-job-card"><div class="card-body" id="eitaaJobPanel">پس از شروع، پیشرفت و نتیجه هر مخاطب نمایش داده می‌شود.</div></div></div>');
+    render('<div class="eitaa-broadcast-page"><div class="page-header"><h1 class="page-title">ارسال پیام شخصی ایتا</h1><p class="page-description">حساب فعال: <b dir="ltr">' + esc(phone) + '</b></p></div><div class="card eitaa-send-card"><div class="card-body"><form id="eitaaBroadcastForm" class="eitaa-send-form"><div class="form-group eitaa-field"><label for="eitaaExcel">فایل Excel مخاطبان</label><input id="eitaaExcel" type="file" accept=".xlsx,.xlsm" required><small>ستون شماره تلفن الزامی و نام اختیاری است. بدون عنوان ستون، ستون اول شماره و ستون دوم نام است.</small></div><div class="form-group eitaa-field eitaa-caption-field"><label for="eitaaMessage">متن پیام یا کپشن</label><textarea id="eitaaMessage" rows="5" placeholder="متن پیام یا کپشن را اینجا بنویسید..."></textarea></div><div class="form-group eitaa-field"><label for="eitaaDelaySeconds">فاصله بین هر پیام (ثانیه)</label><input id="eitaaDelaySeconds" type="number" min="0" max="30" step="1" value="0" inputmode="numeric"><small>۰ یعنی بدون مکث؛ حداکثر ۳۰ ثانیه.</small></div><div class="form-group eitaa-field"><label for="eitaaMedia">رسانه (اختیاری)</label><input id="eitaaMedia" type="file" accept="image/*,video/mp4,video/quicktime,.pdf,.doc,.docx"><small>تصویر به‌صورت عکس ارسال می‌شود. حجم ویدئو حداکثر ۲۰ مگابایت است.</small><p id="eitaaMediaError" class="eitaa-media-error" role="alert" hidden></p></div><div class="eitaa-actions"><button class="btn btn-primary" id="eitaaStartButton" type="submit">شروع ارسال</button><button class="btn btn-secondary" type="button" onclick="eitaaResetAccount()">خروج / تغییر حساب</button></div></form></div></div><div class="card eitaa-job-card"><div class="card-body" id="eitaaJobPanel">پس از شروع، پیشرفت و نتیجه هر مخاطب نمایش داده می‌شود.</div></div></div>');
     el("eitaaBroadcastForm").addEventListener("submit", startSend);
     el("eitaaMedia").addEventListener("change", validateEitaaMedia);
   }
@@ -111,8 +111,9 @@
     formData.append("excel", el("eitaaExcel").files[0]);
     formData.append("message", el("eitaaMessage").value);
     if (mediaFile) formData.append("media", mediaFile);
-    // ارسال بدون مکث اجباری بین مخاطبان؛ سرور مقدار صفر را می‌پذیرد.
-    formData.append("delay_seconds", "0");
+    // فاصله انتخاب‌شده بین پیام‌ها؛ سرور بازه ۰ تا ۳۰ ثانیه را می‌پذیرد.
+    const delaySeconds = Math.max(0, Math.min(30, parseInt(el("eitaaDelaySeconds").value, 10) || 0));
+    formData.append("delay_seconds", String(delaySeconds));
     const button = el("eitaaStartButton");
     button.disabled = true;
     button.textContent = "در حال شروع...";
@@ -228,9 +229,9 @@
       const successRate = total ? Number(job.success || 0) * 100 / total : 0;
       const outcomeText = successRate < 50 ? "ما تمام تلاش خودمون رو کردیم اما نشد :(" : "شد بالاخره شد :)";
       const outcomeImage = successRate < 50 ? "/dashboard/img/patrik.jpg" : "/dashboard/img/babesfanch.jpg";
-      html += '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:18px 0;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc">' +
-        '<img src="' + outcomeImage + '" alt="" style="width:100px;height:100px;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'">' +
-        '<strong style="font-size:17px">' + outcomeText + '</strong></div>' +
+      html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;margin:18px 0;padding:18px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;text-align:center">' +
+        '<img src="' + outcomeImage + '" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:10px;display:block;margin:0 auto" onerror="this.remove()">' +
+        '<strong style="font-size:17px;text-align:center">' + outcomeText + '</strong></div>' +
         '<p>ارسال پایان یافت.</p><a class="btn btn-primary" href="' + API + '/send/export/' + encodeURIComponent(job.job_id) + '">دانلود گزارش Excel</a>';
     }
     html += '<div style="width:100%;overflow-x:auto;margin-top:16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff"><table style="width:100%;min-width:1050px;border-collapse:collapse;text-align:right;font-size:13px;line-height:1.8"><thead style="background:#f1f5f9"><tr>' +
