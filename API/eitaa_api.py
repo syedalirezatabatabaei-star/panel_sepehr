@@ -37,7 +37,7 @@ def _request(method, path, **kwargs):
             payload = {"detail": response.text[:1000]}
         if response.status_code >= 400:
             if isinstance(payload, dict):
-                detail = payload.get("error") or payload.get("detail") or payload.get("message") or str(payload)
+                detail = payload.get("error") or payload.get("detail") or payload.get("message") or payload.get("msg") or str(payload)
             else:
                 detail = str(payload)[:1000]
             logger.warning("EitaaBun request failed: %s %s status=%s detail=%s", method, path, response.status_code, str(detail)[:300])
@@ -286,13 +286,12 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
         except Exception as exc:
             row["detail"] = str(exc)[:500]
             detail_lower = row["detail"].lower()
-            if ("پیدا نشد" in row["detail"] or "not found" in detail_lower or
-                    "user not found" in detail_lower or "user_not_found" in detail_lower or
-                    "phone_number_invalid" in detail_lower or "peer_id_invalid" in detail_lower or
-                    "404" in detail_lower):
+            if ("user not found" in detail_lower or "user_not_found" in detail_lower or
+                    "phone_number_invalid" in detail_lower or "peer_id_invalid" in detail_lower):
                 row["contact_status"] = "not_registered"
                 row["status"] = "not_sent"
             else:
+                # A generic service error is not proof that the recipient has no Eitaa account.
                 row["contact_status"] = "error"
             if not row["add_notification"]:
                 row["add_notification"] = row["detail"]
