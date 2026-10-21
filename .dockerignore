@@ -29,8 +29,6 @@ build.log
 # JavaScript/build caches
 .npm/
 .cache/
-genui-chat-app/
-openui
 
 # The Eitaa service is fetched at its pinned commit in the Dockerfile
 eitaa-service/
