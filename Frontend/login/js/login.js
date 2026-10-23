@@ -21,7 +21,7 @@ const closeModalOverlay = document.getElementById("closeModal");
 // API
 // ===============================
 
-const API_BASE = "http://95.38.187.123:8005";
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:8005`;
 
 
 // ===============================
@@ -310,7 +310,7 @@ const response = await fetch(
 {
 
 method:"POST",
-
+credentials:"include",
 headers:{
 "Content-Type":"application/json"
 },
