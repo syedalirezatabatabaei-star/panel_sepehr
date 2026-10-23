@@ -1,0 +1,112 @@
+"""Authenticated reverse proxy for the Bale/Eitaa chat services and webhooks."""
+import os
+
+import requests
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
+
+router = APIRouter(tags=["Chat gateway"])
+
+BALE_CHAT_SERVICE_URL = os.getenv("BALE_CHAT_SERVICE_URL", "http://95.38.187.123:3000").rstrip("/")
+EITAA_CHAT_SERVICE_URL = os.getenv("EITAA_CHAT_SERVICE_URL", "http://95.38.187.123:3001").rstrip("/")
+BALE_SEND_WEBHOOK_URL = os.getenv(
+    "BALE_SEND_WEBHOOK_URL",
+    "https://n8n.sepehrsalamati.ir/webhook/seandms",
+)
+BALE_CREATE_CHAT_WEBHOOK_URL = os.getenv(
+    "BALE_CREATE_CHAT_WEBHOOK_URL",
+    "https://n8n.sepehrsalamati.ir/webhook/plasuser",
+)
+EITAA_SEND_WEBHOOK_URL = os.getenv(
+    "EITAA_SEND_WEBHOOK_URL",
+    "https://n8n.sepehrsalamati.ir/webhook/",
+)
+EITAA_CREATE_CHAT_WEBHOOK_URL = os.getenv(
+    "EITAA_CREATE_CHAT_WEBHOOK_URL",
+    "https://n8n.sepehrsalamati.ir/webhook/",
+)
+
+_ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+
+
+def _forward_headers(request: Request):
+    headers = {}
+    for name in ("accept", "content-type", "user-agent", "x-requested-with"):
+        value = request.headers.get(name)
+        if value:
+            headers[name] = value
+
+    # Preserve service-specific cookies if present, but never disclose the
+    # panel's authentication cookie to another service.
+    cookie_header = request.headers.get("cookie", "")
+    safe_cookies = []
+    for part in cookie_header.split(";"):
+        part = part.strip()
+        if not part:
+            continue
+        cookie_name = part.split("=", 1)[0].strip().lower()
+        if cookie_name != "session_token":
+            safe_cookies.append(part)
+    if safe_cookies:
+        headers["cookie"] = "; ".join(safe_cookies)
+    return headers
+
+
+async def _proxy(request: Request, upstream_url: str):
+    query = request.url.query
+    target = upstream_url + (("?" + query) if query else "")
+    body = await request.body()
+    try:
+        upstream = requests.request(
+            method=request.method,
+            url=target,
+            headers=_forward_headers(request),
+            data=body if body else None,
+            timeout=(5, 60),
+            allow_redirects=False,
+        )
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="سرویس مقصد موقتاً در دسترس نیست")
+
+    headers = {}
+    for name in ("content-type", "content-disposition", "cache-control", "location", "set-cookie"):
+        value = upstream.headers.get(name)
+        if value:
+            headers[name] = value
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        headers=headers,
+    )
+
+
+@router.api_route("/api/chat/bale/webhook/send", methods=_ALLOWED_METHODS)
+async def bale_send_webhook(request: Request):
+    return await _proxy(request, BALE_SEND_WEBHOOK_URL)
+
+
+@router.api_route("/api/chat/bale/webhook/create", methods=_ALLOWED_METHODS)
+async def bale_create_chat_webhook(request: Request):
+    return await _proxy(request, BALE_CREATE_CHAT_WEBHOOK_URL)
+
+
+@router.api_route("/api/chat/eitaa/webhook/send", methods=_ALLOWED_METHODS)
+async def eitaa_send_webhook(request: Request):
+    return await _proxy(request, EITAA_SEND_WEBHOOK_URL)
+
+
+@router.api_route("/api/chat/eitaa/webhook/create", methods=_ALLOWED_METHODS)
+async def eitaa_create_chat_webhook(request: Request):
+    return await _proxy(request, EITAA_CREATE_CHAT_WEBHOOK_URL)
+
+
+@router.api_route("/api/chat/bale/{path:path}", methods=_ALLOWED_METHODS)
+async def bale_chat_proxy(path: str, request: Request):
+    target = BALE_CHAT_SERVICE_URL + ("/" + path.lstrip("/") if path else "")
+    return await _proxy(request, target)
+
+
+@router.api_route("/api/chat/eitaa/{path:path}", methods=_ALLOWED_METHODS)
+async def eitaa_chat_proxy(path: str, request: Request):
+    target = EITAA_CHAT_SERVICE_URL + ("/" + path.lstrip("/") if path else "")
+    return await _proxy(request, target)
