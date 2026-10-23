@@ -1,10 +1,9 @@
 """Persistent panel announcements and system settings API.
 
-Tables are created idempotently (CREATE TABLE IF NOT EXISTS); no existing data is
-dropped or altered. Public announcements are visible to all active users, while
-private announcements are visible only to their recipient and administrators.
+The tables are managed by the idempotent SQL migration under migrations/.
+Public announcements are visible to all active users, while private announcements
+are visible only to their recipient and administrators.
 """
-from datetime import datetime
 import json
 
 from fastapi import APIRouter, HTTPException, Request
