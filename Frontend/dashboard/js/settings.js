@@ -3468,10 +3468,22 @@ function renderNotifications() {
         </table></div>
       </div>`;
 }
+function renderNotificationsView() {
+    const content = document.getElementById("settingsContent");
+    if (!content || AppState.currentPage !== "notifications") return;
+    content.innerHTML = renderNotifications();
+    initPageInteractions();
+}
+
 async function refreshNotificationsPage() {
-    try { await loadPersistentNotifications(); }
-    catch (e) { showToast(e.message || "خطا در دریافت اعلان‌ها", "error"); }
-    if (AppState.currentPage === "notifications") renderPage("notifications");
+    try {
+        await loadPersistentNotifications();
+    } catch (e) {
+        showToast(e.message || "خطا در دریافت اعلان‌ها", "error");
+    }
+    // Update the current view directly. Calling renderPage() here would invoke
+    // refreshNotificationsPage() again and create an endless fetch/render loop.
+    renderNotificationsView();
 }
 function showCreateNotificationModal() {
     if (!isSettingsAdministrator()) return showPermissionDenied();
@@ -3501,7 +3513,7 @@ async function savePersistentNotification() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail?.message || data.detail || "ذخیره اعلان ناموفق بود");
       closeModalDirect(); showToast("اعلان در دیتابیس ذخیره شد", "success");
-      await loadPersistentNotifications(); renderPage("notifications");
+      await loadPersistentNotifications(); renderNotificationsView();
     } catch(e) { showToast(e.message || "ذخیره اعلان ناموفق بود", "error"); }
 }
 async function deactivatePersistentNotification(id) {
@@ -3510,7 +3522,7 @@ async function deactivatePersistentNotification(id) {
       const response = await fetch(`${API_BASE}/api/admin/notifications/${Number(id)}`, {method:"DELETE",credentials:"include"});
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail?.message || data.detail || "عملیات ناموفق بود");
-      await loadPersistentNotifications(); renderPage("notifications");
+      await loadPersistentNotifications(); renderNotificationsView();
       showToast("اعلان غیرفعال شد", "success");
     } catch(e) { showToast(e.message || "خطا", "error"); }
 }
