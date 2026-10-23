@@ -1925,19 +1925,58 @@ body:has(.main-content.bale-chat-host) {
         if (!box) return;
 
         try {
+            const res = await fetch(API + '/sessions', {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            });
 
-            const res =
-                await fetch(
-                    API + '/sessions'
+            const responseText = await res.text();
+            let payload;
+            try {
+                payload = responseText ? JSON.parse(responseText) : null;
+            } catch (_) {
+                throw new Error(
+                    `پاسخ API گفتگوها JSON معتبر نیست (HTTP ${res.status})`
+                );
+            }
+
+            if (!res.ok) {
+                const detail = payload && (
+                    payload.detail?.message ||
+                    payload.detail ||
+                    payload.message ||
+                    payload.error
+                );
+                if (res.status === 401) {
+                    throw new Error('نشست ورود منقضی شده است؛ دوباره وارد پنل شوید (HTTP 401)');
+                }
+                if (res.status === 403) {
+                    throw new Error('دسترسی خواندن گفت‌وگوهای بله برای حساب شما فعال نیست (HTTP 403)');
+                }
+                throw new Error(
+                    `دریافت گفتگوها ناموفق بود (HTTP ${res.status})${detail ? ': ' + String(detail).slice(0, 180) : ''}`
+                );
+            }
+
+            let sessions = Array.isArray(payload)
+                ? payload
+                : payload && (
+                    Array.isArray(payload.sessions) ? payload.sessions :
+                    Array.isArray(payload.data) ? payload.data :
+                    Array.isArray(payload.results) ? payload.results :
+                    Array.isArray(payload.items) ? payload.items :
+                    null
                 );
 
-            let sessions =
-                await res.json();
+            if (!sessions) {
+                throw new Error('ساختار پاسخ API گفتگوها معتبر نیست؛ آرایه گفتگوها پیدا نشد');
+            }
 
-            sessions.sort(
-                (a, b) =>
-                    new Date(b.updated_at) -
-                    new Date(a.updated_at)
+            sessions.sort((a, b) =>
+                new Date(b.updated_at || b.updatedAt || 0) -
+                new Date(a.updated_at || a.updatedAt || 0)
             );
 
             box.innerHTML = '';
@@ -2077,17 +2116,34 @@ body:has(.main-content.bale-chat-host) {
                 err
             );
 
+            const message = err && err.message
+                ? err.message
+                : 'خطای ناشناخته در دریافت گفتگوها';
             box.innerHTML = `
                 <div
+                    role="alert"
                     style="
                         padding:30px 20px;
                         text-align:center;
                         color:var(--text-muted);
+                        direction:rtl;
+                        line-height:1.9;
+                        overflow-wrap:anywhere;
                     "
                 >
-                    ⚠️ خطا در دریافت گفتگوها
+                    <div style="font-size:28px;margin-bottom:8px">⚠️</div>
+                    <div>دریافت گفتگوهای بله ناموفق بود</div>
+                    <small style="display:block;margin-top:8px;opacity:.85">${escapeHtml(message)}</small>
+                    <button type="button" id="baleRetrySessions"
+                        style="margin-top:14px;padding:8px 16px;border:0;border-radius:8px;cursor:pointer">
+                        تلاش مجدد
+                    </button>
                 </div>
             `;
+            const retryButton = getEl('baleRetrySessions');
+            if (retryButton) {
+                retryButton.addEventListener('click', () => loadSessions());
+            }
         }
     }
 
