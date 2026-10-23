@@ -315,6 +315,9 @@ function renderPage(page) {
         if (page === 'notifications') {
             refreshNotificationsPage();
         }
+        if (page === 'audit-logs' || page === 'activities' || page === 'overview' || page === 'security') {
+            loadPersistentAuditData(page);
+        }
         if (page === 'system-settings') {
             loadPersistentSystemSettings();
         }
@@ -5542,4 +5545,41 @@ async function savePersistentSystemSettings() {
 }
 window.loadPersistentSystemSettings = loadPersistentSystemSettings;
 window.savePersistentSystemSettings = savePersistentSystemSettings;
+
+
+
+async function loadPersistentAuditData(page) {
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/audit-logs?limit=300`, {credentials:"include",cache:"no-store"});
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail?.message || data.detail || "دریافت لاگ‌ها ناموفق بود");
+        const rows = (data.logs || []).map(row => ({
+            id: Number(row.id),
+            userName: String(row.username || ("کاربر #" + row.user_id)),
+            description: row.login_status === "success" ? "ورود موفق" : "ورود ناموفق" + (row.failure_reason ? " — " + row.failure_reason : ""),
+            action: row.login_status === "success" ? "login" : "login_failed",
+            result: row.login_status === "success" ? "success" : "failed",
+            ip: String(row.ip_address || "-"),
+            timestamp: String(row.created_at || ""),
+            userAgent: String(row.user_agent || ""),
+            category: "auth",
+            type: row.login_status === "success" ? "login" : "login_failed",
+            status: row.login_status === "success" ? "success" : "failed"
+        }));
+        if (Array.isArray(AUDIT_LOGS)) AUDIT_LOGS.splice(0, AUDIT_LOGS.length, ...rows);
+        if (Array.isArray(ACTIVITIES)) ACTIVITIES.splice(0, ACTIVITIES.length, ...rows);
+        if (Array.isArray(SECURITY_EVENTS)) SECURITY_EVENTS.splice(0, SECURITY_EVENTS.length, ...rows);
+        if (AppState.currentPage === page) {
+            const content = document.getElementById("settingsContent");
+            if (content) {
+                // Refresh only the relevant page after real DB-backed activity arrives.
+                if (page === "audit-logs" || page === "activities" || page === "overview" || page === "security") renderPage(page);
+            }
+        }
+    } catch (e) {
+        console.error("loadPersistentAuditData:", e);
+        if (page === "audit-logs" || page === "activities") showToast(e.message || "دریافت فعالیت‌ها ناموفق بود", "error");
+    }
+}
+window.loadPersistentAuditData = loadPersistentAuditData;
 
