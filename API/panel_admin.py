@@ -180,6 +180,23 @@ def save_system_settings(payload: SettingsInput, request: Request):
     _admin(user)
     if len(payload.settings) > 100:
         raise HTTPException(400, "تعداد تنظیمات بیش از حد مجاز است")
+
+    # Validate security policy values server-side; browser constraints are not
+    # an authorization or validation boundary.
+    security_ranges = {
+        "حداکثر تلاش ورود": (1, 20),
+        "مدت قفل شدن (دقیقه)": (1, 1440),
+        "حداقل طول رمز عبور": (8, 128),
+    }
+    for key, (minimum, maximum) in security_ranges.items():
+        if key in payload.settings:
+            try:
+                value = int(payload.settings[key])
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"مقدار «{key}» باید عددی باشد")
+            if value < minimum or value > maximum:
+                raise HTTPException(400, f"مقدار «{key}» باید بین {minimum} و {maximum} باشد")
+            payload.settings[key] = value
     db = get_connection()
     cursor = db.cursor()
     try:
