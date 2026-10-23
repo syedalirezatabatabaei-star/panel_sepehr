@@ -54,69 +54,37 @@ function showPermissionDenied() {
 }
 function getCurrentUser() {
   if (window.CURRENT_USER) return window.CURRENT_USER;
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(localStorage.getItem("user") || "null"); }
+  catch { return null; }
 }
 
 function canRead(page) {
-
-    const u = getCurrentUser();
-
-    if (Number(u?.accessLevel) === 3) {
-        return true;
-    }
-
-    if (!u?.permissions) return false;
-
-
-    return !!u.permissions[page + ".read"]?.read;
+  const u = getCurrentUser();
+  if (Number(u?.accessLevel ?? u?.access_level) === 3) return true;
+  if (!u?.permissions) return false;
+  return !!(u.permissions[page]?.read || u.permissions[page + ".read"]?.read);
 }
 
 function canWrite(page) {
-
-    const u = getCurrentUser();
-
-    if (Number(u?.accessLevel) === 3) {
-        return true;
-    }
-
-    if (!u?.permissions) return false;
-
-
-    return !!u.permissions[page + ".write"]?.write;
+  const u = getCurrentUser();
+  if (Number(u?.accessLevel ?? u?.access_level) === 3) return true;
+  if (!u?.permissions) return false;
+  return !!(u.permissions[page]?.write || u.permissions[page + ".write"]?.write);
 }
+
+function guardFeature(permissionCode) {
+  if (!canRead(permissionCode)) {
+    showPermissionDenied();
+    return false;
+  }
+  return true;
+}
+
 function applyMenuPermissions() {
-
-    Object.entries(PAGE_MENU_MAP).forEach(([page, selector]) => {
-
-        document.querySelectorAll(selector).forEach((el) => {
-
-            const permission = MENU_PERMISSIONS[page];
-
-            // Owner همه چیز را می‌بیند
-            const u = getCurrentUser();
-
-            if (Number(u?.accessLevel) === 3) {
-                el.style.display = "";
-                return;
-            }
-
-            if (!permission) {
-                el.style.display = "";
-                return;
-            }
-
-            el.style.display =
-                canRead(permission)
-                ? ""
-                : "none";
-
-        });
-
-    });
+  // Keep navigation icons visible; unauthorized clicks show the existing denial message.
+  document.querySelectorAll(".sidebar-item, .settings-nav-item").forEach(el => {
+    el.style.display = "";
+  });
 }
 
 function applyWritePermissions() {
@@ -143,6 +111,7 @@ function guardPage(page) {
 }
 
 window.canRead = canRead;
+window.guardFeature = guardFeature;
 window.canWrite = canWrite;
 window.applyMenuPermissions = applyMenuPermissions;
 window.applyWritePermissions = applyWritePermissions;
