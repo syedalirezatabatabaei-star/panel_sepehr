@@ -30,6 +30,30 @@
           window.location.replace(loginUrl);
           return;
         }
+        // Attach the opaque access token to dashboard API calls, while retaining
+        // cookie-based sessions for compatibility with existing frontend code.
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = function(input, init = {}) {
+          const requestUrl = typeof input === "string" ? input : input.url;
+          const url = new URL(requestUrl, window.location.href);
+          const apiOrigin = window.location.protocol + "//" + window.location.hostname + ":8005";
+          if (url.origin === apiOrigin && url.pathname.startsWith("/api/")) {
+            const headers = new Headers(
+              input instanceof Request ? input.headers : undefined
+            );
+            new Headers(init.headers || {}).forEach((value, key) => headers.set(key, value));
+            const token = sessionStorage.getItem("access_token");
+            if (token && !headers.has("Authorization")) {
+              headers.set("Authorization", "Bearer " + token);
+            }
+            return nativeFetch(input, {
+              ...init,
+              credentials: init.credentials || "include",
+              headers
+            });
+          }
+          return nativeFetch(input, init);
+        };
         document.documentElement.style.visibility = "";
       } catch (_) {
         // Fail closed when the auth service cannot be reached.
