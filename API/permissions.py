@@ -36,10 +36,10 @@ def require_permission(permission_code: str, action: str | None = None):
 
 
 def has_permission(user_id: int, permission_code: str, action: str = "use") -> bool:
-    """Check a user's explicit grant, then their role grant.
+    """Evaluate RBAC as role grants OR explicit per-user grants.
 
-    A user-level row is an override, including an explicit denial. Role grants
-    permit both read and write unless overridden for the individual user.
+    user_permissions stores additional individual grants. A missing or unchecked
+    individual grant must never silently cancel a permission inherited from a role.
     """
     if action not in {"read", "write", "use"}:
         raise ValueError("action must be read, write, or use")
@@ -58,19 +58,22 @@ def has_permission(user_id: int, permission_code: str, action: str = "use") -> b
             return True
 
         cursor.execute("""
-            SELECT up.can_read, up.can_write
+            SELECT
+                COALESCE(MAX(up.can_read), 0) AS personal_read,
+                COALESCE(MAX(up.can_write), 0) AS personal_write
             FROM user_permissions up
             JOIN permissions p ON p.id = up.permission_id
             WHERE up.user_id=%s AND p.code=%s
-            LIMIT 1
         """, (user_id, permission_code))
-        override = cursor.fetchone()
-        if override is not None:
-            if action == "read":
-                return bool(override.get("can_read"))
-            if action == "write":
-                return bool(override.get("can_write"))
-            return bool(override.get("can_read") or override.get("can_write"))
+        personal = cursor.fetchone() or {}
+        if action == "read" and bool(personal.get("personal_read")):
+            return True
+        if action == "write" and bool(personal.get("personal_write")):
+            return True
+        if action == "use" and (
+            bool(personal.get("personal_read")) or bool(personal.get("personal_write"))
+        ):
+            return True
 
         cursor.execute("""
             SELECT rp.id
