@@ -19,6 +19,16 @@ PERMISSION_CATALOG = [
     {"code":"settings","group":"سیستم","label":"تنظیمات سیستم (فقط مدیران)","mode":"read_write"},
 ]
 
+def _ensure_permission_catalog(cursor):
+    """Idempotently register every supported permission code."""
+    for item in PERMISSION_CATALOG:
+        cursor.execute("""
+            INSERT INTO permissions (code, name, description)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description)
+        """, (item["code"], item["label"], item["group"]))
+
+
 def require_permission_admin(request: Request):
     user = getattr(request.state, "user", None)
     if not isinstance(user, dict) or not user.get("id"):
@@ -46,6 +56,8 @@ def get_catalog():
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
+        _ensure_permission_catalog(cursor)
+        db.commit()
         cursor.execute("SELECT code FROM permissions")
         existing = {row["code"] for row in cursor.fetchall()}
         return {
@@ -55,6 +67,9 @@ def get_catalog():
                 for item in PERMISSION_CATALOG
             ]
         }
+    except Exception:
+        db.rollback()
+        raise
     finally:
         cursor.close()
         db.close()
