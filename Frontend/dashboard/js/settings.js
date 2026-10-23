@@ -315,7 +315,7 @@ function renderPage(page) {
         if (page === 'notifications') {
             refreshNotificationsPage();
         }
-        if (page === 'audit-logs' || page === 'activities' || page === 'overview' || page === 'security') {
+        if ((page === 'audit-logs' || page === 'activities' || page === 'overview' || page === 'security') && !window.__auditLoadedForPage?.[page]) {
             loadPersistentAuditData(page);
         }
         if (page === 'system-settings') {
@@ -5570,11 +5570,10 @@ async function loadPersistentAuditData(page) {
         if (Array.isArray(ACTIVITIES)) ACTIVITIES.splice(0, ACTIVITIES.length, ...rows);
         if (Array.isArray(SECURITY_EVENTS)) SECURITY_EVENTS.splice(0, SECURITY_EVENTS.length, ...rows);
         if (AppState.currentPage === page) {
-            const content = document.getElementById("settingsContent");
-            if (content) {
-                // Refresh only the relevant page after real DB-backed activity arrives.
-                if (page === "audit-logs" || page === "activities" || page === "overview" || page === "security") renderPage(page);
-            }
+            window.__auditLoadedForPage = window.__auditLoadedForPage || {};
+            window.__auditLoadedForPage[page] = true;
+            renderPage(page);
+            delete window.__auditLoadedForPage[page];
         }
     } catch (e) {
         console.error("loadPersistentAuditData:", e);
