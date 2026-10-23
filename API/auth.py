@@ -1350,13 +1350,17 @@ def get_user_permissions(user_id: int):
             role_granted = bool(row["role_permission"])
             personal_read = bool(row["personal_read"])
             personal_write = bool(row["personal_write"])
-            permissions[code] = {
-                "read": role_granted or personal_read,
-                "write": role_granted or personal_write,
-                "personal_read": personal_read,
-                "personal_write": personal_write,
-                "role_granted": role_granted,
-            }
+            entry = permissions.setdefault(code, {
+                "read": False, "write": False,
+                "personal_read": False, "personal_write": False,
+                "role_granted": False,
+            })
+            # OR duplicates defensively until the integrity migration has run.
+            entry["read"] = entry["read"] or role_granted or personal_read
+            entry["write"] = entry["write"] or role_granted or personal_write
+            entry["personal_read"] = entry["personal_read"] or personal_read
+            entry["personal_write"] = entry["personal_write"] or personal_write
+            entry["role_granted"] = entry["role_granted"] or role_granted
         return permissions
     finally:
         cursor.close()
