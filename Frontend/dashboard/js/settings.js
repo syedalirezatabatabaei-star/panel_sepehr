@@ -315,6 +315,9 @@ function renderPage(page) {
         if (page === 'notifications') {
             refreshNotificationsPage();
         }
+        if (page === 'system-settings') {
+            loadPersistentSystemSettings();
+        }
     }
 }
 
@@ -4693,10 +4696,7 @@ function renderSystemSettings() {
             <button
                 class="btn btn-primary mt-4"
                 onclick="
-                    showToast(
-                        'تنظیمات ذخیره شد',
-                        'success'
-                    )
+                    savePersistentSystemSettings()
                 "
             >
                 💾 ذخیره
@@ -4894,10 +4894,7 @@ function renderSystemSettings() {
             <button
                 class="btn btn-primary mt-4"
                 onclick="
-                    showToast(
-                        'تنظیمات امنیتی ذخیره شد',
-                        'success'
-                    )
+                    savePersistentSystemSettings()
                 "
             >
                 💾 ذخیره
@@ -7368,4 +7365,51 @@ async function toggleUserStatus(userId) {
         showToast(error.message || 'خطا در تغییر وضعیت کاربر در دیتابیس', 'error');
     }
 }
+
+
+
+function systemSettingKey(element) {
+    const row = element.closest(".form-group, .setting-row");
+    const label = row?.querySelector(".form-label, .setting-row-title, label");
+    return (label?.textContent || "").trim().replace(/\\s+/g, " ");
+}
+async function loadPersistentSystemSettings() {
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/system-settings`, {credentials:"include", cache:"no-store"});
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail?.message || data.detail || "دریافت تنظیمات ناموفق بود");
+        const saved = data.settings || {};
+        document.querySelectorAll("#settingsContent input, #settingsContent select, #settingsContent textarea").forEach(el => {
+            const key = systemSettingKey(el);
+            if (!key || !Object.prototype.hasOwnProperty.call(saved, key)) return;
+            if (el.type === "checkbox") el.checked = !!saved[key];
+            else el.value = String(saved[key] ?? "");
+        });
+    } catch (e) {
+        showToast(e.message || "تنظیمات سیستم دریافت نشد", "error");
+    }
+}
+async function savePersistentSystemSettings() {
+    if (!isSettingsAdministrator()) return showPermissionDenied();
+    const settings = {};
+    document.querySelectorAll("#settingsContent input, #settingsContent select, #settingsContent textarea").forEach(el => {
+        const key = systemSettingKey(el);
+        if (!key || el.type === "password" || el.type === "file") return;
+        settings[key] = el.type === "checkbox" ? el.checked : el.value;
+    });
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/system-settings`, {
+            method:"PUT", credentials:"include",
+            headers:{"Content-Type":"application/json","Accept":"application/json"},
+            body:JSON.stringify({settings})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail?.message || data.detail || "ذخیره تنظیمات ناموفق بود");
+        showToast("تنظیمات در دیتابیس ذخیره شد", "success");
+    } catch(e) {
+        showToast(e.message || "ذخیره تنظیمات ناموفق بود", "error");
+    }
+}
+window.loadPersistentSystemSettings = loadPersistentSystemSettings;
+window.savePersistentSystemSettings = savePersistentSystemSettings;
 
