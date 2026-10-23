@@ -1,0 +1,33 @@
+services:
+  bale_sender:
+    image: bale_sender:1.8
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bale_sender
+    network_mode: null
+    networks:
+      - internal_net
+    restart: "no"
+    ports:
+      - "3002:8085"
+      - "8005:8005"
+    environment:
+      EITAA_SERVICE_URL: "http://eitaa-service:1234"
+      EITAA_STATE_DIR: "/app/data/eitaa-state"
+      EITAA_MEDIA_DIR: "/shared/eitaa-media"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    volumes:
+      - eitaa-media-shared:/shared/eitaa-media
+    command: ["/app/start.sh"]
+
+networks:
+  internal_net:
+    external: true
+    name: internal_net
+
+volumes:
+  eitaa-media-shared:
+    name: eitaa-media-shared
