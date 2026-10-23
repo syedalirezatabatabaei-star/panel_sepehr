@@ -3,34 +3,26 @@
 Run with: python -m API.migrations.seed_permissions
 This avoids assuming that the deployed permissions table has a particular label column.
 """
-from datetime import datetime
 import re
 
 from API.database import get_connection
 from API.permissions_admin import PERMISSION_CATALOG
 
 
-def _default_value(column):
-    name = column["Field"]
-    kind = (column.get("Type") or "").lower()
-    if "auto_increment" in (column.get("Extra") or "").lower():
-        return None, False
-    if column.get("Default") is not None or column.get("Null") == "YES":
-        return None, False
-    if name in {"id", "permission_id"}:
-        return None, False
-    if any(part in kind for part in ("int", "decimal", "float", "double", "bit", "bool")):
-        return 0, True
-    if "enum(" in kind:
-        match = re.search(r"enum\('([^']*)'", kind)
-        return (match.group(1) if match else ""), True
-    if any(part in kind for part in ("datetime", "timestamp")):
-        return datetime.now(), True
-    if kind.startswith("date"):
-        return datetime.now().date(), True
-    if any(part in kind for part in ("char", "text", "json", "binary")):
-        return "", True
-    return 0, True
+def _column_is_generated(column):
+    return "auto_increment" in (column.get("Extra") or "").lower()
+
+
+def _required_unknown_columns(columns, values):
+    missing = []
+    for column in columns:
+        name = column["Field"]
+        if name in values or _column_is_generated(column):
+            continue
+        if column.get("Null") == "YES" or column.get("Default") is not None:
+            continue
+        missing.append(name)
+    return missing
 
 
 def seed_permissions():
@@ -64,13 +56,12 @@ def seed_permissions():
                 if field in by_name:
                     values[field] = value
 
-            for column in columns:
-                field = column["Field"]
-                if field in values:
-                    continue
-                value, required = _default_value(column)
-                if required:
-                    values[field] = value
+            unknown_required = _required_unknown_columns(columns, values)
+            if unknown_required:
+                raise RuntimeError(
+                    "برای درج امن مجوزها، این ستون‌های اجباری جدول permissions باید "
+                    "در اسکریپت نگاشت شوند: " + ", ".join(unknown_required)
+                )
 
             names = list(values)
             sql = (
