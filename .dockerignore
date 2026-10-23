@@ -17,22 +17,12 @@ __pycache__/
 # Browser state and local runtime data
 browser_profile/
 browser_profile_backup_*/
+bale_session.json
+cookies.txt
+data/state.db
 data/eitaa-state/
 data/eitaa-sessions/
 data/eitaa-media/
-data/state.db
+data/uploads/
 reports/
 logs/
-*.log
-build.log
-
-# JavaScript/build caches
-.npm/
-.cache/
-
-# The Eitaa service is fetched at its pinned commit in the Dockerfile
-eitaa-service/
-
-# Never bake local authentication artifacts into an image
-cookies.txt
-bale_session.json
