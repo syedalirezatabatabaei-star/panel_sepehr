@@ -5582,3 +5582,19 @@ async function loadPersistentAuditData(page) {
 }
 window.loadPersistentAuditData = loadPersistentAuditData;
 
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    fetch(`${API_BASE}/api/notifications`, {credentials:"include",cache:"no-store"})
+      .then(async response => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) return;
+        const badge = document.getElementById("notificationBadge");
+        if (badge) {
+          const count = Array.isArray(data.notifications) ? data.notifications.length : 0;
+          badge.textContent = String(count);
+          badge.hidden = count === 0;
+        }
+      })
+      .catch(() => {});
+});
