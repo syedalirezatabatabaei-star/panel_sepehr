@@ -1,5 +1,5 @@
 
-const BALE_API_BASE = "http://95.38.187.123:8005/api/bale";
+const BALE_API_BASE = "/api/bale";
 
 
 /* =========================================================
