@@ -6,7 +6,7 @@
    config
    ========================= */
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:8005`;
+const API_BASE = "";
 let CURRENT_USER = null;
 
 /* =========================
