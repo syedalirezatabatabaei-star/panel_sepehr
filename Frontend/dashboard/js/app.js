@@ -259,13 +259,122 @@ function toggleSidebar() {
 }
 
 
-function toggleUserDropdown() {
+function toggleUserDropdown(event) {
+    if (event) event.stopPropagation();
     const dropdown = document.getElementById('userDropdown');
-
+    const trigger = document.querySelector('.header-user');
     if (!dropdown) return;
-
-    dropdown.classList.toggle('show');
+    const opening = !dropdown.classList.contains('show');
+    dropdown.classList.toggle('show', opening);
+    if (trigger) trigger.setAttribute('aria-expanded', String(opening));
 }
+
+function closeUserDropdown() {
+    const dropdown = document.getElementById('userDropdown');
+    const trigger = document.querySelector('.header-user');
+    if (dropdown) dropdown.classList.remove('show');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+async function logoutFromDashboard(event) {
+    if (event) event.stopPropagation();
+    closeUserDropdown();
+    const button = event && event.currentTarget;
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'در حال خروج…';
+    }
+    try {
+        const headers = { Accept: 'application/json' };
+        const token = sessionStorage.getItem('access_token');
+        if (token) headers.Authorization = 'Bearer ' + token;
+        const response = await fetch(`${API_BASE}/api/auth/logout`, {
+            method: 'POST',
+            credentials: 'include',
+            headers,
+            cache: 'no-store'
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (error) {
+        console.error('logoutFromDashboard:', error);
+    } finally {
+        sessionStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('bale_account');
+        window.location.replace('/login/index.html');
+    }
+}
+
+document.addEventListener('click', event => {
+    const profile = document.querySelector('.header-user');
+    if (profile && !profile.contains(event.target)) closeUserDropdown();
+    const actions = document.querySelector('.header-actions');
+    if (actions && !actions.contains(event.target)) closeNotificationDropdown();
+});
+
+function toggleNotificationDropdown(event) {
+    if (event) event.stopPropagation();
+    const panel = document.getElementById('notificationDropdown');
+    const trigger = document.getElementById('notificationTrigger');
+    if (!panel) return;
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    if (trigger) trigger.setAttribute('aria-expanded', String(opening));
+    if (opening) refreshNotificationDropdown();
+}
+
+function closeNotificationDropdown() {
+    const panel = document.getElementById('notificationDropdown');
+    const trigger = document.getElementById('notificationTrigger');
+    if (panel) panel.hidden = true;
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+async function refreshNotificationDropdown(event) {
+    if (event) event.stopPropagation();
+    const list = document.getElementById('notificationDropdownList');
+    if (!list) return;
+    list.innerHTML = '<div class="notification-dropdown-empty">در حال دریافت اعلان‌ها…</div>';
+    try {
+        if (typeof loadPersistentNotifications !== 'function') {
+            throw new Error('سرویس اعلان‌ها بارگذاری نشده است.');
+        }
+        const notifications = await loadPersistentNotifications(false);
+        renderNotificationDropdownItems(notifications);
+    } catch (error) {
+        list.innerHTML = `<div class="notification-dropdown-empty notification-dropdown-error">${escapeHtml(error.message || 'دریافت اعلان‌ها ناموفق بود')}</div>`;
+    }
+}
+
+function renderNotificationDropdownItems(notifications) {
+    const list = document.getElementById('notificationDropdownList');
+    if (!list) return;
+    const active = (Array.isArray(notifications) ? notifications : []).filter(item =>
+        item.is_active === undefined || item.is_active === true || Number(item.is_active) === 1
+    );
+    if (!active.length) {
+        list.innerHTML = '<div class="notification-dropdown-empty">اعلانی برای نمایش وجود ندارد.</div>';
+        return;
+    }
+    list.innerHTML = active.slice(0, 20).map(item => {
+        const title = escapeHtml(item.title || 'اعلان');
+        const message = escapeHtml(item.message || '');
+        const created = escapeHtml(item.created_at || '');
+        const type = item.visibility === 'private' ? 'خصوصی' : 'عمومی';
+        return `<article class="notification-dropdown-item">
+          <div class="notification-dropdown-item-top"><strong>${title}</strong><span>${type}</span></div>
+          <p>${message}</p>
+          ${created ? `<time>${created}</time>` : ''}
+        </article>`;
+    }).join('');
+}
+
+window.toggleNotificationDropdown = toggleNotificationDropdown;
+window.refreshNotificationDropdown = refreshNotificationDropdown;
+window.renderNotificationDropdownItems = renderNotificationDropdownItems;
+window.toggleUserDropdown = toggleUserDropdown;
+window.closeUserDropdown = closeUserDropdown;
+window.logoutFromDashboard = logoutFromDashboard;
 
 
 function toggleUserStatus(userId) {
