@@ -1107,6 +1107,7 @@ async function loadRegistrationRequests() {
 
         // admin.py → data | registration_admin.py → requests
         const list = data.requests || data.results || data.data || [];
+        window.__lastRegRequests = list;
 
         updateRegistrationStats(list);
 
@@ -1388,7 +1389,7 @@ window.approveRegistrationRequest = approveRegistrationRequest;
 window.rejectRegistrationRequest = rejectRegistrationRequest;
 window.submitApproveRegistration = submitApproveRegistration;
 window.submitRejectRegistration = submitRejectRegistration;
-window.__lastRegRequests = list;
+window.__lastRegRequests = window.__lastRegRequests || [];
 
 /* =========================================================
    PAGE: USERS
