@@ -4594,67 +4594,39 @@ window.logoutOtherSessions = logoutOtherSessions;
 window.refreshActiveSessionSummary = refreshActiveSessionSummary;
 
 function showChangePasswordModal() {
-
-    showModal(
-        'تغییر رمز عبور',
-        `
-            <div class="form-group">
-
-                <label class="form-label">
-                    رمز عبور فعلی
-                </label>
-
-                <input
-                    type="password"
-                    class="form-input"
-                    placeholder="رمز عبور فعلی"
-                >
-
-            </div>
-
-            <div class="form-group">
-
-                <label class="form-label">
-                    رمز عبور جدید
-                </label>
-
-                <input
-                    type="password"
-                    class="form-input"
-                    placeholder="رمز عبور جدید"
-                >
-
-            </div>
-
-            <div class="form-group">
-
-                <label class="form-label">
-                    تأیید رمز عبور جدید
-                </label>
-
-                <input
-                    type="password"
-                    class="form-input"
-                    placeholder="تأیید رمز عبور"
-                >
-
-            </div>
-        `,
-        [
-            {
-                label: 'انصراف',
-                class: 'btn-secondary',
-                action: 'closeModalDirect()'
-            },
-            {
-                label: 'تغییر رمز',
-                class: 'btn-primary',
-                action:
-                    "closeModalDirect(); showToast('رمز عبور تغییر کرد', 'success')"
-            }
-        ]
-    );
+    showModal('تغییر رمز عبور', `
+      <div class="form-group"><label class="form-label" for="securityOldPassword">رمز عبور فعلی</label><input id="securityOldPassword" type="password" class="form-input" autocomplete="current-password" required></div>
+      <div class="form-group"><label class="form-label" for="securityNewPassword">رمز عبور جدید</label><input id="securityNewPassword" type="password" class="form-input" autocomplete="new-password" minlength="8" required></div>
+      <div class="form-group"><label class="form-label" for="securityConfirmPassword">تأیید رمز عبور جدید</label><input id="securityConfirmPassword" type="password" class="form-input" autocomplete="new-password" minlength="8" required></div>
+      <p class="form-hint">حداقل طول رمز عبور طبق سیاست امنیتی سامانه بررسی می‌شود.</p>
+    `, [
+      {label:'انصراف',class:'btn-secondary',action:'closeModalDirect()'},
+      {label:'تغییر رمز',class:'btn-primary',action:'submitSecurityPasswordChange()'}
+    ]);
 }
+
+async function submitSecurityPasswordChange() {
+    const oldPassword = document.getElementById('securityOldPassword')?.value || '';
+    const newPassword = document.getElementById('securityNewPassword')?.value || '';
+    const confirmPassword = document.getElementById('securityConfirmPassword')?.value || '';
+    if (!oldPassword || !newPassword || !confirmPassword) return showToast('همه فیلدها را تکمیل کنید.', 'error');
+    if (newPassword !== confirmPassword) return showToast('رمز جدید با تکرار آن یکسان نیست.', 'error');
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/change-password`, {
+            method:'POST', credentials:'include', cache:'no-store',
+            headers:{'Content-Type':'application/json','Accept':'application/json'},
+            body:JSON.stringify({old_password:oldPassword,new_password:newPassword})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success !== true) throw new Error(data.detail?.message || data.detail || data.message || 'تغییر رمز عبور ناموفق بود');
+        closeModalDirect();
+        showToast(data.message || 'رمز عبور با موفقیت تغییر کرد.', 'success');
+    } catch (error) {
+        showToast(error.message || 'تغییر رمز عبور ناموفق بود', 'error');
+    }
+}
+window.showChangePasswordModal = showChangePasswordModal;
+window.submitSecurityPasswordChange = submitSecurityPasswordChange;
 
 
 /* =========================================================
