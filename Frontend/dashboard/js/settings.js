@@ -3386,6 +3386,7 @@ window.deactivatePersistentNotification = deactivatePersistentNotification;
    ========================================================= */
 
 function renderAuditLogs() {
+    if (AppState.auditSearch === 'undefined') AppState.auditSearch = '';
     let filtered =
         [...AUDIT_LOGS];
 
@@ -3411,9 +3412,9 @@ function renderAuditLogs() {
         filtered =
             filtered.filter(
                 l =>
-                    l.userName.includes(q) ||
-                    l.description.includes(q) ||
-                    l.ip.includes(q)
+                    String(l.userName || '').toLowerCase().includes(q) ||
+                    String(l.description || '').toLowerCase().includes(q) ||
+                    String(l.ip || '').toLowerCase().includes(q)
             );
     }
 
@@ -3517,6 +3518,7 @@ function renderAuditLogs() {
             </button>
 
             <button class="btn btn-secondary" onclick="showAuditExportModal()">خروجی</button>
+            <button class="btn btn-secondary" onclick="showDockerLogsModal()">لاگ‌های Docker</button>
 
         </div>
 
@@ -4788,6 +4790,51 @@ window.loadPersistentSystemSettings = loadPersistentSystemSettings;
 window.savePersistentSystemSettings = savePersistentSystemSettings;
 
 
+
+
+
+function showDockerLogsModal() {
+    showModal('لاگ‌های Docker', `
+      <div class="form-group"><label class="form-label">کانتینر</label>
+        <select id="dockerLogContainer" class="form-input">
+          <option value="panel_sepehr">panel_sepehr (پنل)</option>
+          <option value="chat_node">chat_node (چت بله)</option>
+          <option value="chat_node_eitaa">chat_node_eitaa (چت ایتا)</option>
+          <option value="botbale_poli">botbale_poli</option>
+          <option value="eitaa-service">eitaa-service</option>
+          <option value="n8n">n8n</option>
+          <option value="mysql">mysql</option>
+          <option value="chat_postgres">chat_postgres</option>
+          <option value="openui_selfhosted_chat">openui_selfhosted_chat</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">تعداد خطوط (حداکثر ۱۰۰۰)</label><input id="dockerLogTail" class="form-input" type="number" min="1" max="1000" value="200"></div>
+      <div id="dockerLogOutput" class="docker-log-output">برای نمایش لاگ‌ها روی «نمایش لاگ» بزنید.</div>
+    `, [
+      {label:'بستن',class:'btn-secondary',action:'closeModalDirect()'},
+      {label:'نمایش لاگ',class:'btn-primary',action:'loadDockerLogs()'}
+    ]);
+}
+async function loadDockerLogs() {
+    const output = document.getElementById('dockerLogOutput');
+    const container = document.getElementById('dockerLogContainer')?.value || 'panel_sepehr';
+    const tail = Math.max(1, Math.min(1000, Number(document.getElementById('dockerLogTail')?.value || 200)));
+    if (output) output.textContent = 'در حال دریافت لاگ‌ها…';
+    try {
+      const query = new URLSearchParams({container,tail:String(tail)});
+      const response = await fetch(`${API_BASE}/api/admin/docker-logs?${query}`, {credentials:'include',cache:'no-store'});
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail?.message || data.detail || 'دریافت لاگ Docker ناموفق بود');
+      if (output) {
+        output.textContent = (data.logs || []).map(item => `[${item.time}] [${item.stream}] ${item.message}`).join('\n') || 'لاگی برای نمایش وجود ندارد.';
+        output.scrollTop = output.scrollHeight;
+      }
+    } catch (error) {
+      if (output) output.textContent = error.message || 'دریافت لاگ Docker ناموفق بود';
+    }
+}
+window.showDockerLogsModal = showDockerLogsModal;
+window.loadDockerLogs = loadDockerLogs;
 
 
 function showAuditExportModal() {
