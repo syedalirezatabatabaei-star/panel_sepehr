@@ -2,12 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from API.database import get_connection
 
-router = APIRouter(
-    prefix="/api/admin/permissions",
-    tags=["Permission management"],
-    dependencies=[Depends(require_permission_admin)],
-)
-
 # Stable permission codes. Read/write controls are stored in user_permissions.
 PERMISSION_CATALOG = [
     {"code":"bale.personal_message","group":"پیام‌رسانی","label":"استفاده از ارسال پیام شخصی بله","mode":"toggle"},
@@ -33,6 +27,12 @@ def require_permission_admin(request: Request):
     if not user.get("is_active") or int(user.get("access_level") or 0) != 3:
         raise HTTPException(status_code=403, detail="مدیریت مجوزها فقط در اختیار مدیران است")
     return user
+
+router = APIRouter(
+    prefix="/api/admin/permissions",
+    tags=["Permission management"],
+    dependencies=[Depends(require_permission_admin)],
+)
 
 class PermissionChange(BaseModel):
     code: str = Field(min_length=1, max_length=128)
