@@ -89,7 +89,7 @@ function applyMenuPermissions() {
 function applyWritePermissions() {
   // مثال: دکمه ارسال بله
   const baleSend = document.getElementById("baleSendButton");
-  if (baleSend) baleSend.disabled = !canWrite("bale");
+  if (baleSend) baleSend.disabled = !canWrite("bale.personal_message");
 
   document.querySelectorAll("[data-permission-write]").forEach((el) => {
     const page = el.getAttribute("data-permission-write");
