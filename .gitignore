@@ -39,3 +39,5 @@ browser_profile_backup_*/
 cookies.txt
 data/state.db
 data/*.db
+
+bale_session.json
