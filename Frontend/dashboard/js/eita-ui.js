@@ -11,6 +11,15 @@
        CONFIG
     ========================================================= */
 
+    // The API runs on a different port; include the panel session cookie on every request.
+    async function chatFetch(input, init = {}) {
+        return window.fetch(input, {
+            ...init,
+            credentials: 'include',
+            cache: init.cache || 'no-store'
+        });
+    }
+
     const EITAA_API =
         `${API_BASE}/api/chat/eitaa`;
 
@@ -2694,7 +2703,7 @@
         try {
 
             const sessionsRes =
-                await fetch(
+                await chatFetch(
                     EITAA_API +
                     '/sessions'
                 );
@@ -2731,7 +2740,7 @@
 
 
                 const messagesRes =
-                    await fetch(
+                    await chatFetch(
                         `${EITAA_API}/messages/${sid}`
                     );
 
@@ -2955,7 +2964,7 @@
 
 
             const res =
-                await fetch(
+                await chatFetch(
                     EITAA_CREATE_CHAT_WEBHOOK,
                     {
                         method: 'POST',
@@ -2975,9 +2984,8 @@
 
             if (!res.ok) {
 
-                throw new Error(
-                    'Webhook Error'
-                );
+                const errorBody = await res.text().catch(() => '');
+                throw new Error(`درخواست سرویس ناموفق بود (HTTP ${res.status})${errorBody ? ': ' + errorBody.slice(0, 180) : ''}`);
 
             }
 
@@ -3129,7 +3137,7 @@
         try {
 
             const res =
-                await fetch(
+                await chatFetch(
                     EITAA_API +
                     '/sessions'
                 );
@@ -3533,7 +3541,7 @@
         try {
 
             const res =
-                await fetch(
+                await chatFetch(
                     `${EITAA_API}/messages/${currentSession}`
                 );
 
@@ -3830,7 +3838,7 @@
              */
 
             const res =
-                await fetch(
+                await chatFetch(
                     EITAA_WEBHOOK,
                     {
                         method: 'POST',
@@ -3855,9 +3863,8 @@
 
             if (!res.ok) {
 
-                throw new Error(
-                    'Webhook Error'
-                );
+                const errorBody = await res.text().catch(() => '');
+                throw new Error(`درخواست سرویس ناموفق بود (HTTP ${res.status})${errorBody ? ': ' + errorBody.slice(0, 180) : ''}`);
 
             }
 
@@ -4239,7 +4246,7 @@
                     try {
 
                         const res =
-                            await fetch(
+                            await chatFetch(
                                 `${EITAA_API}/messages/${currentSession}`
                             );
 
