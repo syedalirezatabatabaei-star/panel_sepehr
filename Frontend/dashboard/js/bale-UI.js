@@ -15,6 +15,30 @@
         });
     }
 
+    async function readChatCollection(response, keys, label) {
+        const raw = await response.text();
+        let payload = null;
+        try {
+            payload = raw ? JSON.parse(raw) : null;
+        } catch (_) {
+            throw new Error(`پاسخ سرویس ${label} معتبر نیست (HTTP ${response.status})`);
+        }
+        if (!response.ok) {
+            const detail = payload && (payload.detail?.message || payload.detail || payload.message || payload.error);
+            throw new Error(`دریافت ${label} ناموفق بود (HTTP ${response.status})${detail ? ': ' + String(detail).slice(0, 180) : ''}`);
+        }
+        const candidates = [payload, payload?.data, payload?.result, payload?.response];
+        for (const candidate of candidates) {
+            if (Array.isArray(candidate)) return candidate;
+            if (candidate && typeof candidate === 'object') {
+                for (const key of keys) {
+                    if (Array.isArray(candidate[key])) return candidate[key];
+                }
+            }
+        }
+        throw new Error(`ساختار پاسخ سرویس ${label} معتبر نیست؛ فهرست داده‌ها پیدا نشد`);
+    }
+
     const API = `${API_BASE}/api/chat/bale`;
     const WEBHOOK = `${API_BASE}/api/chat/bale/webhook/send`;
     const CREATE_CHAT_WEBHOOK = `${API_BASE}/api/chat/bale/webhook/create`;
@@ -1672,23 +1696,15 @@ body:has(.main-content.bale-chat-host) {
         `;
 
         try {
-            const sessionsRes =
-                await chatFetch(API + '/sessions');
-
-            const sessions =
-                await sessionsRes.json();
+            const sessionsRes = await chatFetch(API + '/sessions');
+            const sessions = await readChatCollection(sessionsRes, ['sessions', 'items', 'results'], 'گفتگوها');
 
             let results = [];
 
             for (const session of sessions) {
 
-                const messagesRes =
-                    await chatFetch(
-                        `${API}/messages/${session.id}`
-                    );
-
-                const messages =
-                    await messagesRes.json();
+                const messagesRes = await chatFetch(`${API}/messages/${session.id}`);
+                const messages = await readChatCollection(messagesRes, ['messages', 'items', 'results'], 'پیام‌ها');
 
                 messages.forEach(m => {
 
@@ -2316,13 +2332,14 @@ body:has(.main-content.bale-chat-host) {
 
         try {
 
-            const res =
-                await chatFetch(
-                    `${API}/messages/${currentSession}`
-                );
-
-            const messages =
-                await res.json();
+            const res = await chatFetch(`${API}/messages/${currentSession}`);
+            const rawMessages = await readChatCollection(res, ['messages', 'items', 'results'], 'پیام‌ها');
+            const messages = rawMessages.map(m => ({
+                ...m,
+                message: m.message ?? m.text ?? m.content ?? '',
+                sender_type: m.sender_type ?? m.senderType ?? m.role ?? 'bot',
+                created_at: m.created_at ?? m.createdAt ?? m.timestamp ?? null
+            }));
 
             if (
                 silent &&
@@ -2803,13 +2820,8 @@ body:has(.main-content.bale-chat-host) {
 
                     try {
 
-                        const res =
-                            await chatFetch(
-                                `${API}/messages/${currentSession}`
-                            );
-
-                        const messages =
-                            await res.json();
+                        const res = await chatFetch(`${API}/messages/${currentSession}`);
+                        const messages = await readChatCollection(res, ['messages', 'items', 'results'], 'پیام‌ها');
 
                         if (
                             messages.length >
