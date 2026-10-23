@@ -175,41 +175,38 @@ def save_user_permission_settings(user_id: int, body: SavePermissionsRequest):
     allowed = {item["code"] for item in PERMISSION_CATALOG}
     if any(item.code not in allowed for item in body.permissions):
         raise HTTPException(status_code=400, detail="کد مجوز نامعتبر است")
+    if len({item.code for item in body.permissions}) != len(body.permissions):
+        raise HTTPException(status_code=400, detail="کد مجوز تکراری در درخواست وجود دارد")
+
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
         cursor.execute("SELECT id FROM users WHERE id=%s", (user_id,))
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="کاربر پیدا نشد")
+
+        _ensure_permission_catalog(cursor)
         cursor.execute("SELECT id, code FROM permissions")
-        ids = {r["code"]: r["id"] for r in cursor.fetchall()}
-        missing = [p.code for p in body.permissions if p.code not in ids]
+        ids = {row["code"]: row["id"] for row in cursor.fetchall()}
+        missing = [item.code for item in body.permissions if item.code not in ids]
         if missing:
-            raise HTTPException(
-                status_code=409,
-                detail={"message":"مجوزهای این بخش هنوز در جدول permissions ثبت نشده‌اند؛ ابتدا migration را اجرا کنید.", "missing":missing}
-            )
+            raise HTTPException(status_code=409, detail={"message": "ثبت مجوزها ناموفق بود", "missing": missing})
+
         for item in body.permissions:
             permission_id = ids[item.code]
-            cursor.execute("""
-                SELECT id FROM user_permissions
-                WHERE user_id=%s AND permission_id=%s
-                LIMIT 1
-            """, (user_id, permission_id))
-            existing = cursor.fetchone()
-            if existing:
-                cursor.execute("""
-                    UPDATE user_permissions
-                    SET can_read=%s, can_write=%s
-                    WHERE id=%s
-                """, (int(item.can_read), int(item.can_write), existing["id"]))
-            else:
+            # Remove any legacy duplicates. Unchecked means "no personal grant",
+            # not an explicit deny; role grants remain effective.
+            cursor.execute(
+                "DELETE FROM user_permissions WHERE user_id=%s AND permission_id=%s",
+                (user_id, permission_id),
+            )
+            if item.can_read or item.can_write:
                 cursor.execute("""
                     INSERT INTO user_permissions (user_id, permission_id, can_read, can_write)
                     VALUES (%s, %s, %s, %s)
                 """, (user_id, permission_id, int(item.can_read), int(item.can_write)))
         db.commit()
-        return {"success": True, "message": "مجوزهای کاربر ذخیره شد"}
+        return {"success": True, "message": "مجوزهای شخصی کاربر ذخیره شد"}
     except HTTPException:
         db.rollback()
         raise
@@ -219,3 +216,4 @@ def save_user_permission_settings(user_id: int, body: SavePermissionsRequest):
     finally:
         cursor.close()
         db.close()
+
