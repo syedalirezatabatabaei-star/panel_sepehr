@@ -14,7 +14,7 @@ let CURRENT_USER = null;
    ========================= */
 
 const AppState = {
-    currentPage: 'overview',
+    currentPage: 'my-account',
 
     selectedUserId: null,
     selectedRoleId: null,
