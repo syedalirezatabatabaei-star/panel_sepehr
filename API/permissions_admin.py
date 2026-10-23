@@ -20,13 +20,50 @@ PERMISSION_CATALOG = [
 ]
 
 def _ensure_permission_catalog(cursor):
-    """Idempotently register every supported permission code."""
+    """Register catalog entries using the actual deployed table schema."""
+    cursor.execute("SHOW COLUMNS FROM permissions")
+    columns = cursor.fetchall()
+    by_name = {column["Field"]: column for column in columns}
+    if "code" not in by_name:
+        raise RuntimeError("جدول permissions ستون code ندارد")
+    cursor.execute("SELECT code FROM permissions")
+    existing = {row["code"] for row in cursor.fetchall()}
+    inserted = 0
     for item in PERMISSION_CATALOG:
-        cursor.execute("""
-            INSERT INTO permissions (code, name, description)
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description)
-        """, (item["code"], item["label"], item["group"]))
+        code = item["code"]
+        if code in existing:
+            continue
+        values = {"code": code}
+        for field, value in (
+            ("name", item["label"]), ("label", item["label"]),
+            ("title", item["label"]), ("description", item["label"]),
+            ("group", item["group"]), ("category", item["group"]),
+            ("is_active", 1),
+        ):
+            if field in by_name:
+                values[field] = value
+        missing = []
+        for column in columns:
+            name = column["Field"]
+            if name in values or "auto_increment" in (column.get("Extra") or "").lower():
+                continue
+            if column.get("Null") == "YES" or column.get("Default") is not None:
+                continue
+            missing.append(name)
+        if missing:
+            raise RuntimeError(
+                "ستون‌های اجباری ناشناخته در جدول permissions: " + ", ".join(missing)
+            )
+        names = list(values)
+        sql = (
+            "INSERT INTO permissions (" +
+            ", ".join("`" + name.replace("`", "``") + "`" for name in names) +
+            ") VALUES (" + ", ".join(["%s"] * len(names)) + ")"
+        )
+        cursor.execute(sql, tuple(values[name] for name in names))
+        existing.add(code)
+        inserted += 1
+    return inserted
 
 
 def require_permission_admin(request: Request):
@@ -94,39 +131,38 @@ def get_user_permission_settings(user_id: int):
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT id FROM users WHERE id=%s", (user_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT id, role_id FROM users WHERE id=%s", (user_id,))
+        user = cursor.fetchone()
+        if not user:
             raise HTTPException(status_code=404, detail="کاربر پیدا نشد")
         cursor.execute("""
-            SELECT
-                p.code,
-                up.id IS NOT NULL AS user_override,
-                up.can_read,
-                up.can_write,
-                rp.id IS NOT NULL AS role_granted
+            SELECT p.code,
+                   MAX(COALESCE(up.can_read, 0)) AS personal_read,
+                   MAX(COALESCE(up.can_write, 0)) AS personal_write,
+                   MAX(CASE WHEN rp.id IS NOT NULL THEN 1 ELSE 0 END) AS role_granted
             FROM permissions p
-            LEFT JOIN users u ON u.id = %s
-            LEFT JOIN role_permissions rp
-              ON rp.permission_id = p.id AND rp.role_id = u.role_id
             LEFT JOIN user_permissions up
-              ON up.permission_id = p.id AND up.user_id = %s
-        """, (user_id, user_id))
-        rows = {}
-        for row in cursor.fetchall():
-            if row["user_override"]:
-                rows[row["code"]] = {
-                    "can_read": bool(row["can_read"]),
-                    "can_write": bool(row["can_write"])
-                }
-            else:
-                inherited = bool(row["role_granted"])
-                rows[row["code"]] = {"can_read": inherited, "can_write": inherited}
+              ON up.permission_id=p.id AND up.user_id=%s
+            LEFT JOIN role_permissions rp
+              ON rp.permission_id=p.id AND rp.role_id=%s
+            GROUP BY p.id, p.code
+        """, (user_id, user["role_id"]))
+        rows = {row["code"]: row for row in cursor.fetchall()}
         return {
             "success": True,
             "user_id": user_id,
             "permissions": [
-                {**item, **rows.get(item["code"], {"can_read": False, "can_write": False}),
-                 "registered": item["code"] in rows}
+                {
+                    **item,
+                    "can_read": bool(rows.get(item["code"], {}).get("personal_read")),
+                    "can_write": bool(rows.get(item["code"], {}).get("personal_write")),
+                    "personal_grant": bool(
+                        rows.get(item["code"], {}).get("personal_read")
+                        or rows.get(item["code"], {}).get("personal_write")
+                    ),
+                    "role_granted": bool(rows.get(item["code"], {}).get("role_granted")),
+                    "registered": item["code"] in rows,
+                }
                 for item in PERMISSION_CATALOG
             ]
         }
