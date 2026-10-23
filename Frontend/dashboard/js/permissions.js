@@ -72,8 +72,9 @@ function canWrite(page) {
   return !!(u.permissions[page]?.write || u.permissions[page + ".write"]?.write);
 }
 
-function guardFeature(permissionCode) {
-  if (!canRead(permissionCode)) {
+function guardFeature(permissionCode, action = "read") {
+  const allowed = action === "write" ? canWrite(permissionCode) : canRead(permissionCode);
+  if (!allowed) {
     showPermissionDenied();
     return false;
   }
@@ -98,9 +99,9 @@ function applyWritePermissions() {
   });
 }
 
-function guardPage(page) {
+function guardPage(page, action = "read") {
 
-    if (!canRead(page)) {
+    if (action === "write" ? !canWrite(page) : !canRead(page)) {
 
         showPermissionDenied();
 
