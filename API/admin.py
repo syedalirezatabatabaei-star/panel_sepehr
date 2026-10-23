@@ -8,8 +8,7 @@ from typing import Optional
 
 router = APIRouter(
     prefix="/api/admin",
-    tags=["Admin"],
-    dependencies=[Depends(require_admin)]
+    tags=["Admin"]
 )
 class UpdateUserRequest(BaseModel):
     first_name: str
