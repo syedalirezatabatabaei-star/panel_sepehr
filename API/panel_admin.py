@@ -229,3 +229,37 @@ def save_system_settings(payload: SettingsInput, request: Request):
     finally:
         cursor.close()
         db.close()
+
+
+@router.get("/api/admin/audit-logs")
+def get_panel_audit_logs(request: Request, limit: int = 200):
+    user = _user(request)
+    _admin(user)
+    limit = max(1, min(int(limit), 500))
+    db = get_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT id, user_id, username, login_status, otp_status,
+                   ip_address, user_agent, failure_reason, created_at
+            FROM login_logs
+            ORDER BY id DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        rows = cursor.fetchall()
+        return {"success": True, "logs": rows}
+    finally:
+        cursor.close()
+        db.close()
+
+
+@router.get("/api/admin/activities")
+def get_panel_activities(request: Request, limit: int = 200):
+    # Login activity is backed by the same persistent audit source; this endpoint
+    # does not invent synthetic activity records.
+    result = get_panel_audit_logs(request, limit)
+    return {"success": True, "activities": result["logs"]}
+
