@@ -109,6 +109,9 @@ def approve_registration(request_id: int, body: ApproveBody, request: Request):
         if level is None:
             level = int(req.get("requested_access_level") or 1)
         level = max(1, min(3, int(level)))
+        actor = getattr(request.state, "user", {}) or {}
+        if level > int(actor.get("access_level") or 0) and int(actor.get("access_level") or 0) != 3:
+            raise HTTPException(403, "نمی‌توانید کاربری با سطح دسترسی بالاتر از خود ایجاد کنید")
 
         cursor.execute(
             "SELECT id FROM users WHERE username = %s",
