@@ -69,6 +69,37 @@ const SETTINGS_NAV_ITEMS = [
     { page: 'my-account', icon: '&#128100;', label: 'حساب من' }
 ];
 
+const SETTINGS_PAGE_PERMISSION = {
+    'registration-requests': 'registration_requests',
+    'users': 'users',
+    'user-details': 'users',
+    'edit-user': 'users',
+    'user-permissions': 'users',
+    'roles': 'roles',
+    'role-permissions': 'roles',
+    'notification-settings': 'notifications',
+    'notifications': 'notifications',
+    'audit-logs': 'audit_logs',
+    'security': 'security'
+};
+
+function hasPersonalSettingsAccess(page) {
+    if (isSettingsAdministrator()) return true;
+    if (page === 'my-account') return true;
+    if (page === 'access-control') return false;
+    const code = SETTINGS_PAGE_PERMISSION[page];
+    if (!code) return false;
+    if (typeof window.hasPersonalPermission === 'function') {
+        return window.hasPersonalPermission(code);
+    }
+    const user = window.CURRENT_USER || (() => {
+        try { return JSON.parse(localStorage.getItem('user') || 'null'); }
+        catch (_) { return null; }
+    })();
+    const grant = user?.permissions?.[code];
+    return !!(grant?.personal_read || grant?.personal_write);
+}
+
 /** true فقط وقتی کاربر در صفحات تنظیمات است (نه بله/ایتا) */
 let settingsSectionOpen = false;
 
@@ -87,7 +118,10 @@ function ensureSettingsNav() {
 
     if (document.getElementById('settingsNav')) return;
 
-    const itemsHtml = SETTINGS_NAV_ITEMS.map(item => `
+    const visibleItems = SETTINGS_NAV_ITEMS.filter(item =>
+        item.page === 'my-account' || hasPersonalSettingsAccess(item.page)
+    );
+    const itemsHtml = visibleItems.map(item => `
         <button class="settings-nav-item" data-page="${item.page}" onclick="navigateTo('${item.page}')">
             <span class="icon">${item.icon}</span>
             <span>${item.label}</span>
@@ -255,12 +289,9 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================= */
 
 function navigateTo(page, data) {
-    // Only the genuinely privileged settings pages are restricted here.
-    // Other pages rely on their page-specific UI checks and server-side API authorization.
-    const administratorOnlyPages = new Set([
-        'access-control'
-    ]);
-    if (administratorOnlyPages.has(page) && !isSettingsAdministrator()) {
+    // Settings pages are hidden and guarded by explicit per-user grants.
+    // My Account is the only settings page available by default to non-admin users.
+    if (!hasPersonalSettingsAccess(page)) {
         showPermissionDenied();
         return;
     }
@@ -535,7 +566,7 @@ async function loadSelectedUserPermissions() {
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--gray-200);padding:12px 0">
                   <div>
                     <div>${escapePermissionText(p.label)}</div>
-                    <small style="color:var(--gray-500)">${escapePermissionText(p.code)}${registered ? "" : " — نیازمند اجرای migration"}</small>
+                    <small style="color:var(--gray-500)">${escapePermissionText(p.code)}${!registered ? " — ثبت‌نشده" : (value.role_granted ? " — دسترسی نقش جدا از مجوز شخصی است" : " — مجوز شخصی")}</small>
                   </div>
                   <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
                     ${p.mode === "toggle" ? `
