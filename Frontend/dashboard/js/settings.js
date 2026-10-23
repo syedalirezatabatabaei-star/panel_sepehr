@@ -64,8 +64,7 @@ const SETTINGS_NAV_ITEMS = [
     { page: 'registration-requests', icon: '&#128221;', label: 'درخواست کاربران جدید' },
     { page: 'users', icon: '&#128101;', label: 'مدیریت کاربران' },
     { page: 'notification-settings', icon: '&#9881;', label: 'تنظیمات اعلان‌ها' },
-    { page: 'audit-logs', icon: '&#128220;', label: 'لاگ‌های سیستم' },
-    { page: 'activities', icon: '&#128203;', label: 'فعالیت کاربران' },
+    { page: 'audit-logs', icon: '&#128220;', label: 'لاگ سیستم (توسعه‌دهنده)' },
     { page: 'security', icon: '&#128274;', label: 'امنیت' },
     { page: 'my-account', icon: '&#128100;', label: 'حساب من' }
 ];
@@ -77,7 +76,7 @@ let settingsSectionOpen = false;
 const SETTINGS_PAGES = new Set([
     'users', 'registration-requests', 'user-details',
     'user-permissions', 'edit-user', 'roles', 'role-permissions',
-    'notifications', 'notification-settings', 'audit-logs', 'activities', 'security',
+    'notifications', 'notification-settings', 'audit-logs', 'security',
     'my-account', 'access-control'
 ]);
 
@@ -311,7 +310,7 @@ function navigateTo(page, data) {
         'notifications': 'اعلان‌ها',
         'notification-settings': 'تنظیمات اعلان‌ها',
         'audit-logs': 'لاگ‌های سیستم',
-        'activities': 'فعالیت کاربران',
+
         'security': 'امنیت',
         'my-account': 'حساب من',
         'access-control': 'مدیریت دسترسی‌ها'
@@ -349,7 +348,6 @@ function renderPage(page) {
         'notifications': renderNotifications,
         'notification-settings': renderNotificationSettings,
         'audit-logs': renderAuditLogs,
-        'activities': renderActivities,
         'security': renderSecurity,
         'my-account': renderMyAccount,
         'access-control': renderAccessControl
@@ -374,7 +372,7 @@ function renderPage(page) {
         if (page === 'notification-settings') {
             refreshNotificationSettingsPage();
         }
-        if ((page === 'audit-logs' || page === 'activities' || page === 'security') && !window.__auditLoadedForPage?.[page]) {
+        if ((page === 'audit-logs' || page === 'security') && !window.__auditLoadedForPage?.[page]) {
             loadPersistentAuditData(page);
         }
         if (page === 'security') {
@@ -3444,7 +3442,7 @@ function renderAuditLogs() {
                 <span class="separator">/</span>
 
                 <span class="current">
-                    لاگ‌های سیستم
+                    لاگ سیستم (توسعه‌دهنده)
                 </span>
 
             </div>
@@ -3453,9 +3451,7 @@ function renderAuditLogs() {
                 لاگ‌های سیستم
             </h1>
 
-            <p>
-                مشاهده و جستجوی لاگ‌های مدیریتی سیستم
-            </p>
+            <p>فعالیت صفحات، تلاش‌های ناموفق دسترسی و لاگ سرویس‌های Docker</p>
 
         </div>
 
@@ -3470,9 +3466,9 @@ function renderAuditLogs() {
                 <input
                     type="text"
                     placeholder="جستجو در لاگ‌ها..."
-                    value="${AppState.auditSearch}"
+                    value="${AppState.auditSearch && AppState.auditSearch !== 'undefined' ? AppState.auditSearch : ''}"
                     oninput="
-                        AppState.auditSearch = this.value;
+                        AppState.auditSearch = this.value === 'undefined' ? '' : this.value;
                         AppState.currentPageLogs = 1;
                         navigateTo('audit-logs')
                     "
@@ -3513,17 +3509,7 @@ function renderAuditLogs() {
                 ✗ ناموفق
             </button>
 
-            <button
-                class="btn btn-secondary"
-                onclick="
-                    showToast(
-                        'خروجی با موفقیت دانلود شد',
-                        'success'
-                    )
-                "
-            >
-                📥 Export
-            </button>
+            <button class="btn btn-secondary" onclick="showAuditExportModal()">خروجی</button>
 
         </div>
 
@@ -4796,6 +4782,51 @@ window.savePersistentSystemSettings = savePersistentSystemSettings;
 
 
 
+
+function showAuditExportModal() {
+    showModal('خروجی لاگ‌ها', `
+      <div class="form-group"><label class="form-label">از تاریخ</label><input id="auditExportFrom" type="date" class="form-input"></div>
+      <div class="form-group"><label class="form-label">تا تاریخ</label><input id="auditExportTo" type="date" class="form-input"></div>
+      <div class="form-group"><label class="form-label">کاربر (اختیاری)</label><input id="auditExportUser" class="form-input" placeholder="نام کاربری یا بخشی از آن"></div>
+      <div class="form-group"><label class="form-label">تعداد رکورد</label><input id="auditExportCount" type="number" class="form-input" min="1" max="5000" value="500"></div>
+      <p class="form-hint">فقط رکوردهای منطبق با تاریخ، کاربر و تعداد انتخاب‌شده خروجی گرفته می‌شوند.</p>
+    `, [
+      {label:'انصراف',class:'btn-secondary',action:'closeModalDirect()'},
+      {label:'دریافت خروجی',class:'btn-primary',action:'exportAuditLogsCsv()'}
+    ]);
+}
+function exportAuditLogsCsv() {
+    const from = document.getElementById('auditExportFrom')?.value || '';
+    const to = document.getElementById('auditExportTo')?.value || '';
+    const user = (document.getElementById('auditExportUser')?.value || '').trim().toLowerCase();
+    const count = Math.max(1, Math.min(5000, Number(document.getElementById('auditExportCount')?.value || 500)));
+    if (from && to && from > to) return showToast('تاریخ شروع نباید بعد از تاریخ پایان باشد.', 'error');
+    let rows = [...AUDIT_LOGS];
+    rows = rows.filter(log => {
+        const stamp = String(log.timestamp || '').slice(0, 10);
+        return (!from || stamp >= from) && (!to || stamp <= to) &&
+          (!user || String(log.userName || '').toLowerCase().includes(user));
+    });
+    rows = rows.slice(0, count);
+    if (!rows.length) return showToast('رکوردی با این فیلترها پیدا نشد.', 'warning');
+    const columns = ['شناسه','کاربر','عملیات','توضیحات','زمان','IP','نتیجه','User Agent'];
+    const cell = value => '"' + String(value ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+    const csv = '\uFEFF' + [columns, ...rows.map(log => [
+      log.id,log.userName,log.action,log.description,log.timestamp,log.ip,
+      log.result === 'success' ? 'موفق' : 'ناموفق',log.userAgent
+    ])].map(row => row.map(cell).join(',')).join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'system-logs-' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    closeModalDirect();
+    showToast(`خروجی ${rows.length} رکورد آماده شد.`, 'success');
+}
+window.showAuditExportModal = showAuditExportModal;
+window.exportAuditLogsCsv = exportAuditLogsCsv;
+
 async function loadPersistentAuditData(page) {
     try {
         const response = await fetch(`${API_BASE}/api/admin/audit-logs?limit=300`, {credentials:"include",cache:"no-store"});
@@ -4825,7 +4856,7 @@ async function loadPersistentAuditData(page) {
         }
     } catch (e) {
         console.error("loadPersistentAuditData:", e);
-        if (page === "audit-logs" || page === "activities") showToast(e.message || "دریافت فعالیت‌ها ناموفق بود", "error");
+        if (page === "audit-logs") showToast(e.message || "دریافت فعالیت‌ها ناموفق بود", "error");
     }
 }
 window.loadPersistentAuditData = loadPersistentAuditData;
