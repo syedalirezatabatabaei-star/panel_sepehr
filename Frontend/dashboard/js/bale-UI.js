@@ -6,9 +6,9 @@
        CONFIG
     ========================================================= */
 
-    const API = "http://95.38.187.123:3000";
-    const WEBHOOK = "https://n8n.sepehrsalamati.ir/webhook/seandms";
-    const CREATE_CHAT_WEBHOOK = "https://n8n.sepehrsalamati.ir/webhook/plasuser";
+    const API = `${API_BASE}/api/chat/bale`;
+    const WEBHOOK = `${API_BASE}/api/chat/bale/webhook/send`;
+    const CREATE_CHAT_WEBHOOK = `${API_BASE}/api/chat/bale/webhook/create`;
 
     const BALE_LOGO = "img/navid.jpg";
     const BALE_AVATAR = "img/images.jpg";
