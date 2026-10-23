@@ -97,6 +97,10 @@ async def require_authenticated_api_requests(request: Request, call_next):
         permission_action = "read" if request.method in {"GET", "HEAD"} else "write"
     elif path_lower.startswith("/api/admin/"):
         if int(user.get("access_level") or 0) != 3:
+            _record_system_event(
+                request, "permission_denied", "دسترسی مدیریتی رد شد",
+                path=path_lower, method=request.method, status_code=403
+            )
             return JSONResponse(
                 status_code=403,
                 content={"detail": {"message": "این عملیات فقط برای مدیران مجاز است."}},
