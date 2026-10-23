@@ -276,6 +276,13 @@ function navigateTo(page, data) {
 
     const previousPage = AppState.currentPage;
     AppState.currentPage = page;
+    if (page && page !== previousPage && !['audit-logs'].includes(page)) {
+        fetch(`${API_BASE}/api/system-logs/pageview`, {
+            method: 'POST', credentials: 'include', cache: 'no-store',
+            headers: {'Content-Type':'application/json','Accept':'application/json'},
+            body: JSON.stringify({page})
+        }).catch(() => {});
+    }
 
     closeSettingsNav();
 
@@ -4847,15 +4854,15 @@ async function loadPersistentAuditData(page) {
         const rows = (data.logs || []).map(row => ({
             id: Number(row.id),
             userName: String(row.username || ("کاربر #" + row.user_id)),
-            description: row.login_status === "success" ? "ورود موفق" : "ورود ناموفق" + (row.failure_reason ? " — " + row.failure_reason : ""),
-            action: row.login_status === "success" ? "login" : "login_failed",
-            result: row.login_status === "success" ? "success" : "failed",
+            description: String(row.description || row.failure_reason || (row.login_status === "success" ? "ورود موفق" : "ورود ناموفق")),
+            action: String(row.event_type || (row.login_status === "success" ? "login" : "login_failed")),
+            result: row.login_status === "success" ? "success" : "failure",
             ip: String(row.ip_address || "-"),
             timestamp: String(row.created_at || ""),
             userAgent: String(row.user_agent || ""),
-            category: "auth",
-            type: row.login_status === "success" ? "login" : "login_failed",
-            status: row.login_status === "success" ? "success" : "failed"
+            category: String(row.event_type || "auth"),
+            type: String(row.event_type || (row.login_status === "success" ? "login" : "login_failed")),
+            status: row.login_status === "success" ? "success" : "failure"
         }));
         if (Array.isArray(AUDIT_LOGS)) AUDIT_LOGS.splice(0, AUDIT_LOGS.length, ...rows);
         if (Array.isArray(ACTIVITIES)) ACTIVITIES.splice(0, ACTIVITIES.length, ...rows);
