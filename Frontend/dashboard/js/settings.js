@@ -10,17 +10,16 @@
    ========================================================= */
 
 const SETTINGS_NAV_ITEMS = [
-    { page: 'overview',               icon: '&#128202;', label: 'نمای کلی' },
-    { page: 'registration-requests',  icon: '&#128221;', label: 'درخواست کاربران جدید' },
-    { page: 'users',                  icon: '&#128101;', label: 'مدیریت کاربران' },
-    { page: 'roles',                  icon: '&#127991;&#65039;', label: 'مدیریت نقش‌ها' },
-    { page: 'notifications',          icon: '&#128276;', label: 'اعلان‌ها' },
-    { page: 'audit-logs',             icon: '&#128220;', label: 'لاگ‌های سیستم' },
-    { page: 'activities',             icon: '&#128203;', label: 'فعالیت کاربران' },
-    { page: 'security',               icon: '&#128274;', label: 'امنیت' },
-    { page: 'my-account',             icon: '&#128100;', label: 'حساب من' },
-    { page: 'system-settings',        icon: '&#128295;', label: 'تنظیمات سیستم' },
-    { page: 'access-control',         icon: '&#128272;', label: 'مدیریت دسترسی‌ها' }
+    { page: 'overview', icon: '&#128202;', label: 'داشبورد و اطلاعات کلی' },
+    { page: 'access-control', icon: '&#128272;', label: 'مدیریت دسترسی‌ها' },
+    { page: 'registration-requests', icon: '&#128221;', label: 'درخواست کاربران جدید' },
+    { page: 'users', icon: '&#128101;', label: 'مدیریت کاربران' },
+    { page: 'notifications', icon: '&#128276;', label: 'اعلان‌ها' },
+    { page: 'audit-logs', icon: '&#128220;', label: 'لاگ‌های سیستم' },
+    { page: 'activities', icon: '&#128203;', label: 'فعالیت کاربران' },
+    { page: 'security', icon: '&#128274;', label: 'امنیت' },
+    { page: 'my-account', icon: '&#128100;', label: 'حساب من' },
+    { page: 'system-settings', icon: '&#128295;', label: 'تنظیمات سیستم' }
 ];
 
 /** true فقط وقتی کاربر در صفحات تنظیمات است (نه بله/ایتا) */
@@ -267,7 +266,7 @@ function navigateTo(page, data) {
     }
 
     renderPage(page);
-    if (page === 'users' && previousPage !== 'users' && typeof loadUsers === 'function') {
+    if (page === 'users' && typeof loadUsers === 'function') {
         loadUsers().catch(() => {});
     }
 }
@@ -312,6 +311,9 @@ function renderPage(page) {
         }
         if (page === 'access-control' || page === 'user-permissions') {
             loadAccessControl();
+        }
+        if (page === 'notifications') {
+            refreshNotificationsPage();
         }
     }
 }
@@ -3418,337 +3420,91 @@ function deselectAllRolePerms(roleId) {
    PAGE: NOTIFICATIONS
    ========================================================= */
 
-function renderNotifications() {
-    let filtered =
-        [...NOTIFICATIONS];
-
-    if (
-        AppState.notificationFilter !==
-        'all'
-    ) {
-        filtered =
-            filtered.filter(
-                n =>
-                    n.status ===
-                    AppState.notificationFilter
-            );
+async function loadPersistentNotifications() {
+    const admin = isSettingsAdministrator();
+    const endpoint = admin ? "/api/admin/notifications" : "/api/notifications";
+    const response = await fetch(`${API_BASE}${endpoint}`, { credentials: "include", cache: "no-store" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail?.message || data.detail || "دریافت اعلان‌ها ناموفق بود");
+    window.PERSISTENT_NOTIFICATIONS = data.notifications || [];
+    const badge = document.getElementById("notificationBadge");
+    if (badge) {
+        const count = window.PERSISTENT_NOTIFICATIONS.length;
+        badge.textContent = String(count);
+        badge.hidden = count === 0;
     }
-
-    if (
-        AppState.notificationSearch
-    ) {
-        const q =
-            AppState.notificationSearch
-                .toLowerCase();
-
-        filtered =
-            filtered.filter(
-                n =>
-                    n.title.includes(q) ||
-                    n.message.includes(q)
-            );
-    }
-
-    return `
-        <div class="page-header">
-
-            <div class="breadcrumb">
-
-                <a
-                    href="#"
-                    onclick="navigateTo('overview'); return false;"
-                >
-                    تنظیمات
-                </a>
-
-                <span class="separator">/</span>
-
-                <span class="current">
-                    اعلان‌ها
-                </span>
-
-            </div>
-
-            <div
-                style="
-                    display:flex;
-                    align-items:center;
-                    justify-content:space-between;
-                "
-            >
-
-                <div>
-
-                    <h1>
-                        مدیریت اعلان‌ها
-                    </h1>
-
-                    <p>
-                        ایجاد، ویرایش و مدیریت اعلان‌های سیستم
-                    </p>
-
-                </div>
-
-                <button
-                    class="btn btn-primary"
-                    onclick="showCreateNotificationModal()"
-                >
-                    + اعلان جدید
-                </button>
-
-            </div>
-
-        </div>
-
-        <div class="toolbar">
-
-            <div class="search-box">
-
-                <span class="search-icon">
-                    🔍
-                </span>
-
-                <input
-                    type="text"
-                    placeholder="جستجوی اعلان..."
-                    value="${AppState.notificationSearch}"
-                    oninput="
-                        AppState.notificationSearch = this.value;
-                        navigateTo('notifications')
-                    "
-                >
-
-            </div>
-
-            <button
-                class="filter-btn ${AppState.notificationFilter === 'all' ? 'active' : ''}"
-                onclick="
-                    AppState.notificationFilter='all';
-                    navigateTo('notifications')
-                "
-            >
-                همه
-            </button>
-
-            <button
-                class="filter-btn ${AppState.notificationFilter === 'active' ? 'active' : ''}"
-                onclick="
-                    AppState.notificationFilter='active';
-                    navigateTo('notifications')
-                "
-            >
-                فعال
-            </button>
-
-            <button
-                class="filter-btn ${AppState.notificationFilter === 'inactive' ? 'active' : ''}"
-                onclick="
-                    AppState.notificationFilter='inactive';
-                    navigateTo('notifications')
-                "
-            >
-                غیرفعال
-            </button>
-
-        </div>
-
-        <div class="table-container">
-
-            <table class="data-table">
-
-                <thead>
-
-                    <tr>
-                        <th>عنوان</th>
-                        <th>نوع</th>
-                        <th>اولویت</th>
-                        <th>گیرنده</th>
-                        <th>تاریخ انتشار</th>
-                        <th>وضعیت</th>
-                        <th>عملیات</th>
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    ${filtered.map(n => {
-
-                        const typeInfo =
-                            NOTIFICATION_TYPES.find(
-                                t =>
-                                    t.id ===
-                                    n.type
-                            );
-
-                        const targetInfo =
-                            NOTIFICATION_TARGETS.find(
-                                t =>
-                                    t.id ===
-                                    n.target
-                            );
-
-                        return `
-                            <tr>
-
-                                <td>
-
-                                    <div>
-
-                                        <div
-                                            class="font-bold"
-                                            style="color:var(--gray-900);"
-                                        >
-                                            ${n.title}
-                                        </div>
-
-                                        <div
-                                            style="
-                                                font-size:var(--font-size-xs);
-                                                color:var(--gray-500);
-                                                max-width:200px;
-                                                overflow:hidden;
-                                                text-overflow:ellipsis;
-                                                white-space:nowrap;
-                                            "
-                                        >
-                                            ${n.message}
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-                                <td>
-
-                                    <span
-                                        class="badge"
-                                        style="
-                                            background:${
-                                                typeInfo
-                                                    ? typeInfo.color + '20'
-                                                    : 'var(--gray-100)'
-                                            };
-                                            color:${
-                                                typeInfo
-                                                    ? typeInfo.color
-                                                    : 'var(--gray-600)'
-                                            };
-                                        "
-                                    >
-                                        ${
-                                            typeInfo
-                                                ? typeInfo.label
-                                                : n.type
-                                        }
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    ${
-                                        n.priority === 'critical'
-                                            ? '<span class="badge badge-danger">بحرانی</span>'
-                                            : n.priority === 'high'
-                                                ? '<span class="badge badge-warning">بالا</span>'
-                                                : n.priority === 'medium'
-                                                    ? '<span class="badge badge-info">متوسط</span>'
-                                                    : '<span class="badge badge-gray">پایین</span>'
-                                    }
-
-                                </td>
-
-                                <td>
-                                    <span
-                                        style="
-                                            font-size:var(--font-size-xs);
-                                        "
-                                    >
-                                        ${
-                                            targetInfo
-                                                ? targetInfo.label
-                                                : n.target
-                                        }
-                                    </span>
-                                </td>
-
-                                <td>
-
-                                    <span
-                                        style="
-                                            font-size:var(--font-size-xs);
-                                            color:var(--gray-500);
-                                        "
-                                    >
-                                        ${n.publishDate}
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    ${
-                                        n.status === 'active'
-                                            ? '<span class="badge badge-success">فعال</span>'
-                                            : '<span class="badge badge-gray">غیرفعال</span>'
-                                    }
-
-                                </td>
-
-                                <td>
-
-                                    <div class="actions-cell">
-
-                                        <button
-                                            class="btn btn-ghost btn-icon sm"
-                                            title="مشاهده"
-                                            onclick="showNotificationDetail(${n.id})"
-                                        >
-                                            👁️
-                                        </button>
-
-                                        <button
-                                            class="btn btn-ghost btn-icon sm"
-                                            title="ویرایش"
-                                            onclick="showEditNotificationModal(${n.id})"
-                                        >
-                                            ✏️
-                                        </button>
-
-                                        <button
-                                            class="btn btn-ghost btn-icon sm"
-                                            title="حذف"
-                                            onclick="confirmDeleteNotification(${n.id})"
-                                        >
-                                            🗑️
-                                        </button>
-
-                                    </div>
-
-                                </td>
-
-                            </tr>
-                        `;
-
-                    }).join('')}
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-        <div class="pagination">
-
-            <div class="pagination-info">
-                نمایش ${filtered.length} اعلان
-            </div>
-
-        </div>
-    `;
+    return window.PERSISTENT_NOTIFICATIONS;
 }
-
+function renderNotifications() {
+    const list = window.PERSISTENT_NOTIFICATIONS || [];
+    return `
+      <div class="page-header">
+        <h1>اعلان‌ها</h1><p>اعلان‌های عمومی و اعلان‌های خصوصی مخصوص هر کاربر</p>
+        ${isSettingsAdministrator() ? '<button class="btn btn-primary" onclick="showCreateNotificationModal()">+ اعلان جدید</button>' : ''}
+      </div>
+      <div class="card">
+        <div class="table-container"><table class="data-table">
+          <thead><tr><th>عنوان</th><th>پیام</th><th>نوع</th><th>گیرنده</th><th>تاریخ</th><th>عملیات</th></tr></thead>
+          <tbody>${list.length ? list.map(n => `<tr>
+            <td>${escapeHtml(n.title)}</td><td>${escapeHtml(n.message)}</td>
+            <td>${n.visibility === "private" ? "خصوصی" : "عمومی"}</td>
+            <td>${escapeHtml(n.recipient_username || (n.recipient_user_id ? ("کاربر #" + n.recipient_user_id) : "همه کاربران"))}</td>
+            <td>${escapeHtml(n.created_at || "-")}</td>
+            <td>${isSettingsAdministrator() && n.is_active ? `<button class="btn btn-danger btn-sm" onclick="deactivatePersistentNotification(${Number(n.id)})">غیرفعال‌سازی</button>` : "—"}</td>
+          </tr>`).join("") : '<tr><td colspan="6">اعلانی ثبت نشده است.</td></tr>'}</tbody>
+        </table></div>
+      </div>`;
+}
+async function refreshNotificationsPage() {
+    try { await loadPersistentNotifications(); }
+    catch (e) { showToast(e.message || "خطا در دریافت اعلان‌ها", "error"); }
+    if (AppState.currentPage === "notifications") renderPage("notifications");
+}
+function showCreateNotificationModal() {
+    if (!isSettingsAdministrator()) return showPermissionDenied();
+    const activeUsers = (Array.isArray(USERS) ? USERS : []).filter(u => u.status !== "inactive");
+    showModal("اعلان جدید", `
+      <div class="form-group"><label class="form-label">عنوان</label><input id="persistentNotificationTitle" class="form-input" maxlength="200" required></div>
+      <div class="form-group"><label class="form-label">متن اعلان</label><textarea id="persistentNotificationMessage" class="form-textarea" maxlength="10000" required></textarea></div>
+      <div class="form-group"><label class="form-label">نوع اعلان</label><select id="persistentNotificationVisibility" class="form-select" onchange="document.getElementById('persistentNotificationRecipientWrap').hidden=this.value!=='private'"><option value="public">عمومی برای همه کاربران</option><option value="private">خصوصی برای یک کاربر</option></select></div>
+      <div class="form-group" id="persistentNotificationRecipientWrap" hidden><label class="form-label">کاربر مقصد</label><select id="persistentNotificationRecipient" class="form-select"><option value="">انتخاب کنید</option>${activeUsers.map(u => `<option value="${Number(u.id)}">${escapeHtml(u.firstName + " " + u.lastName + " @" + u.username)}</option>`).join("")}</select></div>
+    `, [
+      {label:"انصراف",class:"btn-secondary",action:"closeModalDirect()"},
+      {label:"ذخیره اعلان",class:"btn-primary",action:"savePersistentNotification()"}
+    ]);
+}
+async function savePersistentNotification() {
+    const title = document.getElementById("persistentNotificationTitle")?.value.trim();
+    const message = document.getElementById("persistentNotificationMessage")?.value.trim();
+    const visibility = document.getElementById("persistentNotificationVisibility")?.value;
+    const recipient = document.getElementById("persistentNotificationRecipient")?.value;
+    if (!title || !message) return showToast("عنوان و متن اعلان الزامی است", "error");
+    if (visibility === "private" && !recipient) return showToast("کاربر مقصد را انتخاب کنید", "error");
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/notifications`, {
+        method:"POST", credentials:"include", headers:{"Content-Type":"application/json","Accept":"application/json"},
+        body:JSON.stringify({title,message,visibility,recipient_user_id:visibility==="private"?Number(recipient):null,is_active:true})
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail?.message || data.detail || "ذخیره اعلان ناموفق بود");
+      closeModalDirect(); showToast("اعلان در دیتابیس ذخیره شد", "success");
+      await loadPersistentNotifications(); renderPage("notifications");
+    } catch(e) { showToast(e.message || "ذخیره اعلان ناموفق بود", "error"); }
+}
+async function deactivatePersistentNotification(id) {
+    if (!isSettingsAdministrator() || !confirm("این اعلان غیرفعال شود؟")) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/notifications/${Number(id)}`, {method:"DELETE",credentials:"include"});
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail?.message || data.detail || "عملیات ناموفق بود");
+      await loadPersistentNotifications(); renderPage("notifications");
+      showToast("اعلان غیرفعال شد", "success");
+    } catch(e) { showToast(e.message || "خطا", "error"); }
+}
+window.loadPersistentNotifications = loadPersistentNotifications;
+window.showCreateNotificationModal = showCreateNotificationModal;
+window.savePersistentNotification = savePersistentNotification;
+window.deactivatePersistentNotification = deactivatePersistentNotification;
 
 /* =========================================================
    PAGE: AUDIT LOGS
