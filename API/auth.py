@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from API.database import get_connection
@@ -1590,10 +1590,9 @@ def get_users(request: Request):
     user = get_user_from_session(request)
 
     if not user:
-        return {
-            "success": False,
-            "message": "Session expired"
-        }
+        raise HTTPException(status_code=401, detail="ابتدا وارد حساب کاربری شوید")
+    if not user.get("is_active") or int(user.get("access_level") or 0) != 3:
+        raise HTTPException(status_code=403, detail="مشاهده فهرست کاربران فقط برای مدیران مجاز است")
 
 
     conn = get_connection()
