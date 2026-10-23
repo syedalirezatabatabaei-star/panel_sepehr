@@ -1,4 +1,4 @@
-""""Authenticated reverse proxy for the Bale/Eitaa chat services and webhooks."""
+"""Authenticated reverse proxy for the Bale/Eitaa chat services and webhooks."""
 import logging
 import os
 
