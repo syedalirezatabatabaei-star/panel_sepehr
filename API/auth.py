@@ -9,6 +9,7 @@ import requests
 import hashlib
 import secrets
 import os
+import json
 from datetime import datetime, timedelta, timezone
 
 
@@ -208,6 +209,34 @@ def login(data: LoginRequest, request: Request):
 
     try:
 
+        # Enforce security policy saved by administrators in panel_system_settings.
+        security = {"حداکثر تلاش ورود": 5, "مدت قفل شدن (دقیقه)": 15, "حداقل طول رمز عبور": 8}
+        try:
+            cursor.execute(
+                "SELECT setting_key, setting_value FROM panel_system_settings WHERE setting_key IN (%s, %s, %s)",
+                ("حداکثر تلاش ورود", "مدت قفل شدن (دقیقه)", "حداقل طول رمز عبور")
+            )
+            for setting in cursor.fetchall():
+                try:
+                    security[setting["setting_key"]] = int(json.loads(setting["setting_value"]))
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    pass
+            max_attempts = max(1, min(20, int(security["حداکثر تلاش ورود"])))
+            lockout_minutes = max(1, min(1440, int(security["مدت قفل شدن (دقیقه)"])))
+            cursor.execute("""
+                SELECT COUNT(*) AS failures
+                FROM login_logs
+                WHERE username=%s AND login_status='failed'
+                  AND created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL %s MINUTE)
+            """, (data.username, lockout_minutes))
+            failure_row = cursor.fetchone() or {}
+            if int(failure_row.get("failures") or 0) >= max_attempts:
+                return {"success": False, "message": f"به دلیل تلاش‌های ناموفق، ورود موقتاً قفل شده است. {lockout_minutes} دقیقه بعد دوباره تلاش کنید."}
+        except Exception:
+            # If the optional settings table is temporarily unavailable, retain
+            # the normal login flow rather than locking every user out.
+            db.rollback()
+
         # -------------------------------------------------
         # Find user
         # -------------------------------------------------
@@ -275,7 +304,20 @@ def login(data: LoginRequest, request: Request):
             }
 
         if not password_valid:
-
+            try:
+                cursor.execute("""
+                    INSERT INTO login_logs
+                    (user_id, username, login_status, otp_status, ip_address, user_agent, failure_reason)
+                    VALUES (%s, %s, 'failed', 'failed', %s, %s, %s)
+                """, (
+                    user["id"], user["username"],
+                    request.client.host if request.client else None,
+                    request.headers.get("user-agent"),
+                    "رمز عبور اشتباه"
+                ))
+                db.commit()
+            except Exception:
+                db.rollback()
             return {
                 "success": False,
                 "message": "نام کاربری یا رمز عبور اشتباه است"
@@ -1570,11 +1612,30 @@ def change_password(
 
 
     if not old_password or not new_password:
+        return {"success": False, "message": "اطلاعات ناقص است"}
 
-        return {
-            "success": False,
-            "message": "اطلاعات ناقص است"
-        }
+    minimum_password_length = 8
+    settings_db = get_connection()
+    settings_cursor = settings_db.cursor(dictionary=True)
+    try:
+        settings_cursor.execute(
+            "SELECT setting_value FROM panel_system_settings WHERE setting_key=%s LIMIT 1",
+            ("حداقل طول رمز عبور",)
+        )
+        setting = settings_cursor.fetchone()
+        if setting:
+            try:
+                minimum_password_length = max(8, min(128, int(json.loads(setting["setting_value"]))))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
+    except Exception:
+        settings_db.rollback()
+    finally:
+        settings_cursor.close()
+        settings_db.close()
+
+    if len(new_password) < minimum_password_length:
+        return {"success": False, "message": f"رمز عبور جدید باید حداقل {minimum_password_length} نویسه باشد"}
 
 
 
