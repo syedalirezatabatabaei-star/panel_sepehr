@@ -1784,6 +1784,7 @@ body:has(.main-content.bale-chat-host) {
     ========================================================= */
 
     async function createChat() {
+    if (typeof guardPage === 'function' && !guardPage('bale.chats', 'write')) return;
         const input = getEl('usernameInput');
 
         if (!input) return;
@@ -2440,6 +2441,7 @@ body:has(.main-content.bale-chat-host) {
     ========================================================= */
 
     async function sendMessage() {
+    if (typeof guardPage === 'function' && !guardPage('bale.chats', 'write')) return;
 
         const input =
             getEl('msgInput');
@@ -2836,6 +2838,7 @@ body:has(.main-content.bale-chat-host) {
     ========================================================= */
 
     async function openBaleChatPage() {
+    if (typeof guardPage === 'function' && !guardPage('bale.chats', 'read')) return;
         
        if (!canRead("bale_bot_chat")) {
         showPermissionDenied();
