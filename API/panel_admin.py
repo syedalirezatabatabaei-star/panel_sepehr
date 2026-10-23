@@ -15,31 +15,8 @@ from API.database import get_connection
 router = APIRouter(tags=["Panel administration"])
 
 
-def _ensure_tables(cursor):
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS panel_announcements (
-            id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            title VARCHAR(200) NOT NULL,
-            message TEXT NOT NULL,
-            visibility ENUM('public','private') NOT NULL DEFAULT 'public',
-            recipient_user_id BIGINT NULL,
-            created_by BIGINT NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            is_active TINYINT(1) NOT NULL DEFAULT 1,
-            INDEX idx_panel_announcements_visibility (visibility, is_active, created_at),
-            INDEX idx_panel_announcements_recipient (recipient_user_id, is_active)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS panel_system_settings (
-            setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
-            setting_value LONGTEXT NULL,
-            updated_by BIGINT NULL,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    """)
-
+# Database schema is managed by the idempotent SQL migration in migrations/.
+# Runtime API requests must not require CREATE privileges on the application DB user.
 
 def _user(request: Request):
     user = getattr(request.state, "user", None)
@@ -71,7 +48,7 @@ def list_visible_announcements(request: Request):
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        _ensure_tables(cursor)
+
         cursor.execute("""
             SELECT id, title, message, visibility, recipient_user_id,
                    created_by, created_at, updated_at
@@ -94,7 +71,7 @@ def list_announcements_for_admin(request: Request):
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        _ensure_tables(cursor)
+
         cursor.execute("""
             SELECT n.id, n.title, n.message, n.visibility, n.recipient_user_id,
                    n.created_by, n.created_at, n.updated_at, n.is_active,
@@ -126,7 +103,7 @@ def create_announcement(payload: AnnouncementInput, request: Request):
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        _ensure_tables(cursor)
+
         if recipient is not None:
             cursor.execute("SELECT id FROM users WHERE id=%s AND is_active=1", (recipient,))
             if not cursor.fetchone():
@@ -157,7 +134,7 @@ def deactivate_announcement(notification_id: int, request: Request):
     db = get_connection()
     cursor = db.cursor()
     try:
-        _ensure_tables(cursor)
+
         cursor.execute(
             "UPDATE panel_announcements SET is_active=0 WHERE id=%s",
             (notification_id,),
@@ -184,7 +161,7 @@ def get_system_settings(request: Request):
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        _ensure_tables(cursor)
+
         cursor.execute("SELECT setting_key, setting_value, updated_at FROM panel_system_settings ORDER BY setting_key")
         settings = {}
         for row in cursor.fetchall():
@@ -207,7 +184,7 @@ def save_system_settings(payload: SettingsInput, request: Request):
     db = get_connection()
     cursor = db.cursor()
     try:
-        _ensure_tables(cursor)
+
         for key, value in payload.settings.items():
             if not key or len(key) > 120 or key.startswith("secret.") or "password" in key.lower() or "token" in key.lower():
                 raise HTTPException(400, "کلید تنظیمات نامعتبر است؛ اسرار را در تنظیمات عمومی ذخیره نکنید")
