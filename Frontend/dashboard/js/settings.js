@@ -219,8 +219,15 @@ function navigateTo(page, data) {
         showPermissionDenied();
         return;
     }
-    // ورود به صفحات تنظیمات → nav ساخته شود
-    openSettingsSection();
+    // صفحه اعلان‌ها فقط نمایش است؛ تنظیمات مدیریت اعلان در منوی تنظیمات قرار دارد.
+    if (page === 'notifications') {
+        hideSettingsNav();
+        document.querySelectorAll('.sidebar-item').forEach(el => {
+            el.classList.toggle('active', el.getAttribute('data-section') === 'notifications');
+        });
+    } else {
+        openSettingsSection();
+    }
 
     const previousPage = AppState.currentPage;
     AppState.currentPage = page;
