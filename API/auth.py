@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from API.database import get_connection
+from API.permissions import has_permission
 from passlib.context import CryptContext
 
 import requests
@@ -1594,8 +1595,10 @@ def get_users(request: Request):
 
     if not user:
         raise HTTPException(status_code=401, detail="ابتدا وارد حساب کاربری شوید")
-    if not user.get("is_active") or int(user.get("access_level") or 0) != 3:
-        raise HTTPException(status_code=403, detail="مشاهده فهرست کاربران فقط برای مدیران مجاز است")
+    if not user.get("is_active"):
+        raise HTTPException(status_code=403, detail="حساب کاربری غیرفعال است")
+    if int(user.get("access_level") or 0) != 3 and not has_permission(int(user["id"]), "users", action="read"):
+        raise HTTPException(status_code=403, detail="شما مجوز مشاهده فهرست کاربران را ندارید")
 
 
     conn = get_connection()
