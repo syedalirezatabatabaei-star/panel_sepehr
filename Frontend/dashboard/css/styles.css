@@ -2859,3 +2859,21 @@ a {
 .active-session-row .badge { flex:0 0 auto; }
 #logoutOtherSessionsButton:disabled { opacity:.65; cursor:wait; }
 @media (max-width:640px) { .security-settings-card .form-row { display:flex; flex-direction:column; align-items:stretch; } .security-settings-card .form-group { width:100%; } .active-session-row { align-items:flex-start; padding:12px; } }
+
+
+/* Developer system and Docker logs */
+.docker-log-output {
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 55vh;
+  min-height: 180px;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--gray-300);
+  border-radius: 10px;
+  background: var(--gray-950, #111827);
+  color: var(--gray-100, #f3f4f6);
+  font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
