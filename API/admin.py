@@ -74,6 +74,9 @@ def approve_registration(request_id: int, body: ApproveBody, request: Request):
         if level is None:
             level = int(req.get("requested_access_level") or 1)
         level = max(1, min(3, int(level)))
+        actor = getattr(request.state, "user", {}) or {}
+        if level == 3 and int(actor.get("access_level") or 0) != 3:
+            raise HTTPException(403, "فقط مدیر می‌تواند کاربر مدیر ایجاد کند")
 
         cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
         if cursor.fetchone():
@@ -143,22 +146,26 @@ def approve_registration(request_id: int, body: ApproveBody, request: Request):
         cursor.close()
         db.close()
 @router.delete("/users/{user_id}")
-def delete_user(user_id: int):
+def delete_user(user_id: int, request: Request):
 
     db = get_connection()
     cursor = db.cursor()
 
     try:
         cursor.execute(
-            "SELECT id FROM users WHERE id = %s LIMIT 1",
+            "SELECT id, access_level FROM users WHERE id = %s LIMIT 1",
             (user_id,)
         )
 
-        if not cursor.fetchone():
+        target_user = cursor.fetchone()
+        if not target_user:
             raise HTTPException(
                 status_code=404,
                 detail="کاربر پیدا نشد"
             )
+        actor = getattr(request.state, "user", {}) or {}
+        if int(target_user.get("access_level") or 0) == 3 and int(actor.get("access_level") or 0) != 3:
+            raise HTTPException(403, "حذف حساب مدیر فقط توسط مدیر دیگر مجاز است")
 
         cursor.execute(
             "DELETE FROM users WHERE id = %s",
@@ -191,7 +198,7 @@ def delete_user(user_id: int):
         db.close()
 
 @router.put("/users/{user_id}")
-def update_user(user_id: int, data: UpdateUserRequest):
+def update_user(user_id: int, data: UpdateUserRequest, request: Request):
 
     db = get_connection()
     cursor = db.cursor(dictionary=True)
@@ -202,11 +209,22 @@ def update_user(user_id: int, data: UpdateUserRequest):
             (user_id,)
         )
 
-        if not cursor.fetchone():
+        target_user = cursor.fetchone()
+        if not target_user:
             raise HTTPException(
                 status_code=404,
                 detail="کاربر پیدا نشد"
             )
+        actor = getattr(request.state, "user", {}) or {}
+        is_admin_actor = int(actor.get("access_level") or 0) == 3
+        if not is_admin_actor and (
+            int(data.access_level or 0) == 3
+            or int(target_user.get("access_level") or 0) == 3
+            or int(data.is_active or 0) == 0
+        ):
+            raise HTTPException(403, "تغییر سطح مدیر یا غیرفعال‌سازی حساب‌ها فقط برای مدیران مجاز است")
+        if int(data.access_level or 0) not in (1, 2, 3):
+            raise HTTPException(400, "سطح دسترسی نامعتبر است")
 
         cursor.execute("""
             SELECT id
@@ -303,12 +321,17 @@ def update_user(user_id: int, data: UpdateUserRequest):
         db.close()
 
 @router.post("/users")
-def create_user(data: CreateUserRequest):
+def create_user(data: CreateUserRequest, request: Request):
 
     db = get_connection()
     cursor = db.cursor(dictionary=True)
 
     try:
+        actor = getattr(request.state, "user", {}) or {}
+        if int(data.access_level or 0) not in (1, 2, 3):
+            raise HTTPException(400, "سطح دسترسی نامعتبر است")
+        if int(data.access_level or 0) == 3 and int(actor.get("access_level") or 0) != 3:
+            raise HTTPException(403, "فقط مدیر می‌تواند کاربر مدیر ایجاد کند")
         cursor.execute(
             "SELECT id FROM users WHERE username = %s LIMIT 1",
             (data.username,)
