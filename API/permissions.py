@@ -11,7 +11,17 @@ def require_admin(request: Request):
     return user
 
 
-def require_permission(permission_code: str, action: str = "read"):
+def require_permission(permission_code: str, action: str | None = None):
+    # Support existing decorators that use "feature.read" / "feature.write"
+    # while storing a single base permission code in the database.
+    if action is None:
+        if permission_code.endswith(".read"):
+            permission_code, action = permission_code[:-5], "read"
+        elif permission_code.endswith(".write"):
+            permission_code, action = permission_code[:-6], "write"
+        else:
+            action = "use"
+
     def checker(request: Request):
         user = getattr(request.state, "user", None)
         if not isinstance(user, dict) or not user.get("id"):
