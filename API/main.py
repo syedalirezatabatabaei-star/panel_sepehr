@@ -13,6 +13,7 @@ from API.admin import router as admin_router
 from API.permissions import has_permission
 from API.permissions_admin import router as permissions_admin_router
 from API.chat_proxy import router as chat_proxy_router
+from API.panel_admin import router as panel_admin_router
 
 logger = logging.getLogger(__name__)
 app = FastAPI()
@@ -134,6 +135,7 @@ app.include_router(bale_router)
 app.include_router(eitaa_router)
 app.include_router(registration_router)
 app.include_router(chat_proxy_router)
+app.include_router(panel_admin_router)
 
 
 @app.get("/health")
