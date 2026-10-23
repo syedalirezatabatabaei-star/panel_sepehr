@@ -2,13 +2,14 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from API.database import get_connection
 from fastapi import Depends
-from API.permissions import require_permission
+from API.permissions import require_permission, require_admin
 from API.database import get_connection
 from typing import Optional
 
 router = APIRouter(
     prefix="/api/admin",
-    tags=["Admin"]
+    tags=["Admin"],
+    dependencies=[Depends(require_admin)]
 )
 class UpdateUserRequest(BaseModel):
     first_name: str
