@@ -111,6 +111,100 @@ def get_catalog():
         cursor.close()
         db.close()
 
+
+class SaveRolePermissionsRequest(BaseModel):
+    permissions: list[str]
+
+
+def _role_table_rows(cursor):
+    cursor.execute("SHOW COLUMNS FROM roles")
+    columns = cursor.fetchall()
+    names = {column["Field"] for column in columns}
+    if "id" not in names:
+        raise RuntimeError("جدول roles ستون id ندارد")
+    cursor.execute("SELECT * FROM roles ORDER BY id")
+    raw_roles = cursor.fetchall()
+    cursor.execute("""
+        SELECT rp.role_id, p.code
+        FROM role_permissions rp
+        JOIN permissions p ON p.id=rp.permission_id
+    """)
+    role_permissions = {}
+    for row in cursor.fetchall():
+        role_permissions.setdefault(str(row["role_id"]), []).append(row["code"])
+    cursor.execute("SELECT role_id, COUNT(*) AS user_count FROM users GROUP BY role_id")
+    counts = {str(row["role_id"]): int(row["user_count"]) for row in cursor.fetchall()}
+    result = []
+    for row in raw_roles:
+        role_id = row.get("id")
+        role_key = str(role_id)
+        name = row.get("name") or row.get("code") or row.get("label") or f"Role {role_id}"
+        result.append({
+            "id": role_id,
+            "name": str(name),
+            "label": str(row.get("label") or row.get("title") or name),
+            "level": int(row.get("level") or row.get("access_level") or 1),
+            "description": str(row.get("description") or ""),
+            "color": str(row.get("color") or "#64748b"),
+            "userCount": counts.get(role_key, 0),
+            "permissions": sorted(set(role_permissions.get(role_key, []))),
+            "isSystem": bool(row.get("is_system", row.get("is_system_role", 0))),
+        })
+    return result
+
+
+@router.get("/roles")
+def get_database_roles():
+    db = get_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        _ensure_permission_catalog(cursor)
+        db.commit()
+        return {"success": True, "roles": _role_table_rows(cursor)}
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="دریافت نقش‌ها از دیتابیس ناموفق بود")
+    finally:
+        cursor.close()
+        db.close()
+
+
+@router.put("/roles/{role_id}")
+def save_database_role_permissions(role_id: int, body: SaveRolePermissionsRequest):
+    allowed = {item["code"] for item in PERMISSION_CATALOG}
+    if any(code not in allowed for code in body.permissions):
+        raise HTTPException(status_code=400, detail="کد مجوز نقش نامعتبر است")
+    if len(set(body.permissions)) != len(body.permissions):
+        raise HTTPException(status_code=400, detail="مجوز تکراری در درخواست وجود دارد")
+    db = get_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id FROM roles WHERE id=%s", (role_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="نقش پیدا نشد")
+        _ensure_permission_catalog(cursor)
+        cursor.execute("SELECT id, code FROM permissions")
+        ids = {row["code"]: row["id"] for row in cursor.fetchall()}
+        selected_ids = [ids[code] for code in body.permissions if code in ids]
+        cursor.execute("DELETE FROM role_permissions WHERE role_id=%s", (role_id,))
+        for permission_id in selected_ids:
+            cursor.execute(
+                "INSERT INTO role_permissions (role_id, permission_id) VALUES (%s,%s)",
+                (role_id, permission_id),
+            )
+        db.commit()
+        return {"success": True, "message": "مجوزهای نقش در دیتابیس ذخیره شد"}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="ذخیره مجوزهای نقش ناموفق بود")
+    finally:
+        cursor.close()
+        db.close()
+
+
 @router.get("/users")
 def get_users_for_permissions():
     db = get_connection()
