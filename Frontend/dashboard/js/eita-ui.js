@@ -12,13 +12,13 @@
     ========================================================= */
 
     const EITAA_API =
-        'http://95.38.187.123:3001';
+        `${API_BASE}/api/chat/eitaa`;
 
     const EITAA_WEBHOOK =
-        'https://n8n.sepehrsalamati.ir/webhook/';
+        `${API_BASE}/api/chat/eitaa/webhook/send`;
 
     const EITAA_CREATE_CHAT_WEBHOOK =
-        'https://n8n.sepehrsalamati.ir/webhook/';
+        `${API_BASE}/api/chat/eitaa/webhook/create`;
 
 
     /*
