@@ -3,6 +3,56 @@
    ========================================================= */
 
 /* =========================================================
+   SHARED MODAL HELPERS
+   The dashboard modal markup exists in index.html; these helpers wire
+   every settings modal to that shared overlay and footer.
+   ========================================================= */
+function showModal(title, bodyHtml, actions = []) {
+    const overlay = document.getElementById("modalOverlay");
+    const titleNode = document.getElementById("modalTitle");
+    const bodyNode = document.getElementById("modalBody");
+    const footerNode = document.getElementById("modalFooter");
+    if (!overlay || !titleNode || !bodyNode || !footerNode) {
+        showToast("پنجره عملیات در صفحه پیدا نشد؛ صفحه را تازه‌سازی کنید.", "error");
+        return;
+    }
+
+    titleNode.textContent = String(title ?? "");
+    bodyNode.innerHTML = String(bodyHtml ?? "");
+    footerNode.replaceChildren();
+
+    (Array.isArray(actions) ? actions : []).forEach(action => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn " + String(action.class || "btn-secondary");
+        button.textContent = String(action.label || "تأیید");
+        if (action.action) button.setAttribute("onclick", String(action.action));
+        footerNode.appendChild(button);
+    });
+
+    overlay.classList.add("show");
+    overlay.setAttribute("aria-hidden", "false");
+    const firstField = bodyNode.querySelector("input:not([type=hidden]), textarea, select");
+    if (firstField) firstField.focus({ preventScroll: true });
+}
+
+function closeModalDirect() {
+    const overlay = document.getElementById("modalOverlay");
+    if (!overlay) return;
+    overlay.classList.remove("show");
+    overlay.setAttribute("aria-hidden", "true");
+}
+
+function closeModal(event) {
+    const overlay = document.getElementById("modalOverlay");
+    if (overlay && (!event || event.target === overlay)) closeModalDirect();
+}
+
+window.showModal = showModal;
+window.closeModalDirect = closeModalDirect;
+window.closeModal = closeModal;
+
+/* =========================================================
    SETTINGS NAV
    فقط وقتی کاربر داخل صفحات تنظیمات است در DOM ساخته می‌شود.
    بله / ایتا از settingsContent داخل settings-layout استفاده می‌کنند؛
@@ -347,17 +397,28 @@ function renderAccessControl() {
         <h1>مدیریت دسترسی‌ها</h1>
         <p>برای هر کاربر، مجوز استفاده، مشاهده و ویرایش را جداگانه تنظیم کنید.</p>
       </div>
-      <div class="card mb-6">
-        <label class="form-label" for="permissionUserSelect">انتخاب کاربر</label>
-        <select id="permissionUserSelect" class="form-select" onchange="loadSelectedUserPermissions()">
+      <section class="card access-control-user-picker mb-6">
+        <div class="access-control-picker-heading">
+          <div>
+            <h2>انتخاب کاربر</h2>
+            <p>نام، نام کاربری یا شناسه را جستجو کنید.</p>
+          </div>
+          <span class="access-control-count" id="permissionUserCount">در حال بارگذاری…</span>
+        </div>
+        <label class="form-label" for="permissionUserSearch">جستجوی کاربران</label>
+        <input id="permissionUserSearch" class="form-input access-control-search" type="search"
+          placeholder="مثلاً نام، نام کاربری یا شناسه…" autocomplete="off"
+          oninput="filterPermissionUsers()">
+        <label class="form-label" for="permissionUserSelect">فهرست کاربران</label>
+        <select id="permissionUserSelect" class="form-select access-control-select" onchange="loadSelectedUserPermissions()">
           <option value="">در حال دریافت کاربران...</option>
         </select>
-        <p id="permissionSaveStatus" role="status" style="margin-top:12px"></p>
-      </div>
-      <div id="permissionEditorRoot" class="card">
+        <p id="permissionSaveStatus" class="access-control-status" role="status" aria-live="polite"></p>
+      </section>
+      <section id="permissionEditorRoot" class="card access-control-editor">
         در حال دریافت فهرست مجوزها...
-      </div>
-      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+      </section>
+      <div class="access-control-actions">
         <button class="btn btn-primary" onclick="saveSelectedUserPermissions()">ذخیره تغییرات</button>
       </div>
     `;
@@ -365,6 +426,7 @@ function renderAccessControl() {
 
 let accessControlCatalog = [];
 let accessControlValues = {};
+let accessControlUsers = [];
 
 async function loadAccessControl() {
     if (!isSettingsAdministrator()) {
@@ -372,32 +434,68 @@ async function loadAccessControl() {
         return;
     }
     const status = document.getElementById("permissionSaveStatus");
+    const root = document.getElementById("permissionEditorRoot");
     try {
         const [usersResponse, catalogResponse] = await Promise.all([
             fetch(`${API_BASE}/api/admin/permissions/users`, {credentials:"include", cache:"no-store"}),
             fetch(`${API_BASE}/api/admin/permissions/catalog`, {credentials:"include", cache:"no-store"})
         ]);
-        const usersData = await usersResponse.json();
-        const catalogData = await catalogResponse.json();
-        if (!usersResponse.ok || !catalogResponse.ok) throw new Error(catalogData.detail?.message || catalogData.detail || "دریافت مجوزها ناموفق بود");
-        accessControlCatalog = catalogData.permissions || [];
+        const [usersData, catalogData] = await Promise.all([
+            usersResponse.json().catch(() => ({})),
+            catalogResponse.json().catch(() => ({}))
+        ]);
+        if (!usersResponse.ok) throw new Error(usersData.detail?.message || usersData.detail || `دریافت کاربران ناموفق بود (HTTP ${usersResponse.status})`);
+        if (!catalogResponse.ok) throw new Error(catalogData.detail?.message || catalogData.detail || `دریافت فهرست مجوزها ناموفق بود (HTTP ${catalogResponse.status})`);
+        if (!Array.isArray(usersData.users)) throw new Error("ساختار فهرست کاربران از سرور معتبر نیست.");
+        if (!Array.isArray(catalogData.permissions)) throw new Error("ساختار فهرست مجوزها از سرور معتبر نیست.");
+
+        accessControlUsers = usersData.users;
+        accessControlCatalog = catalogData.permissions;
+        const preferred = AppState.selectedUserId ? String(AppState.selectedUserId) : "";
+        renderPermissionUserOptions(preferred, true);
         const select = document.getElementById("permissionUserSelect");
-        if (!select) return;
-        const previous = select.value;
-        select.innerHTML = '<option value="">یک کاربر انتخاب کنید</option>' + (usersData.users || []).map(u =>
-          `<option value="${Number(u.id)}">${escapePermissionText([u.first_name,u.last_name].filter(Boolean).join(" ") || u.username)} — ${escapePermissionText(u.username || "")}</option>`
-        ).join("");
-        if (previous && [...select.options].some(o => o.value === previous)) select.value = previous;
-        else if (AppState.selectedUserId && [...select.options].some(o => o.value === String(AppState.selectedUserId))) {
-            select.value = String(AppState.selectedUserId);
-        }
-        if (!select.value && select.options.length > 1) select.selectedIndex = 1;
-        await loadSelectedUserPermissions();
+        if (select?.value) await loadSelectedUserPermissions();
+        else if (root) root.innerHTML = '<div class="access-control-empty"><span>👥</span><strong>کاربری پیدا نشد</strong><p>عبارت جستجو را تغییر دهید یا فهرست کاربران را بررسی کنید.</p></div>';
         if (status) status.textContent = "";
     } catch (error) {
         if (status) status.textContent = error.message || "خطا در دریافت مجوزها";
+        if (root) root.innerHTML = `<div class="access-control-error">${escapePermissionText(error.message || "خطا در دریافت مجوزها")}</div>`;
+        const select = document.getElementById("permissionUserSelect");
+        if (select) select.innerHTML = '<option value="">دریافت کاربران ناموفق بود</option>';
+        const count = document.getElementById("permissionUserCount");
+        if (count) count.textContent = "خطا در دریافت";
+    }
+}
+
+function renderPermissionUserOptions(preferredId = "", autoSelectFirst = false) {
+    const select = document.getElementById("permissionUserSelect");
+    if (!select) return;
+    const search = String(document.getElementById("permissionUserSearch")?.value || "").trim().toLocaleLowerCase("fa");
+    const filtered = accessControlUsers.filter(user => {
+        const name = [user.first_name, user.last_name].filter(Boolean).join(" ");
+        const haystack = [name, user.username, user.id, user.access_level].join(" ").toLocaleLowerCase("fa");
+        return !search || haystack.includes(search);
+    });
+    select.innerHTML = '<option value="">یک کاربر انتخاب کنید…</option>' + filtered.map(user => {
+        const name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || user.username || `کاربر #${user.id}`;
+        const active = Number(user.is_active) === 1 ? "فعال" : "غیرفعال";
+        return `<option value="${Number(user.id)}">${escapePermissionText(name)} — @${escapePermissionText(user.username || "-")} · ${active} · #${Number(user.id)}</option>`;
+    }).join("");
+    const canKeep = preferredId && filtered.some(user => String(user.id) === String(preferredId));
+    if (canKeep) select.value = String(preferredId);
+    else if (autoSelectFirst && filtered.length) select.selectedIndex = 1;
+    else select.value = "";
+    const count = document.getElementById("permissionUserCount");
+    if (count) count.textContent = `${filtered.length} از ${accessControlUsers.length} کاربر`;
+}
+
+function filterPermissionUsers() {
+    const select = document.getElementById("permissionUserSelect");
+    const previous = select?.value || "";
+    renderPermissionUserOptions(previous, false);
+    if (!select?.value) {
         const root = document.getElementById("permissionEditorRoot");
-        if (root) root.textContent = error.message || "خطا در دریافت مجوزها";
+        if (root) root.innerHTML = '<div class="access-control-empty"><span>🔎</span><strong>کاربری با این مشخصات پیدا نشد</strong><p>عبارت جستجو را کوتاه‌تر کنید.</p></div>';
     }
 }
 
@@ -1012,6 +1110,80 @@ window.rejectRegistrationRequest = rejectRegistrationRequest;
 window.submitApproveRegistration = submitApproveRegistration;
 window.submitRejectRegistration = submitRejectRegistration;
 window.__lastRegRequests = window.__lastRegRequests || [];
+
+/* =========================================================
+   CREATE USER — connected to the persistent admin API
+   ========================================================= */
+function showCreateUserModal() {
+    if (typeof guardFeature === "function" && !guardFeature("users", "write")) return;
+    showModal("ایجاد کاربر جدید", `
+      <div class="create-user-form">
+        <p class="form-hint">اطلاعات کاربر در دیتابیس ثبت می‌شود. برای ورود به سامانه، شناسه بله نیز باید به حساب متصل باشد.</p>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="createUserFirstName">نام</label><input id="createUserFirstName" class="form-input" maxlength="100" required autocomplete="given-name"></div>
+          <div class="form-group"><label class="form-label" for="createUserLastName">نام خانوادگی</label><input id="createUserLastName" class="form-input" maxlength="100" required autocomplete="family-name"></div>
+        </div>
+        <div class="form-group"><label class="form-label" for="createUserUsername">نام کاربری</label><input id="createUserUsername" class="form-input" maxlength="100" required dir="ltr" autocomplete="username"></div>
+        <div class="form-group"><label class="form-label" for="createUserPassword">رمز عبور اولیه</label><input id="createUserPassword" class="form-input" type="password" minlength="8" required autocomplete="new-password"><small>حداقل ۸ نویسه</small></div>
+        <div class="form-group"><label class="form-label" for="createUserPosition">سمت سازمانی</label><input id="createUserPosition" class="form-input" maxlength="150" placeholder="مثلاً کارشناس"></div>
+        <div class="form-group"><label class="form-label" for="createUserAccessLevel">سطح دسترسی</label><select id="createUserAccessLevel" class="form-select"><option value="1">سطح ۱ — محدود</option><option value="2">سطح ۲ — کاربر</option><option value="3">سطح ۳ — مدیر</option></select></div>
+        <div class="form-group"><label class="form-label" for="createUserBaleId">شناسه عددی کاربر در بله</label><input id="createUserBaleId" class="form-input" dir="ltr" inputmode="numeric" pattern="[0-9]+" required placeholder="شناسه عددی بله"><small>برای اینکه کاربر بتواند وارد پنل شود، اتصال حساب بله لازم است.</small></div>
+      </div>
+    `, [
+      {label:"انصراف", class:"btn-secondary", action:"closeModalDirect()"},
+      {label:"ایجاد کاربر", class:"btn-primary", action:"submitCreateUser()"}
+    ]);
+}
+async function submitCreateUser() {
+    if (typeof guardFeature === "function" && !guardFeature("users", "write")) return;
+    const first_name = document.getElementById("createUserFirstName")?.value.trim() || "";
+    const last_name = document.getElementById("createUserLastName")?.value.trim() || "";
+    const username = document.getElementById("createUserUsername")?.value.trim() || "";
+    const password = document.getElementById("createUserPassword")?.value || "";
+    const organizational_position = document.getElementById("createUserPosition")?.value.trim() || null;
+    const access_level = Number(document.getElementById("createUserAccessLevel")?.value || 1);
+    const bale_user_id = document.getElementById("createUserBaleId")?.value.trim() || "";
+    if (!first_name || !last_name || !username || !password || !bale_user_id) return showToast("همه فیلدهای ضروری را تکمیل کنید.", "error");
+    if (password.length < 8) return showToast("رمز عبور باید حداقل ۸ نویسه باشد.", "error");
+    if (!/^\d+$/.test(bale_user_id)) return showToast("شناسه بله باید فقط شامل اعداد باشد.", "error");
+
+    const submitButton = [...(document.getElementById("modalFooter")?.querySelectorAll("button") || [])].find(button => button.textContent.trim() === "ایجاد کاربر");
+    if (submitButton) { submitButton.disabled = true; submitButton.textContent = "در حال ایجاد…"; }
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/users`, {
+            method: "POST",
+            credentials: "include",
+            headers: {"Content-Type":"application/json","Accept":"application/json"},
+            body: JSON.stringify({first_name,last_name,username,password,organizational_position,access_level})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) throw new Error(data.detail?.message || data.detail || data.message || `ایجاد کاربر ناموفق بود (HTTP ${response.status})`);
+        const userId = Number(data.user?.id || data.user_id || 0);
+        if (!userId) throw new Error("کاربر ساخته شد اما شناسه کاربر از سرور دریافت نشد.");
+
+        const linkResponse = await fetch(`${API_BASE}/api/admin/users/link-bale`, {
+            method: "POST",
+            credentials: "include",
+            headers: {"Content-Type":"application/json","Accept":"application/json"},
+            body: JSON.stringify({user_id:userId,bale_user_id})
+        });
+        const linkData = await linkResponse.json().catch(() => ({}));
+        if (!linkResponse.ok || linkData.success === false) {
+            closeModalDirect();
+            await loadUsers();
+            showToast(`کاربر ایجاد شد، اما اتصال بله ناموفق بود: ${linkData.detail?.message || linkData.detail || "خطای اتصال"}`, "warning");
+            return;
+        }
+        closeModalDirect();
+        await loadUsers();
+        showToast("کاربر و اتصال حساب بله با موفقیت ایجاد شدند.", "success");
+    } catch (error) {
+        showToast(error.message || "ایجاد کاربر ناموفق بود.", "error");
+        if (submitButton) { submitButton.disabled = false; submitButton.textContent = "ایجاد کاربر"; }
+    }
+}
+window.showCreateUserModal = showCreateUserModal;
+window.submitCreateUser = submitCreateUser;
 
 /* =========================================================
    PAGE: USERS
@@ -3153,8 +3325,14 @@ async function refreshNotificationSettingsPage() {
     }
     renderNotificationSettingsView();
 }
-function showCreateNotificationModal() {
+async function showCreateNotificationModal() {
     if (!isSettingsAdministrator()) return showPermissionDenied();
+    try {
+        await loadUsers();
+    } catch (_) {
+        // Public announcements can still be created if the user list is unavailable;
+        // the private-recipient selector will clearly remain empty.
+    }
     const activeUsers = (Array.isArray(USERS) ? USERS : []).filter(u => u.status !== "inactive");
     showModal("اعلان جدید", `
       <div class="form-group"><label class="form-label">عنوان</label><input id="persistentNotificationTitle" class="form-input" maxlength="200" required></div>
