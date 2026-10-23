@@ -1287,32 +1287,35 @@ def get_user_permissions(user_id: int):
             SELECT
                 p.code,
                 rp.id IS NOT NULL AS role_permission,
+                up.id IS NOT NULL AS user_override,
                 up.can_read,
                 up.can_write
             FROM permissions p
-
+            LEFT JOIN users u ON u.id = %s
             LEFT JOIN role_permissions rp
                 ON rp.permission_id = p.id
-
+                AND rp.role_id = u.role_id
             LEFT JOIN user_permissions up
                 ON up.permission_id = p.id
                 AND up.user_id = %s
-
             ORDER BY p.id
-        """, (user_id,))
+        """, (user_id, user_id))
 
         rows = cursor.fetchall()
-
         permissions = {}
-
         for row in rows:
             code = row["code"]
-
-            permissions[code] = {
-                "read": bool(row["role_permission"]) or bool(row["can_read"]),
-                "write": bool(row["can_write"])
-            }
-
+            if row["user_override"]:
+                permissions[code] = {
+                    "read": bool(row["can_read"]),
+                    "write": bool(row["can_write"])
+                }
+            else:
+                role_granted = bool(row["role_permission"])
+                permissions[code] = {
+                    "read": role_granted,
+                    "write": role_granted
+                }
         return permissions
 
     finally:
