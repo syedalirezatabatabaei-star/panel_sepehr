@@ -1,11 +1,12 @@
 # registration_admin.py
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from typing import Optional
 
 from API.database import get_connection
+from API.permissions import require_admin
 
-router = APIRouter(prefix="/api/admin", tags=["admin-registration"])
+router = APIRouter(prefix="/api/admin", tags=["admin-registration"], dependencies=[Depends(require_admin)])
 
 
 class ApproveBody(BaseModel):
