@@ -67,8 +67,7 @@ const SETTINGS_NAV_ITEMS = [
     { page: 'audit-logs', icon: '&#128220;', label: 'لاگ‌های سیستم' },
     { page: 'activities', icon: '&#128203;', label: 'فعالیت کاربران' },
     { page: 'security', icon: '&#128274;', label: 'امنیت' },
-    { page: 'my-account', icon: '&#128100;', label: 'حساب من' },
-    { page: 'system-settings', icon: '&#128295;', label: 'تنظیمات سیستم' }
+    { page: 'my-account', icon: '&#128100;', label: 'حساب من' }
 ];
 
 /** true فقط وقتی کاربر در صفحات تنظیمات است (نه بله/ایتا) */
@@ -79,7 +78,7 @@ const SETTINGS_PAGES = new Set([
     'users', 'registration-requests', 'user-details',
     'user-permissions', 'edit-user', 'roles', 'role-permissions',
     'notifications', 'notification-settings', 'audit-logs', 'activities', 'security',
-    'my-account', 'system-settings', 'access-control'
+    'my-account', 'access-control'
 ]);
 
 /** ساخت و تزریق منوی تنظیمات در DOM */
@@ -260,7 +259,6 @@ function navigateTo(page, data) {
     // Only the genuinely privileged settings pages are restricted here.
     // Other pages rely on their page-specific UI checks and server-side API authorization.
     const administratorOnlyPages = new Set([
-        'system-settings',
         'access-control'
     ]);
     if (administratorOnlyPages.has(page) && !isSettingsAdministrator()) {
@@ -316,7 +314,6 @@ function navigateTo(page, data) {
         'activities': 'فعالیت کاربران',
         'security': 'امنیت',
         'my-account': 'حساب من',
-        'system-settings': 'تنظیمات سیستم',
         'access-control': 'مدیریت دسترسی‌ها'
     };
 
@@ -355,7 +352,6 @@ function renderPage(page) {
         'activities': renderActivities,
         'security': renderSecurity,
         'my-account': renderMyAccount,
-        'system-settings': renderSystemSettings,
         'access-control': renderAccessControl
     };
 
@@ -381,8 +377,9 @@ function renderPage(page) {
         if ((page === 'audit-logs' || page === 'activities' || page === 'security') && !window.__auditLoadedForPage?.[page]) {
             loadPersistentAuditData(page);
         }
-        if (page === 'system-settings') {
+        if (page === 'security') {
             loadPersistentSystemSettings();
+            setTimeout(() => { if (typeof refreshActiveSessionSummary === 'function') refreshActiveSessionSummary(); }, 0);
         }
     }
 }
@@ -3901,250 +3898,46 @@ function renderActivities() {
    ========================================================= */
 
 function renderSecurity() {
-    const activeSessions =
-        SECURITY_EVENTS.filter(
-            e =>
-                e.type === 'session' &&
-                e.status === 'active'
-        );
-
-    const failedLogins =
-        SECURITY_EVENTS.filter(
-            e =>
-                e.type ===
-                'login_failed'
-        );
-
+    const failedLogins = SECURITY_EVENTS.filter(e => e.type === 'login_failed');
+    const isAdmin = typeof isSettingsAdministrator === 'function' && isSettingsAdministrator();
     return `
-        <div class="page-header">
-
-            <div class="breadcrumb">
-
-                <a
-                    href="#"
-                    onclick="navigateTo('my-account'); return false;"
-                >
-                    تنظیمات
-                </a>
-
-                <span class="separator">/</span>
-
-                <span class="current">
-                    امنیت
-                </span>
-
-            </div>
-
-            <h1>
-                امنیت
-            </h1>
-
-            <p>
-                مدیریت امنیت سیستم، نشست‌ها و تنظیمات امنیتی
-            </p>
-
+      <div class="page-header">
+        <div class="breadcrumb"><a href="#" onclick="navigateTo('my-account'); return false;">تنظیمات</a><span class="separator">/</span><span class="current">امنیت</span></div>
+        <h1>امنیت</h1>
+        <p>مدیریت نشست‌ها و تنظیمات امنیت حساب</p>
+      </div>
+      <div class="security-card">
+        <div class="security-icon" style="background:var(--success-light);color:var(--success)">🖥️</div>
+        <div class="security-info"><div class="security-title">نشست فعال</div><div class="security-desc" id="activeSessionSummary">در حال بررسی نشست‌های فعال…</div></div>
+        <div class="security-action"><button class="btn btn-secondary btn-sm" onclick="showActiveSessions()">مشاهده</button></div>
+      </div>
+      <div class="security-card">
+        <div class="security-icon" style="background:var(--warning-light);color:var(--warning)">🚪</div>
+        <div class="security-info"><div class="security-title">خروج از نشست‌های دیگر</div><div class="security-desc">پایان دادن به نشست‌های دیگر همین حساب، بدون خروج از نشست فعلی</div></div>
+        <div class="security-action"><button class="btn btn-danger btn-sm" id="logoutOtherSessionsButton" onclick="logoutOtherSessions()">مدیریت</button></div>
+      </div>
+      <div class="security-card">
+        <div class="security-icon" style="background:var(--danger-light);color:var(--danger)">❌</div>
+        <div class="security-info"><div class="security-title">ورودهای ناموفق</div><div class="security-desc">${failedLogins.length} ورود ناموفق ثبت شده</div></div>
+        <div class="security-action"><button class="btn btn-secondary btn-sm" onclick="showFailedLogins()">مشاهده</button></div>
+      </div>
+      <div class="security-card">
+        <div class="security-icon" style="background:var(--purple-light);color:var(--purple)">🔑</div>
+        <div class="security-info"><div class="security-title">تغییر رمز عبور</div><div class="security-desc">تغییر رمز عبور حساب خود</div></div>
+        <div class="security-action"><button class="btn btn-secondary btn-sm" onclick="showChangePasswordModal()">تغییر</button></div>
+      </div>
+      ${isAdmin ? `
+      <div class="card security-settings-card">
+        <div class="page-header"><h2>تنظیمات امنیت حساب</h2><p>این تنظیمات در پایگاه داده ذخیره می‌شوند.</p></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">حداکثر تلاش ورود</label><input id="securityMaxLoginAttempts" class="form-input" type="number" min="1" max="20" value="${escapeHtml(SYSTEM_SETTINGS.security.maxLoginAttempts || 5)}"></div>
+          <div class="form-group"><label class="form-label">مدت قفل شدن (دقیقه)</label><input id="securityLockoutDuration" class="form-input" type="number" min="1" max="1440" value="${escapeHtml(SYSTEM_SETTINGS.security.lockoutDuration || 15)}"></div>
+          <div class="form-group"><label class="form-label">حداقل طول رمز عبور</label><input id="securityPasswordMinLength" class="form-input" type="number" min="8" max="128" value="${escapeHtml(SYSTEM_SETTINGS.security.passwordMinLength || 8)}"></div>
         </div>
-
-        <div class="security-card">
-
-            <div
-                class="security-icon"
-                style="
-                    background:var(--info-light);
-                    color:var(--info);
-                "
-            >
-                🔐
-            </div>
-
-            <div class="security-info">
-
-                <div class="security-title">
-                    تاریخچه ورودها
-                </div>
-
-                <div class="security-desc">
-                    ${
-                        SECURITY_EVENTS.filter(
-                            e => e.type === 'login'
-                        ).length
-                    }
-                    ورود ثبت شده
-                </div>
-
-            </div>
-
-            <div class="security-action">
-
-                <button
-                    class="btn btn-secondary btn-sm"
-                    onclick="showLoginHistory()"
-                >
-                    مشاهده
-                </button>
-
-            </div>
-
-        </div>
-
-        <div class="security-card">
-
-            <div
-                class="security-icon"
-                style="
-                    background:var(--danger-light);
-                    color:var(--danger);
-                "
-            >
-                ❌
-            </div>
-
-            <div class="security-info">
-
-                <div class="security-title">
-                    ورودهای ناموفق
-                </div>
-
-                <div class="security-desc">
-                    ${failedLogins.length}
-                    ورود ناموفق ثبت شده
-                </div>
-
-            </div>
-
-            <div class="security-action">
-
-                <button
-                    class="btn btn-secondary btn-sm"
-                    onclick="showFailedLogins()"
-                >
-                    مشاهده
-                </button>
-
-            </div>
-
-        </div>
-
-        <div class="security-card">
-
-            <div
-                class="security-icon"
-                style="
-                    background:var(--success-light);
-                    color:var(--success);
-                "
-            >
-                🖥️
-            </div>
-
-            <div class="security-info">
-
-                <div class="security-title">
-                    Sessionهای فعال
-                </div>
-
-                <div class="security-desc">
-                    ${activeSessions.length}
-                    نشست فعال در حال حاضر
-                </div>
-
-            </div>
-
-            <div class="security-action">
-
-                <button
-                    class="btn btn-secondary btn-sm"
-                    onclick="showActiveSessions()"
-                >
-                    مشاهده
-                </button>
-
-            </div>
-
-        </div>
-
-        <div class="security-card">
-
-            <div
-                class="security-icon"
-                style="
-                    background:var(--warning-light);
-                    color:var(--warning);
-                "
-            >
-                🚪
-            </div>
-
-            <div class="security-info">
-
-                <div class="security-title">
-                    خروج از Sessionها
-                </div>
-
-                <div class="security-desc">
-                    غیرفعال کردن نشست‌های فعال سایر کاربران
-                </div>
-
-            </div>
-
-            <div class="security-action">
-
-                <button
-                    class="btn btn-danger btn-sm"
-                    onclick="
-                        showToast(
-                            'عملیات با موفقیت انجام شد',
-                            'success'
-                        )
-                    "
-                >
-                    مدیریت
-                </button>
-
-            </div>
-
-        </div>
-
-        <div class="security-card">
-
-            <div
-                class="security-icon"
-                style="
-                    background:var(--purple-light);
-                    color:var(--purple);
-                "
-            >
-                🔑
-            </div>
-
-            <div class="security-info">
-
-                <div class="security-title">
-                    تغییر رمز عبور
-                </div>
-
-                <div class="security-desc">
-                    تغییر رمز عبور حساب خود
-                </div>
-
-            </div>
-
-            <div class="security-action">
-
-                <button
-                    class="btn btn-secondary btn-sm"
-                    onclick="showChangePasswordModal()"
-                >
-                    تغییر
-                </button>
-
-            </div>
-
-        </div>
-
-            `;
+        <button class="btn btn-primary mt-4" onclick="savePersistentSystemSettings()">ذخیره تنظیمات امنیتی</button>
+      </div>` : ''}
+    `;
 }
-
 
 /* =========================================================
    PAGE: MY ACCOUNT
@@ -4322,41 +4115,6 @@ async function changePassword() {
     }
 }
 
-
-/* =========================================================
-   PAGE: SYSTEM SETTINGS
-   ========================================================= */
-
-function renderSystemSettings() {
-    if (!isSettingsAdministrator()) {
-        setTimeout(() => showPermissionDenied(), 0);
-        return '<div class="card">دسترسی محدود است</div>';
-    }
-    return `
-      <div class="page-header">
-        <h1>تنظیمات سیستم</h1>
-        <p>تنظیمات عمومی پنل در دیتابیس ذخیره می‌شوند.</p>
-      </div>
-      <div class="card">
-        <div class="form-row">
-          <div class="form-group"><label class="form-label">نام سایت</label><input class="form-input" value="${escapeHtml(SYSTEM_SETTINGS.general.siteName || '')}"></div>
-          <div class="form-group"><label class="form-label">آدرس سایت</label><input class="form-input" dir="ltr" value="${escapeHtml(SYSTEM_SETTINGS.general.siteUrl || '')}"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label class="form-label">ایمیل پشتیبانی</label><input class="form-input" type="email" dir="ltr" value="${escapeHtml(SYSTEM_SETTINGS.general.supportEmail || '')}"></div>
-          <div class="form-group"><label class="form-label">منطقه زمانی</label><select class="form-select"><option>Asia/Tehran</option><option>UTC</option></select></div>
-        </div>
-        <div class="form-group"><label class="form-label">زبان</label><select class="form-select"><option>فارسی</option><option>English</option></select></div>
-        <button class="btn btn-primary mt-4" onclick="savePersistentSystemSettings()">ذخیره تنظیمات</button>
-      </div>
-      <div class="card mt-4">
-        <h2>تنظیمات امنیت حساب</h2>
-        <div class="form-group"><label class="form-label">حداکثر تلاش ورود</label><input class="form-input" type="number" min="1" max="20" value="${escapeHtml(SYSTEM_SETTINGS.security.maxLoginAttempts || 5)}"></div>
-        <div class="form-group"><label class="form-label">مدت قفل شدن (دقیقه)</label><input class="form-input" type="number" min="1" max="1440" value="${escapeHtml(SYSTEM_SETTINGS.security.lockoutDuration || 15)}"></div>
-        <div class="form-group"><label class="form-label">حداقل طول رمز عبور</label><input class="form-input" type="number" min="8" max="128" value="${escapeHtml(SYSTEM_SETTINGS.security.passwordMinLength || 8)}"></div>
-        <button class="btn btn-primary mt-4" onclick="savePersistentSystemSettings()">ذخیره تنظیمات امنیتی</button>
-      </div>`;
-}
 
 function showEditNotificationModal(
     notifId
@@ -4692,90 +4450,6 @@ function doResetPassword(
    SECURITY MODALS
    ========================================================= */
 
-function showLoginHistory() {
-
-    const logins =
-        SECURITY_EVENTS.filter(
-            e =>
-                e.type ===
-                'login'
-        );
-
-    showModal(
-        'تاریخچه ورودها',
-        `
-            <div class="table-container">
-
-                <table class="data-table">
-
-                    <thead>
-
-                        <tr>
-                            <th>کاربر</th>
-                            <th>زمان</th>
-                            <th>IP</th>
-                            <th>دستگاه</th>
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                        ${logins.map(l => `
-                            <tr>
-
-                                <td>
-                                    ${l.userName}
-                                </td>
-
-                                <td
-                                    style="
-                                        font-size:var(--font-size-xs);
-                                    "
-                                >
-                                    ${l.timestamp}
-                                </td>
-
-                                <td>
-
-                                    <code
-                                        class="font-mono"
-                                        style="
-                                            font-size:var(--font-size-xs);
-                                        "
-                                    >
-                                        ${l.ip}
-                                    </code>
-
-                                </td>
-
-                                <td
-                                    style="
-                                        font-size:var(--font-size-xs);
-                                    "
-                                >
-                                    ${l.device}
-                                </td>
-
-                            </tr>
-                        `).join('')}
-
-                    </tbody>
-
-                </table>
-
-            </div>
-        `,
-        [
-            {
-                label: 'بستن',
-                class: 'btn-secondary',
-                action: 'closeModalDirect()'
-            }
-        ]
-    );
-}
-
 function showFailedLogins() {
 
     const failed =
@@ -4861,101 +4535,63 @@ function showFailedLogins() {
     );
 }
 
-function showActiveSessions() {
-
-    const sessions =
-        SECURITY_EVENTS.filter(
-            e =>
-                e.type ===
-                    'session' &&
-                e.status ===
-                    'active'
-        );
-
-    showModal(
-        'Sessionهای فعال',
-        `
-            <div
-                style="
-                    display:flex;
-                    flex-direction:column;
-                    gap:var(--space-4);
-                "
-            >
-
-                ${sessions.map(s => `
-                    <div
-                        style="
-                            display:flex;
-                            align-items:center;
-                            justify-content:space-between;
-                            padding:var(--space-3);
-                            background:var(--gray-50);
-                            border-radius:var(--radius-md);
-                        "
-                    >
-
-                        <div>
-
-                            <div
-                                style="
-                                    font-weight:600;
-                                    font-size:var(--font-size-sm);
-                                "
-                            >
-                                ${s.userName}
-                            </div>
-
-                            <div
-                                style="
-                                    font-size:var(--font-size-xs);
-                                    color:var(--gray-500);
-                                "
-                            >
-                                ${s.device}
-                                ·
-                                <code class="font-mono">
-                                    ${s.ip}
-                                </code>
-                            </div>
-
-                            <div
-                                style="
-                                    font-size:var(--font-size-xs);
-                                    color:var(--gray-400);
-                                "
-                            >
-                                ${s.timestamp}
-                            </div>
-
-                        </div>
-
-                        <button
-                            class="btn btn-danger btn-sm"
-                            onclick="
-                                showToast(
-                                    'نشست پایان یافت',
-                                    'success'
-                                )
-                            "
-                        >
-                            پایان نشست
-                        </button>
-
-                    </div>
-                `).join('')}
-
-            </div>
-        `,
-        [
-            {
-                label: 'بستن',
-                class: 'btn-secondary',
-                action: 'closeModalDirect()'
-            }
-        ]
-    );
+async function refreshActiveSessionSummary() {
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/sessions`, {credentials:'include', cache:'no-store'});
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success !== true) throw new Error(data.detail?.message || data.detail || data.message || 'دریافت نشست‌ها ناموفق بود');
+        const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+        const summary = document.getElementById('activeSessionSummary');
+        if (summary) summary.textContent = `${sessions.length} نشست فعال برای حساب شما`;
+    } catch (error) {
+        const summary = document.getElementById('activeSessionSummary');
+        if (summary) summary.textContent = 'وضعیت نشست‌ها دریافت نشد';
+        console.error('refreshActiveSessionSummary:', error);
+    }
 }
+async function showActiveSessions() {
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/sessions`, {credentials:'include', cache:'no-store'});
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success !== true) throw new Error(data.detail?.message || data.detail || data.message || 'دریافت نشست‌ها ناموفق بود');
+        const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+        const summary = document.getElementById('activeSessionSummary');
+        if (summary) summary.textContent = `${sessions.length} نشست فعال برای حساب شما`;
+        const rows = sessions.length ? sessions.map(session => `
+          <div class="active-session-row">
+            <div><strong>${escapeHtml(session.is_current ? 'نشست فعلی شما' : 'نشست دیگر')}</strong>
+              <div>${escapeHtml(session.user_agent || 'دستگاه نامشخص')}</div>
+              <small>IP: <code>${escapeHtml(session.ip_address || '-')}</code> · آخرین فعالیت: ${escapeHtml(session.last_activity_at || '-')}</small>
+            </div>
+            ${session.is_current ? '<span class="badge badge-success">فعلی</span>' : '<span class="badge badge-info">فعال</span>'}
+          </div>`).join('') : '<div class="notification-dropdown-empty">نشست فعالی پیدا نشد.</div>';
+        showModal('نشست فعال', `<div class="active-sessions-list">${rows}</div>`, [{label:'بستن',class:'btn-secondary',action:'closeModalDirect()'}]);
+    } catch (error) {
+        showToast(error.message || 'دریافت نشست‌ها ناموفق بود', 'error');
+    }
+}
+async function logoutOtherSessions() {
+    const button = document.getElementById('logoutOtherSessionsButton');
+    if (button) { button.disabled = true; button.textContent = 'در حال بررسی…'; }
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/sessions/logout-others`, {
+            method:'POST', credentials:'include', cache:'no-store',
+            headers:{'Accept':'application/json','Content-Type':'application/json'},
+            body: JSON.stringify({})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success !== true) throw new Error(data.detail?.message || data.detail || data.message || 'مدیریت نشست‌ها ناموفق بود');
+        showToast(data.message || 'نشست‌های دیگر پایان یافتند.', data.revoked_count ? 'success' : 'info');
+        await refreshActiveSessionSummary();
+    } catch (error) {
+        showToast(error.message || 'مدیریت نشست‌ها ناموفق بود', 'error');
+    } finally {
+        if (button) { button.disabled = false; button.textContent = 'مدیریت'; }
+    }
+}
+window.showActiveSessions = showActiveSessions;
+window.logoutOtherSessions = logoutOtherSessions;
+window.refreshActiveSessionSummary = refreshActiveSessionSummary;
 
 function showChangePasswordModal() {
 
@@ -5139,6 +4775,9 @@ async function toggleUserStatus(userId) {
 
 
 function systemSettingKey(element) {
+    if (element.id === "securityMaxLoginAttempts") return "حداکثر تلاش ورود";
+    if (element.id === "securityLockoutDuration") return "مدت قفل شدن (دقیقه)";
+    if (element.id === "securityPasswordMinLength") return "حداقل طول رمز عبور";
     const row = element.closest(".form-group, .setting-row");
     const label = row?.querySelector(".form-label, .setting-row-title, label");
     return (label?.textContent || "").trim().replace(/\\s+/g, " ");
