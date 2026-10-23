@@ -287,7 +287,7 @@ function renderPage(page) {
         'users': renderUsers,
         'registration-requests': renderRegistrationRequests,
         'user-details': renderUserDetails,
-        'user-permissions': renderUserPermissions,
+        'user-permissions': renderAccessControl,
         'edit-user': renderEditUser,
         'roles': renderRoles,
         'role-permissions': renderRolePermissions,
@@ -310,7 +310,7 @@ function renderPage(page) {
         if (page === 'registration-requests') {
             loadRegistrationRequests();
         }
-        if (page === 'access-control') {
+        if (page === 'access-control' || page === 'user-permissions') {
             loadAccessControl();
         }
     }
@@ -367,6 +367,9 @@ async function loadAccessControl() {
           `<option value="${Number(u.id)}">${escapePermissionText([u.first_name,u.last_name].filter(Boolean).join(" ") || u.username)} — ${escapePermissionText(u.username || "")}</option>`
         ).join("");
         if (previous && [...select.options].some(o => o.value === previous)) select.value = previous;
+        else if (AppState.selectedUserId && [...select.options].some(o => o.value === String(AppState.selectedUserId))) {
+            select.value = String(AppState.selectedUserId);
+        }
         if (!select.value && select.options.length > 1) select.selectedIndex = 1;
         await loadSelectedUserPermissions();
         if (status) status.textContent = "";
