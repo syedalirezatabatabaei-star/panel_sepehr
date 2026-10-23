@@ -84,12 +84,29 @@ def get_user_permission_settings(user_id: int):
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="کاربر پیدا نشد")
         cursor.execute("""
-            SELECT p.code, up.can_read, up.can_write
+            SELECT
+                p.code,
+                up.id IS NOT NULL AS user_override,
+                up.can_read,
+                up.can_write,
+                rp.id IS NOT NULL AS role_granted
             FROM permissions p
+            LEFT JOIN users u ON u.id = %s
+            LEFT JOIN role_permissions rp
+              ON rp.permission_id = p.id AND rp.role_id = u.role_id
             LEFT JOIN user_permissions up
               ON up.permission_id = p.id AND up.user_id = %s
-        """, (user_id,))
-        rows = {r["code"]: {"can_read": bool(r["can_read"]), "can_write": bool(r["can_write"])} for r in cursor.fetchall()}
+        """, (user_id, user_id))
+        rows = {}
+        for row in cursor.fetchall():
+            if row["user_override"]:
+                rows[row["code"]] = {
+                    "can_read": bool(row["can_read"]),
+                    "can_write": bool(row["can_write"])
+                }
+            else:
+                inherited = bool(row["role_granted"])
+                rows[row["code"]] = {"can_read": inherited, "can_write": inherited}
         return {
             "success": True,
             "user_id": user_id,
