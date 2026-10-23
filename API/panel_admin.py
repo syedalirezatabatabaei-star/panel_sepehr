@@ -40,6 +40,40 @@ class AnnouncementInput(BaseModel):
 class SettingsInput(BaseModel):
     settings: dict[str, str | int | float | bool | None]
 
+def _record_system_event(request: Request, event_type: str, description: str,
+                         path: str = "", method: str = "", status_code: int | None = None):
+    """Best-effort persistent audit log; never fail the request if logging fails."""
+    db = None
+    cursor = None
+    try:
+        user = getattr(request.state, "user", {}) or {}
+        client = getattr(request, "client", None)
+        db = get_connection()
+        cursor = db.cursor()
+        cursor.execute("""
+            INSERT INTO panel_system_logs
+                (user_id, username, event_type, description, request_path,
+                 request_method, status_code, ip_address, user_agent)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            user.get("id"), str(user.get("username") or "")[:150] or None,
+            event_type[:80], description[:2000], path[:500], method[:12],
+            status_code, (client.host if client else None),
+            (request.headers.get("user-agent") or "")[:500] or None
+        ))
+        db.commit()
+    except Exception:
+        if db:
+            try: db.rollback()
+            except Exception: pass
+    finally:
+        if cursor: cursor.close()
+        if db: db.close()
+
+
+class PageViewInput(BaseModel):
+    page: str = Field(min_length=1, max_length=150)
+
 
 @router.get("/api/notifications")
 def list_visible_announcements(request: Request):
@@ -224,29 +258,80 @@ def save_system_settings(payload: SettingsInput, request: Request):
         db.close()
 
 
+
+@router.post("/api/system-logs/pageview")
+def record_page_view(payload: PageViewInput, request: Request):
+    _user(request)
+    _record_system_event(
+        request, "page_view", f"کاربر صفحه «{payload.page}» را باز کرد",
+        path=payload.page, method="VIEW", status_code=200
+    )
+    return {"success": True}
+
+
 @router.get("/api/admin/audit-logs")
-def get_panel_audit_logs(request: Request, limit: int = 200):
+def get_panel_audit_logs(
+    request: Request,
+    limit: int = 200,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    username: str | None = None,
+    result: str | None = None,
+):
     user = _user(request)
     _admin(user)
-    limit = max(1, min(int(limit), 500))
+    limit = max(1, min(int(limit), 5000))
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(400, "تاریخ شروع نباید بعد از تاریخ پایان باشد")
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        cursor.execute(
-            """
-            SELECT id, user_id, username, login_status, otp_status,
-                   ip_address, user_agent, failure_reason, created_at
-            FROM login_logs
-            ORDER BY id DESC
+        cursor.execute("""
+            SELECT * FROM (
+                SELECT id, user_id, username,
+                       CASE WHEN login_status='success' THEN 'success' ELSE 'failure' END AS login_status,
+                       otp_status, ip_address, user_agent,
+                       COALESCE(failure_reason, CASE WHEN login_status='success' THEN 'ورود موفق' ELSE 'ورود ناموفق' END) AS failure_reason,
+                       created_at, 'authentication' AS event_type,
+                       CASE WHEN login_status='success' THEN 'ورود موفق' ELSE 'ورود ناموفق' END AS description,
+                       NULL AS request_path, NULL AS request_method, NULL AS status_code
+                FROM login_logs
+                UNION ALL
+                SELECT id, user_id, username,
+                       CASE WHEN status_code < 400 THEN 'success' ELSE 'failure' END AS login_status,
+                       NULL AS otp_status, ip_address, user_agent, description AS failure_reason,
+                       created_at, event_type, description, request_path, request_method, status_code
+                FROM panel_system_logs
+            ) AS events
+            WHERE (%s IS NULL OR DATE(created_at) >= %s)
+              AND (%s IS NULL OR DATE(created_at) <= %s)
+              AND (%s IS NULL OR username LIKE %s)
+              AND (%s IS NULL OR login_status=%s)
+            ORDER BY created_at DESC, id DESC
             LIMIT %s
-            """,
-            (limit,),
-        )
+        """, (
+            date_from, date_from, date_to, date_to,
+            username or None, f"%{username}%" if username else None,
+            ("success" if result == "success" else "failure") if result in {"success","failure"} else None,
+            ("success" if result == "success" else "failure") if result in {"success","failure"} else None,
+            limit
+        ))
         rows = cursor.fetchall()
-        return {"success": True, "logs": rows}
+        return {"success": True, "logs": rows, "count": len(rows)}
     finally:
         cursor.close()
         db.close()
+
+
+@router.get("/api/admin/audit-logs/export")
+def export_panel_audit_logs(
+    request: Request,
+    limit: int = 500,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    username: str | None = None,
+):
+    return get_panel_audit_logs(request, limit, date_from, date_to, username)
 
 
 @router.get("/api/admin/activities")
