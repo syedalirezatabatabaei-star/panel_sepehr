@@ -117,7 +117,7 @@ class CreateRoleRequest(BaseModel):
     label: str = Field(min_length=2, max_length=150)
     description: str = Field(default="", max_length=1000)
     level: int = Field(default=1, ge=1, le=2)
-    color: str = Field(default="#64748b", pattern=r"^#[0-9a-fA-F]{6}$")
+    color: str = Field(default="#64748b", min_length=7, max_length=7)
 
 
 class SaveRolePermissionsRequest(BaseModel):
@@ -163,6 +163,8 @@ def _role_table_rows(cursor):
 
 @router.post("/roles")
 def create_database_role(body: CreateRoleRequest):
+    if not (body.color.startswith("#") and all(ch in "0123456789abcdefABCDEF" for ch in body.color[1:])):
+        raise HTTPException(status_code=400, detail="رنگ نقش باید به قالب #RRGGBB باشد")
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
