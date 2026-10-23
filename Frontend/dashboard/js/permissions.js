@@ -72,6 +72,14 @@ function canWrite(page) {
   return !!(u.permissions[page]?.write || u.permissions[page + ".write"]?.write);
 }
 
+
+function hasPersonalPermission(code) {
+  const user = getCurrentUser();
+  if (Number(user?.accessLevel ?? user?.access_level) === 3) return true;
+  const entry = user?.permissions?.[code];
+  return !!(entry?.personal_read || entry?.personal_write);
+}
+
 function guardFeature(permissionCode, action = "read") {
   const allowed = action === "write" ? canWrite(permissionCode) : canRead(permissionCode);
   if (!allowed) {
@@ -110,6 +118,7 @@ function guardPage(page, action = "read") {
 }
 
 window.canRead = canRead;
+window.hasPersonalPermission = hasPersonalPermission;
 window.guardFeature = guardFeature;
 window.canWrite = canWrite;
 window.applyMenuPermissions = applyMenuPermissions;
