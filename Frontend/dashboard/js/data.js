@@ -5,9 +5,6 @@
 
 // ─── Permission Definitions ────────────────────────────────────────
 const PERMISSIONS = [
-  // Dashboard
-  { id: 'dashboard.view', group: 'dashboard', label: 'مشاهده داشبورد', icon: '📊' },
-
   // Users
   { id: 'users.view', group: 'users', label: 'مشاهده کاربران', icon: '👥' },
   { id: 'users.create', group: 'users', label: 'ایجاد کاربر', icon: '👤' },
@@ -50,14 +47,13 @@ const PERMISSIONS = [
 ];
 
 const PERMISSION_GROUPS = {
-  dashboard: { label: 'داشبورد', icon: '📊', order: 1 },
-  users: { label: 'کاربران', icon: '👥', order: 2 },
-  notifications: { label: 'اعلان‌ها', icon: '🔔', order: 3 },
-  reports: { label: 'گزارش‌ها', icon: '📋', order: 4 },
-  logs: { label: 'لاگ‌ها', icon: '📜', order: 5 },
-  settings: { label: 'تنظیمات', icon: '⚙️', order: 6 },
-  roles: { label: 'نقش‌ها', icon: '🏷️', order: 7 },
-  security: { label: 'امنیت', icon: '🔒', order: 8 },
+  users: { label: 'کاربران', icon: '👥', order: 1 },
+  notifications: { label: 'اعلان‌ها', icon: '🔔', order: 2 },
+  reports: { label: 'گزارش‌ها', icon: '📋', order: 3 },
+  logs: { label: 'لاگ‌ها', icon: '📜', order: 4 },
+  settings: { label: 'تنظیمات', icon: '⚙️', order: 5 },
+  roles: { label: 'نقش‌ها', icon: '🏷️', order: 6 },
+  security: { label: 'امنیت', icon: '🔒', order: 7 },
 };
 
 // ─── Roles ─────────────────────────────────────────────────────────
@@ -82,7 +78,7 @@ const ROLES = [
     userCount: 0,
     color: '#e67e22',
     permissions: [
-      'dashboard.view', 'users.view', 'users.create', 'users.edit', 'users.delete', 'users.change_role',
+      'users.view', 'users.create', 'users.edit', 'users.delete', 'users.change_role',
       'notifications.view', 'notifications.create', 'notifications.edit', 'notifications.delete',
       'reports.view', 'reports.create', 'reports.send', 'reports.edit', 'reports.delete',
       'logs.view', 'logs.view_activity', 'logs.export',
@@ -101,7 +97,7 @@ const ROLES = [
     userCount: 0,
     color: '#3498db',
     permissions: [
-      'dashboard.view', 'users.view', 'notifications.view', 'notifications.create',
+      'users.view', 'notifications.view', 'notifications.create',
       'reports.view', 'reports.create', 'reports.send',
       'logs.view',
       'settings.view',
@@ -117,7 +113,7 @@ const ROLES = [
     userCount: 0,
     color: '#2ecc71',
     permissions: [
-      'dashboard.view', 'notifications.view', 'reports.view', 'reports.create',
+      'notifications.view', 'reports.view', 'reports.create',
     ],
     isSystem: false,
   },
@@ -130,7 +126,7 @@ const ROLES = [
     userCount: 0,
     color: '#95a5a6',
     permissions: [
-      'dashboard.view', 'notifications.view', 'reports.view',
+      'notifications.view', 'reports.view',
     ],
     isSystem: false,
   },
