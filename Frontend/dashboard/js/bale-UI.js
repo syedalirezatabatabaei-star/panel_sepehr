@@ -1998,9 +1998,18 @@ body:has(.main-content.bale-chat-host) {
                 throw new Error('ساختار پاسخ API گفتگوها معتبر نیست؛ آرایه گفتگوها پیدا نشد');
             }
 
+            // Normalize common field names used by different versions of the chat service.
+            sessions = sessions.map(session => ({
+                ...session,
+                id: session.id ?? session.session_id ?? session.sessionId ?? session.chat_id,
+                user_id: session.user_id ?? session.userId ?? session.telegram_user_id ?? session.telegram_id ?? session.username,
+                title: session.title ?? session.name ?? session.username ?? session.user_name ?? session.first_name ?? '',
+                updated_at: session.updated_at ?? session.updatedAt ?? session.last_message_at ?? session.created_at ?? session.createdAt ?? null
+            })).filter(session => session.id !== undefined && session.id !== null);
+
             sessions.sort((a, b) =>
-                new Date(b.updated_at || b.updatedAt || 0) -
-                new Date(a.updated_at || a.updatedAt || 0)
+                new Date(b.updated_at || 0) -
+                new Date(a.updated_at || 0)
             );
 
             box.innerHTML = '';
