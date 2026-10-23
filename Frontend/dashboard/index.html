@@ -85,26 +85,26 @@
         <span class="badge">3</span>
       </button>
 
-      <button class="sidebar-item" onclick="openBaleMessaging()">
+      <button class="sidebar-item" onclick="if (!guardFeature('bale.personal_message')) return; openBaleMessaging()">
         <span class="icon">&#9993;&#65039;</span>
         <span>ارسال پیام شخصی </span>
         <span class="badge">بله</span>
       </button>
 
-            <button class="sidebar-item" onclick="openEitaaBroadcast()">
+            <button class="sidebar-item" onclick="if (!guardFeature('eitaa.personal_message')) return; openEitaaBroadcast()">
         <span class="icon">&#9993;&#65039;</span>
         <span>ارسال پیام شخصی ایتا </span>
         <span class="badge">ایتا</span>
       </button>
 
-      <button class="sidebar-item" onclick="openRubikaPersonalMessage()">
+      <button class="sidebar-item" onclick="if (!guardFeature('rubika.personal_message')) return; openRubikaPersonalMessage()">
         <span class="icon">&#9993;&#65039;</span>
         <span>ارسال پیام شخصی روبیکا</span>
         <span class="badge">روبیکا</span>
       </button>
 
 <!--    <span class="icon">&#128172;</span> -->
-<button class="sidebar-item" onclick="openBaleChatPage()">
+<button class="sidebar-item" onclick="if (!guardFeature('bale.chats')) return; openBaleChatPage()">
     <span class="icon">
     <img src="./img/images.jpg" alt="icon"
          style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
@@ -113,7 +113,7 @@
     <span class="badge">آرامش</span>
 </button>
 
-      <button class="sidebar-item" onclick="openEitaaChatPage()">
+      <button class="sidebar-item" onclick="if (!guardFeature('eitaa.chats')) return; openEitaaChatPage()">
 	<span class="icon">	
 <img src="./img/eitaa.png" alt="icon" 
          style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
