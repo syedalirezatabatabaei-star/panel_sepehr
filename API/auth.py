@@ -228,7 +228,8 @@ def login(data: LoginRequest, request: Request):
                 FROM login_logs
                 WHERE username=%s AND login_status='failed'
                   AND created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL %s MINUTE)
-            """, (data.username, lockout_minutes))
+                  AND id > COALESCE((SELECT MAX(id) FROM login_logs WHERE username=%s AND login_status='success'), 0)
+            """, (data.username, lockout_minutes, data.username))
             failure_row = cursor.fetchone() or {}
             if int(failure_row.get("failures") or 0) >= max_attempts:
                 return {"success": False, "message": f"به دلیل تلاش‌های ناموفق، ورود موقتاً قفل شده است. {lockout_minutes} دقیقه بعد دوباره تلاش کنید."}
@@ -1435,7 +1436,7 @@ def list_current_user_sessions(request: Request):
     try:
         cursor.execute("""
             SELECT id, session_token_hash, ip_address, user_agent,
-                   expires_at, last_activity_at, created_at
+                   expires_at, last_activity_at
             FROM login_sessions
             WHERE user_id=%s AND is_active=1 AND expires_at > UTC_TIMESTAMP()
             ORDER BY last_activity_at DESC, id DESC
@@ -1450,7 +1451,6 @@ def list_current_user_sessions(request: Request):
                 "user_agent": row.get("user_agent"),
                 "expires_at": row.get("expires_at").isoformat() if row.get("expires_at") else None,
                 "last_activity_at": row.get("last_activity_at").isoformat() if row.get("last_activity_at") else None,
-                "created_at": row.get("created_at").isoformat() if row.get("created_at") else None,
             })
         return {"success": True, "sessions": sessions, "count": len(sessions)}
     finally:
