@@ -1,20 +1,20 @@
 services:
-  bale_sender:
-    image: bale_sender:1.8
+  panel_sepehr:
+    image: panel_sepehr:latest
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bale_sender
+    container_name: panel_sepehr
     networks:
       - internal_net
-    restart: "no"
+    restart: unless-stopped
     env_file:
       - .env
     environment:
       DB_HOST: ${DB_HOST:-mysql}
       DB_USER: ${DB_USER:-bale_api}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the server-side .env file}
-      DB_NAME: ${DB_NAME:-bale_sender}
+      DB_NAME: ${DB_NAME:-Bale_sender}
       DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-10}
       FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://95.38.187.123:3002}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
@@ -36,6 +36,12 @@ services:
     volumes:
       - eitaa-media-shared:/shared/eitaa-media
     command: ["/app/start.sh"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 networks:
   internal_net:
