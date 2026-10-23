@@ -115,3 +115,31 @@ window.canWrite = canWrite;
 window.applyMenuPermissions = applyMenuPermissions;
 window.applyWritePermissions = applyWritePermissions;
 window.guardPage = guardPage;
+
+/*
+ * Global fallbacks prevent a missing/stale permissions.js from crashing inline
+ * handlers. This is only a UI safety net; the API remains authoritative.
+ */
+if (typeof window.guardFeature !== "function") {
+  window.guardFeature = function (permissionCode, action = "read") {
+    const user = window.CURRENT_USER || (() => {
+      try { return JSON.parse(localStorage.getItem("user") || "null"); }
+      catch (_) { return null; }
+    })();
+    if (Number(user?.accessLevel ?? user?.access_level) === 3) return true;
+    const permissions = user?.permissions;
+    const entry = permissions?.[permissionCode] || permissions?.[permissionCode + "." + action];
+    const allowed = action === "write" ? !!(entry?.write || entry?.can_write) : !!(entry?.read || entry?.can_read);
+    if (!allowed) {
+      if (typeof window.showPermissionDenied === "function") window.showPermissionDenied();
+      else if (typeof window.showToast === "function") window.showToast("شما اجازه دسترسی به این قابلیت را ندارید.", "error");
+      return false;
+    }
+    return true;
+  };
+}
+if (typeof window.guardPage !== "function") {
+  window.guardPage = function (permissionCode, action = "read") {
+    return window.guardFeature(permissionCode, action);
+  };
+}
