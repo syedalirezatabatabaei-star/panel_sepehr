@@ -1325,46 +1325,39 @@ def get_user_from_session(request: Request, touch_activity: bool = True):
 # CURRENT USER / ME
 # =========================================================
 def get_user_permissions(user_id: int):
-
+    """Return effective role + personal grants for the current session."""
     db = get_connection()
     cursor = db.cursor(dictionary=True)
-
     try:
         cursor.execute("""
             SELECT
                 p.code,
-                rp.id IS NOT NULL AS role_permission,
-                up.id IS NOT NULL AS user_override,
-                up.can_read,
-                up.can_write
+                MAX(COALESCE(rp.id IS NOT NULL, 0)) AS role_permission,
+                MAX(COALESCE(up.can_read, 0)) AS personal_read,
+                MAX(COALESCE(up.can_write, 0)) AS personal_write
             FROM permissions p
             LEFT JOIN users u ON u.id = %s
             LEFT JOIN role_permissions rp
-                ON rp.permission_id = p.id
-                AND rp.role_id = u.role_id
+                ON rp.permission_id = p.id AND rp.role_id = u.role_id
             LEFT JOIN user_permissions up
-                ON up.permission_id = p.id
-                AND up.user_id = %s
+                ON up.permission_id = p.id AND up.user_id = %s
+            GROUP BY p.id, p.code
             ORDER BY p.id
         """, (user_id, user_id))
-
-        rows = cursor.fetchall()
         permissions = {}
-        for row in rows:
+        for row in cursor.fetchall():
             code = row["code"]
-            if row["user_override"]:
-                permissions[code] = {
-                    "read": bool(row["can_read"]),
-                    "write": bool(row["can_write"])
-                }
-            else:
-                role_granted = bool(row["role_permission"])
-                permissions[code] = {
-                    "read": role_granted,
-                    "write": role_granted
-                }
+            role_granted = bool(row["role_permission"])
+            personal_read = bool(row["personal_read"])
+            personal_write = bool(row["personal_write"])
+            permissions[code] = {
+                "read": role_granted or personal_read,
+                "write": role_granted or personal_write,
+                "personal_read": personal_read,
+                "personal_write": personal_write,
+                "role_granted": role_granted,
+            }
         return permissions
-
     finally:
         cursor.close()
         db.close()
