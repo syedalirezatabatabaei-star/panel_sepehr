@@ -7,6 +7,8 @@ __pycache__/
 venv/
 vin/
 .env
+.env.*
+!.env.example
 .venv/
 
 # Playwright
@@ -22,22 +24,16 @@ test-results/
 
 # Logs
 *.log
+logs/
 
-# Temporary
-*.tmp
-*.swp
-
-# Secrets
-.env.*
-!.env.example
-
-.openui
-
-# Local browser sessions and runtime state (may contain credentials/session data)
+# Runtime and session data
+cookies.txt
+bale_session.json
 browser_profile/
 browser_profile_backup_*/
-cookies.txt
 data/state.db
-data/*.db
-
-bale_session.json
+data/eitaa-state/
+data/eitaa-sessions/
+data/eitaa-media/
+data/uploads/
+reports/
