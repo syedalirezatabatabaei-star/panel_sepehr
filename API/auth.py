@@ -1365,6 +1365,106 @@ def get_current_user(request: Request):
 
 
 # =========================================================
+# SESSION MANAGEMENT
+# =========================================================
+
+def _current_session_token(request: Request):
+    token = request.cookies.get("session_token")
+    if token:
+        return token
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, bearer_token = authorization.partition(" ")
+    if scheme.lower() == "bearer" and bearer_token.strip():
+        return bearer_token.strip()
+    return None
+
+
+@router.get("/sessions")
+def list_current_user_sessions(request: Request):
+    user = get_user_from_session(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="ابتدا وارد حساب کاربری شوید")
+    token = _current_session_token(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="نشست فعلی شناسایی نشد")
+    current_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    db = get_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id, session_token_hash, ip_address, user_agent,
+                   expires_at, last_activity_at, created_at
+            FROM login_sessions
+            WHERE user_id=%s AND is_active=1 AND expires_at > UTC_TIMESTAMP()
+            ORDER BY last_activity_at DESC, id DESC
+        """, (int(user["id"]),))
+        rows = cursor.fetchall()
+        sessions = []
+        for row in rows:
+            sessions.append({
+                "id": int(row["id"]),
+                "is_current": secrets.compare_digest(str(row["session_token_hash"]), current_hash),
+                "ip_address": row.get("ip_address"),
+                "user_agent": row.get("user_agent"),
+                "expires_at": row.get("expires_at").isoformat() if row.get("expires_at") else None,
+                "last_activity_at": row.get("last_activity_at").isoformat() if row.get("last_activity_at") else None,
+                "created_at": row.get("created_at").isoformat() if row.get("created_at") else None,
+            })
+        return {"success": True, "sessions": sessions, "count": len(sessions)}
+    finally:
+        cursor.close()
+        db.close()
+
+
+@router.post("/sessions/logout-others")
+def logout_other_sessions(request: Request):
+    user = get_user_from_session(request, touch_activity=True)
+    if not user:
+        raise HTTPException(status_code=401, detail="ابتدا وارد حساب کاربری شوید")
+    token = _current_session_token(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="نشست فعلی شناسایی نشد")
+    current_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    db = get_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id
+            FROM login_sessions
+            WHERE user_id=%s AND is_active=1 AND expires_at > UTC_TIMESTAMP()
+              AND session_token_hash <> %s
+            FOR UPDATE
+        """, (int(user["id"]), current_hash))
+        others = cursor.fetchall()
+        if not others:
+            db.commit()
+            return {
+                "success": True,
+                "revoked_count": 0,
+                "message": "نشست دیگری غیر از خودتان نیست"
+            }
+        cursor.execute("""
+            UPDATE login_sessions
+            SET is_active=0
+            WHERE user_id=%s AND is_active=1 AND expires_at > UTC_TIMESTAMP()
+              AND session_token_hash <> %s
+        """, (int(user["id"]), current_hash))
+        revoked = int(cursor.rowcount or 0)
+        db.commit()
+        return {
+            "success": True,
+            "revoked_count": revoked,
+            "message": f"{revoked} نشست دیگر با موفقیت خارج شد" if revoked == 1 else f"{revoked} نشست دیگر با موفقیت خارج شدند"
+        }
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        cursor.close()
+        db.close()
+
+
+# =========================================================
 # LOGOUT
 # =========================================================
 
