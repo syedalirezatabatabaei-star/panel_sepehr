@@ -2843,3 +2843,19 @@ a {
 .users-page .pagination-info { color:#4b5563; font-size:var(--font-size-sm); }
 .users-page .empty-state { color:#4b5563; }
 @media (max-width:640px) { .notification-dropdown { left:-54px; } .users-page .page-header > div:last-child { align-items:flex-start !important; gap:12px; flex-direction:column; } .users-page .page-header > div:last-child .btn { width:100%; } }
+
+/* Security settings and live session management */
+.security-settings-card { margin-top: 22px; }
+.security-settings-card .page-header { margin-bottom: 18px; }
+.security-settings-card .form-row { align-items: end; }
+.security-settings-card .form-group { min-width: 180px; flex: 1 1 220px; }
+.security-settings-card input[type=number] { direction: ltr; text-align: left; }
+.active-sessions-list { display:flex; flex-direction:column; gap:12px; max-height:60vh; overflow-y:auto; }
+.active-session-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; border:1px solid var(--gray-200); border-radius:12px; background:var(--gray-50); }
+.active-session-row > div { min-width:0; display:grid; gap:6px; overflow-wrap:anywhere; }
+.active-session-row strong { color:var(--gray-900); font-size:var(--font-size-sm); }
+.active-session-row small { color:var(--gray-500); line-height:1.8; }
+.active-session-row code { direction:ltr; }
+.active-session-row .badge { flex:0 0 auto; }
+#logoutOtherSessionsButton:disabled { opacity:.65; cursor:wait; }
+@media (max-width:640px) { .security-settings-card .form-row { display:flex; flex-direction:column; align-items:stretch; } .security-settings-card .form-group { width:100%; } .active-session-row { align-items:flex-start; padding:12px; } }
