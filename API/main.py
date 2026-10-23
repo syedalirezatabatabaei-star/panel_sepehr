@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,32 +12,27 @@ from API.auth import router as auth_router, get_user_from_session
 from API.admin import router as admin_router
 from API.permissions import has_permission
 from API.permissions_admin import router as permissions_admin_router
+from API.chat_proxy import router as chat_proxy_router
 
 logger = logging.getLogger(__name__)
-
 app = FastAPI()
 
-# Keep the current frontend origin while allowing deployment-specific origins
-# through FRONTEND_ORIGINS (comma-separated).
-import os
 frontend_origins = [
     origin.strip()
     for origin in os.getenv(
         "FRONTEND_ORIGINS",
-        "http://95.38.187.123:3002"
+        "http://95.38.187.123:3002",
     ).split(",")
     if origin.strip()
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
-# Only the endpoints required to establish an authenticated session are public.
 _PUBLIC_AUTH_PATHS = {
     "/api/auth/login",
     "/api/auth/register",
@@ -48,7 +44,6 @@ _PUBLIC_AUTH_PATHS = {
 @app.middleware("http")
 async def require_authenticated_api_requests(request: Request, call_next):
     path = request.url.path
-
     if (
         not path.startswith("/api/")
         or request.method == "OPTIONS"
@@ -60,7 +55,6 @@ async def require_authenticated_api_requests(request: Request, call_next):
     try:
         user = get_user_from_session(request)
     except Exception:
-        # Fail closed: a database/session validation failure must not grant access.
         logger.exception("Unable to validate API session")
         return JSONResponse(
             status_code=503,
@@ -76,20 +70,37 @@ async def require_authenticated_api_requests(request: Request, call_next):
         )
 
     request.state.user = user
-
-    # Enforce sensitive messaging actions on the server, not only in the UI.
+    path_lower = path.lower()
     required_permission = None
-    if request.method == "POST" and path == "/api/bale/send":
+    permission_action = "use"
+
+    # Personal broadcast permissions are checked on the server.
+    if request.method == "POST" and path_lower == "/api/bale/send":
         required_permission = "bale.personal_message"
-    elif request.method == "POST" and path == "/api/eitaa/send":
+    elif request.method == "POST" and path_lower == "/api/eitaa/send":
         required_permission = "eitaa.personal_message"
+    # Chat service and n8n webhook calls must pass through this authenticated
+    # gateway so users cannot bypass chat read/write permissions via port 3000/3001.
+    elif path_lower.startswith("/api/chat/bale/"):
+        required_permission = "bale.chats"
+        permission_action = "read" if request.method in {"GET", "HEAD"} else "write"
+    elif path_lower.startswith("/api/chat/eitaa/"):
+        required_permission = "eitaa.chats"
+        permission_action = "read" if request.method in {"GET", "HEAD"} else "write"
+    elif path_lower in {"/api/chat/bale", "/api/chat/eitaa"}:
+        required_permission = "bale.chats" if path_lower.endswith("/bale") else "eitaa.chats"
+        permission_action = "read" if request.method in {"GET", "HEAD"} else "write"
 
     if required_permission:
         try:
-            if not has_permission(int(user["id"]), required_permission):
+            if not has_permission(
+                int(user["id"]),
+                required_permission,
+                action=permission_action,
+            ):
                 return JSONResponse(
                     status_code=403,
-                    content={"detail": {"message": "شما اجازه استفاده از این قابلیت را ندارید."}},
+                    content={"detail": {"message": "شما اجازه دسترسی به این قابلیت را ندارید."}},
                     headers={"Cache-Control": "no-store"},
                 )
         except Exception:
@@ -111,6 +122,12 @@ app.include_router(permissions_admin_router)
 app.include_router(bale_router)
 app.include_router(eitaa_router)
 app.include_router(registration_router)
+app.include_router(chat_proxy_router)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 @app.get("/")
