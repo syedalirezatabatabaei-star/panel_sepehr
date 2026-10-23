@@ -6,7 +6,7 @@ from typing import Optional
 from API.database import get_connection
 from API.permissions import require_admin
 
-router = APIRouter(prefix="/api/admin", tags=["admin-registration"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/api/admin", tags=["admin-registration"])
 
 
 class ApproveBody(BaseModel):
