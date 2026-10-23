@@ -4,7 +4,7 @@ set -Eeuo pipefail
 cd /app
 uvicorn API.main:app --host 0.0.0.0 --port 8005 &
 API_PID=$!
-python -m http.server 8085 --directory /app/Frontend &
+uvicorn API.frontend:app --host 0.0.0.0 --port 8085 &
 WEB_PID=$!
 
 cleanup() {
