@@ -2910,6 +2910,7 @@
        ========================================================= */
 
     async function createEitaaChat() {
+    if (typeof guardPage === 'function' && !guardPage('eitaa.chats', 'write')) return;
 
         const input =
             getEl(
@@ -3768,6 +3769,7 @@
        ========================================================= */
 
     async function sendEitaaMessage() {
+    if (typeof guardPage === 'function' && !guardPage('eitaa.chats', 'write')) return;
 
         const input =
             getEl(
@@ -4400,6 +4402,7 @@
        ========================================================= */
 
     async function openEitaaChatPage() {
+    if (typeof guardPage === 'function' && !guardPage('eitaa.chats', 'read')) return;
 
         if (!canRead("eitaa_chat")) {
         showPermissionDenied();
