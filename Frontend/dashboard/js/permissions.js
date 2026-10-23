@@ -82,10 +82,8 @@ function guardFeature(permissionCode, action = "read") {
 }
 
 function applyMenuPermissions() {
-  // Keep navigation icons visible; unauthorized clicks show the existing denial message.
-  document.querySelectorAll(".sidebar-item, .settings-nav-item").forEach(el => {
-    el.style.display = "";
-  });
+  // Intentionally do not hide navigation icons. Protected actions call guardFeature/guardPage
+  // and display the existing denial message when the user lacks permission.
 }
 
 function applyWritePermissions() {
