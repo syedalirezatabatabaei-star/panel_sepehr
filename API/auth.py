@@ -7,6 +7,7 @@ from passlib.context import CryptContext
 import requests
 import hashlib
 import secrets
+import os
 from datetime import datetime, timedelta, timezone
 
 
@@ -925,7 +926,7 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
             key="session_token",
             value=raw_token,
             httponly=True,
-            secure=False,
+            secure=os.getenv("COOKIE_SECURE", "false").strip().lower() in {"1", "true", "yes"},
             samesite="lax",
             max_age=SESSION_EXPIRE_MINUTES * 60,
             path="/"
@@ -1187,7 +1188,7 @@ def resend_otp(data: ResendOTPRequest):
 # GET USER FROM SESSION
 # =========================================================
 
-def get_user_from_session(request: Request):
+def get_user_from_session(request: Request, touch_activity: bool = True):
 
     token = request.cookies.get("session_token")
     if not token:
@@ -1248,24 +1249,26 @@ def get_user_from_session(request: Request):
 
             return None
 
-        # -------------------------------------------------
-        # Update last activity
-        # -------------------------------------------------
-
-        cursor.execute(
-            """
-            UPDATE login_sessions
-            SET last_activity_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-            """,
-            (user["session_id"],)
-        )
-
-        db.commit()
-
-        print("SESSION CHECK: VALID")
-        print("USER:", user["username"])
-
+        if touch_activity:
+            # -------------------------------------------------
+            # Update last activity
+            # -------------------------------------------------
+    
+            cursor.execute(
+                """
+                UPDATE login_sessions
+                SET last_activity_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                """,
+                (user["session_id"],)
+            )
+    
+            db.commit()
+    
+            print("SESSION CHECK: VALID")
+            print("USER:", user["username"])
+    
+    
         return user
 
     finally:
