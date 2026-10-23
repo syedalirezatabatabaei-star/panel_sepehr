@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  const API = window.location.protocol + "//" + window.location.hostname + ":8005/api/eitaa";
+  const API = "/api/eitaa";
   let activeJob = null, pollTimer = null, pendingPhone = "", pollFailures = 0;
 
   function el(id) { return document.getElementById(id); }
