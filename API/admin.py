@@ -75,8 +75,8 @@ def approve_registration(request_id: int, body: ApproveBody, request: Request):
             level = int(req.get("requested_access_level") or 1)
         level = max(1, min(3, int(level)))
         actor = getattr(request.state, "user", {}) or {}
-        if level == 3 and int(actor.get("access_level") or 0) != 3:
-            raise HTTPException(403, "فقط مدیر می‌تواند کاربر مدیر ایجاد کند")
+        if level > int(actor.get("access_level") or 0) and int(actor.get("access_level") or 0) != 3:
+            raise HTTPException(403, "نمی‌توانید کاربری با سطح دسترسی بالاتر از خود ایجاد کنید")
 
         cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
         if cursor.fetchone():
@@ -218,7 +218,7 @@ def update_user(user_id: int, data: UpdateUserRequest, request: Request):
         actor = getattr(request.state, "user", {}) or {}
         is_admin_actor = int(actor.get("access_level") or 0) == 3
         if not is_admin_actor and (
-            int(data.access_level or 0) == 3
+            int(data.access_level or 0) != int(target_user.get("access_level") or 0)
             or int(target_user.get("access_level") or 0) == 3
             or int(data.is_active or 0) == 0
         ):
@@ -330,8 +330,8 @@ def create_user(data: CreateUserRequest, request: Request):
         actor = getattr(request.state, "user", {}) or {}
         if int(data.access_level or 0) not in (1, 2, 3):
             raise HTTPException(400, "سطح دسترسی نامعتبر است")
-        if int(data.access_level or 0) == 3 and int(actor.get("access_level") or 0) != 3:
-            raise HTTPException(403, "فقط مدیر می‌تواند کاربر مدیر ایجاد کند")
+        if int(data.access_level or 0) > int(actor.get("access_level") or 0) and int(actor.get("access_level") or 0) != 3:
+            raise HTTPException(403, "نمی‌توانید کاربری با سطح دسترسی بالاتر از خود ایجاد کنید")
         cursor.execute(
             "SELECT id FROM users WHERE username = %s LIMIT 1",
             (data.username,)
