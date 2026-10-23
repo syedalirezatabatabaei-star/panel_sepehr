@@ -6,6 +6,15 @@
        CONFIG
     ========================================================= */
 
+    // The API runs on a different port; include the panel session cookie on every request.
+    async function chatFetch(input, init = {}) {
+        return window.fetch(input, {
+            ...init,
+            credentials: 'include',
+            cache: init.cache || 'no-store'
+        });
+    }
+
     const API = `${API_BASE}/api/chat/bale`;
     const WEBHOOK = `${API_BASE}/api/chat/bale/webhook/send`;
     const CREATE_CHAT_WEBHOOK = `${API_BASE}/api/chat/bale/webhook/create`;
@@ -1664,7 +1673,7 @@ body:has(.main-content.bale-chat-host) {
 
         try {
             const sessionsRes =
-                await fetch(API + '/sessions');
+                await chatFetch(API + '/sessions');
 
             const sessions =
                 await sessionsRes.json();
@@ -1674,7 +1683,7 @@ body:has(.main-content.bale-chat-host) {
             for (const session of sessions) {
 
                 const messagesRes =
-                    await fetch(
+                    await chatFetch(
                         `${API}/messages/${session.id}`
                     );
 
@@ -1811,7 +1820,7 @@ body:has(.main-content.bale-chat-host) {
             }
 
             const res =
-                await fetch(
+                await chatFetch(
                     CREATE_CHAT_WEBHOOK,
                     {
                         method: 'POST',
@@ -1826,9 +1835,8 @@ body:has(.main-content.bale-chat-host) {
                 );
 
             if (!res.ok) {
-                throw new Error(
-                    'Webhook Error'
-                );
+                const errorBody = await res.text().catch(() => '');
+                throw new Error(`درخواست سرویس ناموفق بود (HTTP ${res.status})${errorBody ? ': ' + errorBody.slice(0, 180) : ''}`);
             }
 
             const data =
@@ -1925,7 +1933,7 @@ body:has(.main-content.bale-chat-host) {
         if (!box) return;
 
         try {
-            const res = await fetch(API + '/sessions', {
+            const res = await chatFetch(API + '/sessions', {
                 method: 'GET',
                 credentials: 'include',
                 headers: { 'Accept': 'application/json' },
@@ -2309,7 +2317,7 @@ body:has(.main-content.bale-chat-host) {
         try {
 
             const res =
-                await fetch(
+                await chatFetch(
                     `${API}/messages/${currentSession}`
                 );
 
@@ -2534,7 +2542,7 @@ body:has(.main-content.bale-chat-host) {
             }
 
             const res =
-                await fetch(
+                await chatFetch(
                     WEBHOOK,
                     {
                         method: 'POST',
@@ -2558,9 +2566,8 @@ body:has(.main-content.bale-chat-host) {
                 );
 
             if (!res.ok) {
-                throw new Error(
-                    'Webhook Error'
-                );
+                const errorBody = await res.text().catch(() => '');
+                throw new Error(`درخواست سرویس ناموفق بود (HTTP ${res.status})${errorBody ? ': ' + errorBody.slice(0, 180) : ''}`);
             }
 
             input.value = '';
@@ -2797,7 +2804,7 @@ body:has(.main-content.bale-chat-host) {
                     try {
 
                         const res =
-                            await fetch(
+                            await chatFetch(
                                 `${API}/messages/${currentSession}`
                             );
 
