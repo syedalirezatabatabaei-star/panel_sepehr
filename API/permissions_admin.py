@@ -112,6 +112,14 @@ def get_catalog():
         db.close()
 
 
+class CreateRoleRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    label: str = Field(min_length=2, max_length=150)
+    description: str = Field(default="", max_length=1000)
+    level: int = Field(default=1, ge=1, le=2)
+    color: str = Field(default="#64748b", pattern=r"^#[0-9a-fA-F]{6}$")
+
+
 class SaveRolePermissionsRequest(BaseModel):
     permissions: list[str]
 
@@ -151,6 +159,55 @@ def _role_table_rows(cursor):
             "isSystem": bool(row.get("is_system", row.get("is_system_role", 0))),
         })
     return result
+
+
+@router.post("/roles")
+def create_database_role(body: CreateRoleRequest):
+    db = get_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute("SHOW COLUMNS FROM roles")
+        columns = cursor.fetchall()
+        by_name = {column["Field"]: column for column in columns}
+        values = {}
+        for field, value in (
+            ("name", body.name.strip()), ("code", body.name.strip().lower().replace(" ", "_")),
+            ("label", body.label.strip()), ("title", body.label.strip()),
+            ("description", body.description.strip()), ("level", body.level),
+            ("access_level", body.level), ("color", body.color),
+            ("is_system", 0), ("is_system_role", 0),
+        ):
+            if field in by_name and field not in values:
+                values[field] = value
+        for column in columns:
+            name = column["Field"]
+            if name in values or "auto_increment" in (column.get("Extra") or "").lower():
+                continue
+            if column.get("Null") == "YES" or column.get("Default") is not None:
+                continue
+            raise HTTPException(
+                status_code=400,
+                detail=f"ستون اجباری «{name}» در جدول roles باید برای ساخت نقش نگاشت شود",
+            )
+        if not values:
+            raise HTTPException(status_code=500, detail="ساختار جدول roles معتبر نیست")
+        names = list(values)
+        cursor.execute(
+            "INSERT INTO roles (" + ", ".join("`" + name.replace("`", "``") + "`" for name in names) +
+            ") VALUES (" + ", ".join(["%s"] * len(names)) + ")",
+            tuple(values[name] for name in names),
+        )
+        db.commit()
+        return {"success": True, "id": cursor.lastrowid, "message": "نقش جدید ایجاد شد"}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="ایجاد نقش در دیتابیس ناموفق بود")
+    finally:
+        cursor.close()
+        db.close()
 
 
 @router.get("/roles")
