@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <!-- Load permission guards before any dashboard controls can invoke them; versioned to bypass stale browser caches. -->
+  <script src="./js/permissions.js?v=20261023-guardfix"></script>
   <script>
     // Keep dashboard content hidden until the server confirms a valid session.
     document.documentElement.style.visibility = "hidden";
@@ -235,7 +237,6 @@
 
 <script src="./js/data.js"></script>
 <script src="./js/app.js"></script>
-<script src="js/permissions.js"></script>
 <script src="./js/bale.js"></script>
 <script src="./js/eitaa-broadcast.js"></script>
 <script src="./js/rubika-broadcast.js"></script>
