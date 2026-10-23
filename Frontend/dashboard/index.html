@@ -21,7 +21,7 @@
         if (accessToken) headers.Authorization = "Bearer " + accessToken;
 
         const response = await fetch(
-          window.location.protocol + "//" + window.location.hostname + ":8005/api/auth/me",
+          "/api/auth/me",
           { method: "GET", credentials: "include", headers, cache: "no-store" }
         );
         const data = await response.json().catch(() => ({}));
@@ -38,8 +38,7 @@
         window.fetch = function(input, init = {}) {
           const requestUrl = typeof input === "string" ? input : input.url;
           const url = new URL(requestUrl, window.location.href);
-          const apiOrigin = window.location.protocol + "//" + window.location.hostname + ":8005";
-          if (url.origin === apiOrigin && url.pathname.startsWith("/api/")) {
+          if (url.pathname.startsWith("/api/")) {
             const headers = new Headers(
               input instanceof Request ? input.headers : undefined
             );
