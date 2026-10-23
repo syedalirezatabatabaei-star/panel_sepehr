@@ -85,7 +85,7 @@ const SETTINGS_PAGE_PERMISSION = {
 
 function hasPersonalSettingsAccess(page) {
     if (isSettingsAdministrator()) return true;
-    if (page === 'my-account') return true;
+    if (page === 'my-account' || page === 'notifications') return true;
     if (page === 'access-control') return false;
     const code = SETTINGS_PAGE_PERMISSION[page];
     if (!code) return false;
@@ -115,8 +115,6 @@ const SETTINGS_PAGES = new Set([
 function ensureSettingsNav() {
     const container = document.getElementById('settingsNavContainer');
     if (!container) return;
-
-    if (document.getElementById('settingsNav')) return;
 
     const visibleItems = SETTINGS_NAV_ITEMS.filter(item =>
         item.page === 'my-account' || hasPersonalSettingsAccess(item.page)
