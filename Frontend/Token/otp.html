@@ -613,7 +613,7 @@
     /* ============================================
        CONFIG — Webhook URLs for n8n
        ============================================ */
-    const API_BASE = "http://95.38.187.123:8005";
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:8005`;
 
     const API_CONFIG = {
       verifyOtp: `${API_BASE}/api/auth/verify-otp`,
@@ -907,6 +907,7 @@ function startResendCountdown(seconds = State.countdownDuration) {
     const response = await fetch(API_CONFIG.verifyOtp, {
       method: "POST",
       credentials: "include",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: State.username,
@@ -1037,6 +1038,7 @@ function startResendCountdown(seconds = State.countdownDuration) {
 
     const response = await fetch(API_CONFIG.resendOtp, {
       method: "POST",
+      credentials: "include",
       credentials: "include",
       headers: {
         "Content-Type": "application/json"
