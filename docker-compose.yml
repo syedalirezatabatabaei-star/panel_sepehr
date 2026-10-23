@@ -5,7 +5,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: bale_sender
-    network_mode: null
     networks:
       - internal_net
     restart: "no"
