@@ -3,8 +3,6 @@
 Run with: python -m API.migrations.seed_permissions
 This avoids assuming that the deployed permissions table has a particular label column.
 """
-import re
-
 from API.database import get_connection
 from API.permissions_admin import PERMISSION_CATALOG
 
