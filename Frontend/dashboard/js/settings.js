@@ -10,11 +10,10 @@
    ========================================================= */
 
 const SETTINGS_NAV_ITEMS = [
-    { page: 'overview', icon: '&#128202;', label: 'داشبورد و اطلاعات کلی' },
     { page: 'access-control', icon: '&#128272;', label: 'مدیریت دسترسی‌ها' },
     { page: 'registration-requests', icon: '&#128221;', label: 'درخواست کاربران جدید' },
     { page: 'users', icon: '&#128101;', label: 'مدیریت کاربران' },
-    { page: 'notifications', icon: '&#128276;', label: 'اعلان‌ها' },
+    { page: 'notification-settings', icon: '&#9881;', label: 'تنظیمات اعلان‌ها' },
     { page: 'audit-logs', icon: '&#128220;', label: 'لاگ‌های سیستم' },
     { page: 'activities', icon: '&#128203;', label: 'فعالیت کاربران' },
     { page: 'security', icon: '&#128274;', label: 'امنیت' },
@@ -27,9 +26,9 @@ let settingsSectionOpen = false;
 
 /** صفحات واقعی تنظیمات */
 const SETTINGS_PAGES = new Set([
-    'overview', 'users', 'registration-requests', 'user-details',
+    'users', 'registration-requests', 'user-details',
     'user-permissions', 'edit-user', 'roles', 'role-permissions',
-    'notifications', 'audit-logs', 'activities', 'security',
+    'notifications', 'notification-settings', 'audit-logs', 'activities', 'security',
     'my-account', 'system-settings', 'access-control'
 ]);
 
@@ -158,7 +157,7 @@ function toggleSettingsNav() {
         openSettingsSection();
         const page = (typeof AppState !== 'undefined' && AppState.currentPage && SETTINGS_PAGES.has(AppState.currentPage))
             ? AppState.currentPage
-            : 'overview';
+            : 'my-account';
         navigateTo(page);
         return;
     }
@@ -249,7 +248,6 @@ function navigateTo(page, data) {
     });
 
     const titles = {
-        'overview': 'تنظیمات سیستم',
         'users': 'مدیریت کاربران',
         'registration-requests': 'درخواست کاربران جدید',
         'user-details': 'مشاهده کاربر',
@@ -257,7 +255,8 @@ function navigateTo(page, data) {
         'edit-user': 'ویرایش کاربر',
         'roles': 'مدیریت نقش',
         'role-permissions': 'ویرایش نقش',
-        'notifications': 'مدیریت اعلان‌ها',
+        'notifications': 'اعلان‌ها',
+        'notification-settings': 'تنظیمات اعلان‌ها',
         'audit-logs': 'لاگ‌های سیستم',
         'activities': 'فعالیت کاربران',
         'security': 'امنیت',
@@ -288,7 +287,6 @@ function renderPage(page) {
     if (!content) return;
 
     const renderers = {
-        'overview': renderOverview,
         'users': renderUsers,
         'registration-requests': renderRegistrationRequests,
         'user-details': renderUserDetails,
@@ -297,6 +295,7 @@ function renderPage(page) {
         'roles': renderRoles,
         'role-permissions': renderRolePermissions,
         'notifications': renderNotifications,
+        'notification-settings': renderNotificationSettings,
         'audit-logs': renderAuditLogs,
         'activities': renderActivities,
         'security': renderSecurity,
@@ -321,7 +320,10 @@ function renderPage(page) {
         if (page === 'notifications') {
             refreshNotificationsPage();
         }
-        if ((page === 'audit-logs' || page === 'activities' || page === 'overview' || page === 'security') && !window.__auditLoadedForPage?.[page]) {
+        if (page === 'notification-settings') {
+            refreshNotificationSettingsPage();
+        }
+        if ((page === 'audit-logs' || page === 'activities' || page === 'security') && !window.__auditLoadedForPage?.[page]) {
             loadPersistentAuditData(page);
         }
         if (page === 'system-settings') {
@@ -632,391 +634,6 @@ function escapeHtml(value) {
 
 
 /* =========================================================
-   PAGE: OVERVIEW
-   ========================================================= */
-
-function renderOverview() {
-    const activeUsers =
-        USERS.filter(u => u.status === 'active').length;
-
-    const inactiveUsers =
-        USERS.filter(u => u.status === 'inactive').length;
-
-    const totalPerms = PERMISSIONS.length;
-
-    const recentActivities =
-        ACTIVITIES.slice(0, 5);
-
-    const recentLogs =
-        AUDIT_LOGS.slice(0, 5);
-
-    const recentPermChanges =
-        AUDIT_LOGS
-            .filter(
-                l =>
-                    l.action === 'permission_change' ||
-                    l.action === 'change_role'
-            )
-            .slice(0, 4);
-
-    const securityAlerts =
-        AUDIT_LOGS
-            .filter(l => l.action === 'login_failed')
-            .slice(0, 3);
-
-    return `
-        <div class="page-header">
-            <div class="breadcrumb">
-                <a
-                    href="#"
-                    onclick="navigateTo('overview'); return false;"
-                >
-                    تنظیمات
-                </a>
-
-                <span class="separator">/</span>
-
-                <span class="current">
-                    نمای کلی
-                </span>
-            </div>
-
-            <h1>
-                نمای کلی تنظیمات
-            </h1>
-
-            <p>
-                مروری بر وضعیت کلی سیستم، کاربران و فعالیت‌ها
-            </p>
-        </div>
-
-        <div class="stats-grid">
-
-            <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--success-light); color: var(--success)"
-                >
-                    👥
-                </div>
-
-                <div class="stat-value">
-                    ${activeUsers}
-                </div>
-
-                <div class="stat-label">
-                    کاربران فعال
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--danger-light); color: var(--danger)"
-                >
-                    🚫
-                </div>
-
-                <div class="stat-value">
-                    ${inactiveUsers}
-                </div>
-
-                <div class="stat-label">
-                    کاربران غیرفعال
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--purple-light); color: var(--purple)"
-                >
-                    🛡️
-                </div>
-
-                <div class="stat-value">
-                    ${ROLES.length}
-                </div>
-
-                <div class="stat-label">
-                    نقش‌ها
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--info-light); color: var(--info)"
-                >
-                    🔑
-                </div>
-
-                <div class="stat-value">
-                    ${totalPerms}
-                </div>
-
-                <div class="stat-label">
-                    Permissionها
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--warning-light); color: var(--warning)"
-                >
-                    🔐
-                </div>
-
-                <div class="stat-value">
-                    ${
-                        SECURITY_EVENTS.filter(
-                            e =>
-                                e.type === 'login' &&
-                                e.status === 'success'
-                        ).length
-                    }
-                </div>
-
-                <div class="stat-label">
-                    ورودهای امروز
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div
-                    class="stat-icon"
-                    style="background: var(--primary-100); color: var(--primary)"
-                >
-                    📋
-                </div>
-
-                <div class="stat-value">
-                    ${ACTIVITIES.length}
-                </div>
-
-                <div class="stat-label">
-                    فعالیت‌های امروز
-                </div>
-            </div>
-
-        </div>
-
-        <div class="two-col">
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <div class="card-title">
-                        آخرین فعالیت‌ها
-                    </div>
-
-                    <button
-                        class="btn btn-ghost btn-sm"
-                        onclick="navigateTo('activities')"
-                    >
-                        مشاهده همه →
-                    </button>
-
-                </div>
-
-                <div class="activity-list">
-
-                    ${recentActivities.map(a => `
-                        <div class="activity-item">
-
-                            <div
-                                class="activity-icon"
-                                style="background: ${a.color}15; color: ${a.color}"
-                            >
-                                ${a.icon}
-                            </div>
-
-                            <div class="activity-body">
-
-                                <div class="activity-user">
-                                    ${a.userName}
-                                </div>
-
-                                <div class="activity-action">
-                                    ${a.action}
-                                </div>
-
-                                <div class="activity-time">
-                                    ${formatTimeAgo(a.timestamp)}
-                                </div>
-
-                            </div>
-
-                        </div>
-                    `).join('')}
-
-                </div>
-
-            </div>
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <div class="card-title">
-                        آخرین تغییرات Permission
-                    </div>
-
-                </div>
-
-                <div class="activity-list">
-
-                    ${
-                        recentPermChanges.length > 0
-                            ? recentPermChanges.map(l => `
-                                <div class="activity-item">
-
-                                    <div
-                                        class="activity-icon"
-                                        style="background: var(--warning-light); color: var(--warning)"
-                                    >
-                                        🔑
-                                    </div>
-
-                                    <div class="activity-body">
-
-                                        <div class="activity-user">
-                                            ${l.userName}
-                                        </div>
-
-                                        <div class="activity-action">
-                                            ${l.description}
-                                        </div>
-
-                                        <div class="activity-time">
-                                            ${l.timestamp}
-                                        </div>
-
-                                    </div>
-
-                                </div>
-                            `).join('')
-                            : `
-                                <div
-                                    class="empty-state"
-                                    style="padding: var(--space-8)"
-                                >
-                                    <div class="icon">🔑</div>
-                                    <div class="title">
-                                        تغییری ثبت نشده
-                                    </div>
-                                </div>
-                            `
-                    }
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="card mt-6">
-
-            <div class="card-header">
-
-                <div class="card-title">
-                    هشدارهای امنیتی
-                </div>
-
-                <button
-                    class="btn btn-ghost btn-sm"
-                    onclick="navigateTo('security')"
-                >
-                    مشاهده همه →
-                </button>
-
-            </div>
-
-            ${
-                securityAlerts.length > 0
-                    ? `
-                        <div class="table-container">
-
-                            <table class="data-table">
-
-                                <thead>
-                                    <tr>
-                                        <th>کاربر</th>
-                                        <th>عملیات</th>
-                                        <th>زمان</th>
-                                        <th>آدرس IP</th>
-                                        <th>نتیجه</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-
-                                    ${securityAlerts.map(e => `
-                                        <tr>
-
-                                            <td>
-                                                <div class="user-cell">
-                                                    <span class="user-name">
-                                                        ${e.userName}
-                                                    </span>
-                                                </div>
-                                            </td>
-
-                                            <td>
-                                                ${
-                                                    e.type === 'login_failed'
-                                                        ? 'ورود ناموفق'
-                                                        : 'ورود موفق'
-                                                }
-                                            </td>
-
-                                            <td>
-                                                ${e.timestamp}
-                                            </td>
-
-                                            <td>
-                                                <code class="font-mono">
-                                                    ${e.ip}
-                                                </code>
-                                            </td>
-
-                                            <td>
-                                                <span class="log-result ${e.status}">
-                                                    ${
-                                                        e.status === 'success'
-                                                            ? '✓ موفق'
-                                                            : '✗ ناموفق'
-                                                    }
-                                                </span>
-                                            </td>
-
-                                        </tr>
-                                    `).join('')}
-
-                                </tbody>
-
-                            </table>
-
-                        </div>
-                    `
-                    : `
-                        <div class="empty-state">
-                            <div class="icon">🔒</div>
-                            <div class="title">
-                                هشدار امنیتی وجود ندارد
-                            </div>
-                        </div>
-                    `
-            }
-
-        </div>
-    `;
-}
-
-
-/* =========================================================
    PAGE: REGISTRATION REQUESTS
    ========================================================= */
 
@@ -1033,7 +650,7 @@ function renderRegistrationRequests() {
     return `
         <div class="page-header">
             <div class="breadcrumb">
-                <a href="#" onclick="navigateTo('overview'); return false;">تنظیمات</a>
+                <a href="#" onclick="navigateTo('my-account'); return false;">تنظیمات</a>
                 <span class="separator">/</span>
                 <span class="current">درخواست کاربران جدید</span>
             </div>
@@ -1442,7 +1059,7 @@ function renderUsers() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
@@ -1789,7 +1406,7 @@ function renderUserDetails() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
@@ -1985,7 +1602,7 @@ function renderUserPermissions() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
@@ -2387,7 +2004,7 @@ function renderEditUser() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
@@ -2803,7 +2420,7 @@ function renderRoles() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
@@ -3082,7 +2699,7 @@ function renderRolePermissions() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
@@ -3433,41 +3050,73 @@ function deselectAllRolePerms(roleId) {
    PAGE: NOTIFICATIONS
    ========================================================= */
 
-async function loadPersistentNotifications() {
-    const admin = isSettingsAdministrator();
-    const endpoint = admin ? "/api/admin/notifications" : "/api/notifications";
+async function loadPersistentNotifications(manage = false) {
+    if (manage && !isSettingsAdministrator()) {
+        throw new Error("مدیریت اعلان‌ها فقط برای مدیر مجاز است");
+    }
+    const endpoint = manage ? "/api/admin/notifications" : "/api/notifications";
     const response = await fetch(`${API_BASE}${endpoint}`, { credentials: "include", cache: "no-store" });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail?.message || data.detail || "دریافت اعلان‌ها ناموفق بود");
-    window.PERSISTENT_NOTIFICATIONS = data.notifications || [];
+    window.PERSISTENT_NOTIFICATIONS = Array.isArray(data.notifications) ? data.notifications : [];
     const badge = document.getElementById("notificationBadge");
     if (badge) {
-        const count = window.PERSISTENT_NOTIFICATIONS.length;
+        const count = window.PERSISTENT_NOTIFICATIONS.filter(n =>
+            n.is_active === undefined || n.is_active === true || Number(n.is_active) === 1
+        ).length;
         badge.textContent = String(count);
         badge.hidden = count === 0;
     }
     return window.PERSISTENT_NOTIFICATIONS;
 }
-function renderNotifications() {
+
+function notificationTableRows(manage = false) {
     const list = window.PERSISTENT_NOTIFICATIONS || [];
+    if (!list.length) {
+        return '<tr><td colspan="' + (manage ? '6' : '5') + '">اعلانی ثبت نشده است.</td></tr>';
+    }
+    return list.map(n => `<tr>
+        <td>${escapeHtml(n.title || "-")}</td>
+        <td>${escapeHtml(n.message || "-")}</td>
+        <td>${n.visibility === "private" ? "خصوصی" : "عمومی"}</td>
+        <td>${escapeHtml(n.recipient_username || (n.recipient_user_id ? ("کاربر #" + n.recipient_user_id) : "همه کاربران"))}</td>
+        <td>${escapeHtml(n.created_at || "-")}</td>
+        ${manage ? `<td>${(n.is_active === true || Number(n.is_active) === 1) ? `<button class="btn btn-danger btn-sm" onclick="deactivatePersistentNotification(${Number(n.id)})">غیرفعال‌سازی</button>` : '<span class="text-muted">غیرفعال</span>'}</td>` : ""}
+    </tr>`).join("");
+}
+
+function renderNotifications() {
     return `
       <div class="page-header">
-        <h1>اعلان‌ها</h1><p>اعلان‌های عمومی و اعلان‌های خصوصی مخصوص هر کاربر</p>
-        ${isSettingsAdministrator() ? '<button class="btn btn-primary" onclick="showCreateNotificationModal()">+ اعلان جدید</button>' : ''}
+        <h1>اعلان‌ها</h1>
+        <p>فهرست اعلان‌های قابل مشاهده برای حساب شما</p>
+      </div>
+      <div class="card">
+        <div class="table-container"><table class="data-table">
+          <thead><tr><th>عنوان</th><th>پیام</th><th>نوع</th><th>گیرنده</th><th>تاریخ</th></tr></thead>
+          <tbody>${notificationTableRows(false)}</tbody>
+        </table></div>
+      </div>`;
+}
+
+function renderNotificationSettings() {
+    if (!isSettingsAdministrator()) {
+        return '<div class="card"><h2>دسترسی محدود است</h2><p>تنظیمات اعلان‌ها فقط برای مدیر در دسترس است.</p></div>';
+    }
+    return `
+      <div class="page-header">
+        <h1>تنظیمات اعلان‌ها</h1>
+        <p>ایجاد اعلان عمومی یا خصوصی و مدیریت اعلان‌های ثبت‌شده</p>
+        <button class="btn btn-primary" onclick="showCreateNotificationModal()">+ اعلان جدید</button>
       </div>
       <div class="card">
         <div class="table-container"><table class="data-table">
           <thead><tr><th>عنوان</th><th>پیام</th><th>نوع</th><th>گیرنده</th><th>تاریخ</th><th>عملیات</th></tr></thead>
-          <tbody>${list.length ? list.map(n => `<tr>
-            <td>${escapeHtml(n.title)}</td><td>${escapeHtml(n.message)}</td>
-            <td>${n.visibility === "private" ? "خصوصی" : "عمومی"}</td>
-            <td>${escapeHtml(n.recipient_username || (n.recipient_user_id ? ("کاربر #" + n.recipient_user_id) : "همه کاربران"))}</td>
-            <td>${escapeHtml(n.created_at || "-")}</td>
-            <td>${isSettingsAdministrator() && n.is_active ? `<button class="btn btn-danger btn-sm" onclick="deactivatePersistentNotification(${Number(n.id)})">غیرفعال‌سازی</button>` : "—"}</td>
-          </tr>`).join("") : '<tr><td colspan="6">اعلانی ثبت نشده است.</td></tr>'}</tbody>
+          <tbody>${notificationTableRows(true)}</tbody>
         </table></div>
       </div>`;
 }
+
 function renderNotificationsView() {
     const content = document.getElementById("settingsContent");
     if (!content || AppState.currentPage !== "notifications") return;
@@ -3475,15 +3124,29 @@ function renderNotificationsView() {
     initPageInteractions();
 }
 
+function renderNotificationSettingsView() {
+    const content = document.getElementById("settingsContent");
+    if (!content || AppState.currentPage !== "notification-settings") return;
+    content.innerHTML = renderNotificationSettings();
+    initPageInteractions();
+}
+
 async function refreshNotificationsPage() {
     try {
-        await loadPersistentNotifications();
+        await loadPersistentNotifications(false);
     } catch (e) {
         showToast(e.message || "خطا در دریافت اعلان‌ها", "error");
     }
-    // Update the current view directly. Calling renderPage() here would invoke
-    // refreshNotificationsPage() again and create an endless fetch/render loop.
     renderNotificationsView();
+}
+
+async function refreshNotificationSettingsPage() {
+    try {
+        await loadPersistentNotifications(true);
+    } catch (e) {
+        showToast(e.message || "خطا در دریافت تنظیمات اعلان‌ها", "error");
+    }
+    renderNotificationSettingsView();
 }
 function showCreateNotificationModal() {
     if (!isSettingsAdministrator()) return showPermissionDenied();
@@ -3591,7 +3254,7 @@ function renderAuditLogs() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
@@ -3906,7 +3569,7 @@ function renderActivities() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
@@ -4074,7 +3737,7 @@ function renderSecurity() {
 
                 <a
                     href="#"
-                    onclick="navigateTo('overview'); return false;"
+                    onclick="navigateTo('my-account'); return false;"
                 >
                     تنظیمات
                 </a>
