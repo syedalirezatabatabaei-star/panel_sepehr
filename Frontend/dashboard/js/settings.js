@@ -208,9 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function navigateTo(page, data) {
     // Only the genuinely privileged settings pages are restricted here.
-    // The old blanket check blocked every settings page for non-admin users,
-    // including the dashboard and notifications. Other pages rely on their
-    // page-specific UI checks and server-side API authorization.
+    // Other pages rely on their page-specific UI checks and server-side API authorization.
     const administratorOnlyPages = new Set([
         'system-settings',
         'access-control'
