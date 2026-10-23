@@ -19,7 +19,8 @@ const SETTINGS_NAV_ITEMS = [
     { page: 'activities',             icon: '&#128203;', label: 'فعالیت کاربران' },
     { page: 'security',               icon: '&#128274;', label: 'امنیت' },
     { page: 'my-account',             icon: '&#128100;', label: 'حساب من' },
-    { page: 'system-settings',        icon: '&#128295;', label: 'تنظیمات سیستم' }
+    { page: 'system-settings',        icon: '&#128295;', label: 'تنظیمات سیستم' },
+    { page: 'access-control',         icon: '&#128272;', label: 'مدیریت دسترسی‌ها' }
 ];
 
 /** true فقط وقتی کاربر در صفحات تنظیمات است (نه بله/ایتا) */
@@ -30,7 +31,7 @@ const SETTINGS_PAGES = new Set([
     'overview', 'users', 'registration-requests', 'user-details',
     'user-permissions', 'edit-user', 'roles', 'role-permissions',
     'notifications', 'audit-logs', 'activities', 'security',
-    'my-account', 'system-settings'
+    'my-account', 'system-settings', 'access-control'
 ]);
 
 /** ساخت و تزریق منوی تنظیمات در DOM */
@@ -250,7 +251,8 @@ function navigateTo(page, data) {
         'activities': 'فعالیت کاربران',
         'security': 'امنیت',
         'my-account': 'حساب من',
-        'system-settings': 'تنظیمات سیستم'
+        'system-settings': 'تنظیمات سیستم',
+        'access-control': 'مدیریت دسترسی‌ها'
     };
 
     const headerTitle = document.getElementById('headerTitle');
@@ -262,6 +264,11 @@ function navigateTo(page, data) {
     if (page === 'users' && previousPage !== 'users' && typeof loadUsers === 'function') {
         loadUsers().catch(() => {});
     }
+}
+
+function isSettingsAdministrator() {
+    const user = typeof getCurrentUser === "function" ? getCurrentUser() : (window.CURRENT_USER || {});
+    return Number(user?.accessLevel ?? user?.access_level) === 3;
 }
 
 function renderPage(page) {
@@ -283,7 +290,8 @@ function renderPage(page) {
         'activities': renderActivities,
         'security': renderSecurity,
         'my-account': renderMyAccount,
-        'system-settings': renderSystemSettings
+        'system-settings': renderSystemSettings,
+        'access-control': renderAccessControl
     };
 
     const renderer = renderers[page];
@@ -296,6 +304,171 @@ function renderPage(page) {
         if (page === 'registration-requests') {
             loadRegistrationRequests();
         }
+        if (page === 'access-control') {
+            loadAccessControl();
+        }
+    }
+}
+
+function renderAccessControl() {
+    if (!isSettingsAdministrator()) {
+        setTimeout(() => showPermissionDenied(), 0);
+        return '<div class="card"><h2>دسترسی محدود است</h2></div>';
+    }
+    return `
+      <div class="page-header">
+        <h1>مدیریت دسترسی‌ها</h1>
+        <p>برای هر کاربر، مجوز استفاده، مشاهده و ویرایش را جداگانه تنظیم کنید.</p>
+      </div>
+      <div class="card mb-6">
+        <label class="form-label" for="permissionUserSelect">انتخاب کاربر</label>
+        <select id="permissionUserSelect" class="form-select" onchange="loadSelectedUserPermissions()">
+          <option value="">در حال دریافت کاربران...</option>
+        </select>
+        <p id="permissionSaveStatus" role="status" style="margin-top:12px"></p>
+      </div>
+      <div id="permissionEditorRoot" class="card">
+        در حال دریافت فهرست مجوزها...
+      </div>
+      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="saveSelectedUserPermissions()">ذخیره تغییرات</button>
+      </div>
+    `;
+}
+
+let accessControlCatalog = [];
+let accessControlValues = {};
+
+async function loadAccessControl() {
+    if (!isSettingsAdministrator()) {
+        showPermissionDenied();
+        return;
+    }
+    const status = document.getElementById("permissionSaveStatus");
+    try {
+        const [usersResponse, catalogResponse] = await Promise.all([
+            fetch(`${API_BASE}/api/admin/permissions/users`, {credentials:"include", cache:"no-store"}),
+            fetch(`${API_BASE}/api/admin/permissions/catalog`, {credentials:"include", cache:"no-store"})
+        ]);
+        const usersData = await usersResponse.json();
+        const catalogData = await catalogResponse.json();
+        if (!usersResponse.ok || !catalogResponse.ok) throw new Error(catalogData.detail?.message || catalogData.detail || "دریافت مجوزها ناموفق بود");
+        accessControlCatalog = catalogData.permissions || [];
+        const select = document.getElementById("permissionUserSelect");
+        if (!select) return;
+        const previous = select.value;
+        select.innerHTML = '<option value="">یک کاربر انتخاب کنید</option>' + (usersData.users || []).map(u =>
+          `<option value="${Number(u.id)}">${escapePermissionText([u.first_name,u.last_name].filter(Boolean).join(" ") || u.username)} — ${escapePermissionText(u.username || "")}</option>`
+        ).join("");
+        if (previous && [...select.options].some(o => o.value === previous)) select.value = previous;
+        if (!select.value && select.options.length > 1) select.selectedIndex = 1;
+        await loadSelectedUserPermissions();
+        if (status) status.textContent = "";
+    } catch (error) {
+        if (status) status.textContent = error.message || "خطا در دریافت مجوزها";
+        const root = document.getElementById("permissionEditorRoot");
+        if (root) root.textContent = error.message || "خطا در دریافت مجوزها";
+    }
+}
+
+function escapePermissionText(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+    })[char]);
+}
+
+async function loadSelectedUserPermissions() {
+    const select = document.getElementById("permissionUserSelect");
+    const root = document.getElementById("permissionEditorRoot");
+    if (!select || !root || !select.value) {
+        if (root) root.textContent = "ابتدا کاربر را انتخاب کنید.";
+        return;
+    }
+    root.textContent = "در حال دریافت...";
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/permissions/users/${encodeURIComponent(select.value)}`, {credentials:"include", cache:"no-store"});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || data.detail || "دریافت دسترسی کاربر ناموفق بود");
+        accessControlValues = {};
+        for (const p of data.permissions || []) {
+            accessControlValues[p.code] = {can_read: !!p.can_read, can_write: !!p.can_write};
+        }
+        const groups = {};
+        for (const p of accessControlCatalog) (groups[p.group] ||= []).push(p);
+        root.innerHTML = Object.entries(groups).map(([group, items]) => `
+          <section style="margin-bottom:22px">
+            <h3 style="margin-bottom:12px">${escapePermissionText(group)}</h3>
+            ${items.map(p => {
+              const value = accessControlValues[p.code] || {can_read:false,can_write:false};
+              const registered = p.registered;
+              return `
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--gray-200);padding:12px 0">
+                  <div>
+                    <div>${escapePermissionText(p.label)}</div>
+                    <small style="color:var(--gray-500)">${escapePermissionText(p.code)}${registered ? "" : " — نیازمند اجرای migration"}</small>
+                  </div>
+                  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+                    ${p.mode === "toggle" ? `
+                      <label><input type="checkbox" data-permission-code="${p.code}" data-permission-field="can_read" ${value.can_read ? "checked" : ""} ${registered ? "" : "disabled"}> استفاده شود</label>
+                    ` : `
+                      <label><input type="checkbox" data-permission-code="${p.code}" data-permission-field="can_read" ${value.can_read ? "checked" : ""} ${registered ? "" : "disabled"}> مشاهده</label>
+                      <label><input type="checkbox" data-permission-code="${p.code}" data-permission-field="can_write" ${value.can_write ? "checked" : ""} ${registered ? "" : "disabled"}> ویرایش</label>
+                    `}
+                  </div>
+                </div>`;
+            }).join("")}
+          </section>`
+        ).join("");
+        root.querySelectorAll("input[data-permission-code]").forEach(input => {
+          input.addEventListener("change", () => {
+            const code = input.dataset.permissionCode;
+            const field = input.dataset.permissionField;
+            accessControlValues[code] ||= {can_read:false, can_write:false};
+            accessControlValues[code][field] = input.checked;
+            const item = accessControlCatalog.find(p => p.code === code);
+            if (item?.mode === "toggle") {
+              accessControlValues[code].can_write = input.checked;
+            }
+            if (field === "can_read" && item?.mode === "toggle") {
+              const counterpart = root.querySelector(`input[data-permission-code="${code}"][data-permission-field="can_write"]`);
+              if (counterpart) counterpart.checked = input.checked;
+            }
+          });
+        });
+    } catch (error) {
+        root.textContent = error.message || "خطا در دریافت مجوزها";
+    }
+}
+
+async function saveSelectedUserPermissions() {
+    if (!isSettingsAdministrator()) {
+        showPermissionDenied();
+        return;
+    }
+    const select = document.getElementById("permissionUserSelect");
+    const status = document.getElementById("permissionSaveStatus");
+    if (!select?.value) {
+        if (status) status.textContent = "ابتدا یک کاربر انتخاب کنید.";
+        return;
+    }
+    const permissions = accessControlCatalog.filter(p => p.registered).map(p => ({
+        code: p.code,
+        can_read: !!accessControlValues[p.code]?.can_read,
+        can_write: !!accessControlValues[p.code]?.can_write
+    }));
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/permissions/users/${encodeURIComponent(select.value)}`, {
+            method:"PUT",
+            credentials:"include",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({permissions})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || data.detail || "ذخیره مجوزها ناموفق بود");
+        if (status) status.textContent = "مجوزهای کاربر ذخیره شد.";
+        if (typeof showToast === "function") showToast("مجوزهای کاربر ذخیره شد", "success");
+    } catch (error) {
+        if (status) status.textContent = error.message || "ذخیره مجوزها ناموفق بود";
     }
 }
 
