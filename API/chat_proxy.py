@@ -10,8 +10,10 @@ from starlette.concurrency import run_in_threadpool
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Chat gateway"])
 
-BALE_CHAT_SERVICE_URL = os.getenv("BALE_CHAT_SERVICE_URL", "http://95.38.187.123:3000").rstrip("/")
-EITAA_CHAT_SERVICE_URL = os.getenv("EITAA_CHAT_SERVICE_URL", "http://95.38.187.123:3001").rstrip("/")
+# Chat services share the Docker internal_net with this panel. Use Docker DNS
+# rather than the host's public IP, which may not be reachable from containers.
+BALE_CHAT_SERVICE_URL = os.getenv("BALE_CHAT_SERVICE_URL", "http://chat_node:3000").rstrip("/")
+EITAA_CHAT_SERVICE_URL = os.getenv("EITAA_CHAT_SERVICE_URL", "http://chat_node_eitaa:3001").rstrip("/")
 BALE_SEND_WEBHOOK_URL = os.getenv(
     "BALE_SEND_WEBHOOK_URL",
     "https://n8n.sepehrsalamati.ir/webhook/seandms",
