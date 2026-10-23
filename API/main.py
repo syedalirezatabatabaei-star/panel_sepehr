@@ -13,7 +13,7 @@ from API.admin import router as admin_router
 from API.permissions import has_permission
 from API.permissions_admin import router as permissions_admin_router
 from API.chat_proxy import router as chat_proxy_router
-from API.panel_admin import router as panel_admin_router
+from API.panel_admin import router as panel_admin_router, _record_system_event
 
 logger = logging.getLogger(__name__)
 app = FastAPI()
@@ -110,6 +110,11 @@ async def require_authenticated_api_requests(request: Request, call_next):
                 required_permission,
                 action=permission_action,
             ):
+                _record_system_event(
+                    request, "permission_denied",
+                    f"دسترسی رد شد: {required_permission} ({permission_action})",
+                    path=path_lower, method=request.method, status_code=403
+                )
                 return JSONResponse(
                     status_code=403,
                     content={"detail": {"message": "شما اجازه دسترسی به این قابلیت را ندارید."}},
@@ -125,6 +130,18 @@ async def require_authenticated_api_requests(request: Request, call_next):
 
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
+    # Persist authenticated API activity for developer diagnostics, but avoid
+    # recursive noise from the log reader and the page-view recording endpoint.
+    if path.startswith("/api/") and path not in {
+        "/api/admin/audit-logs", "/api/admin/audit-logs/export",
+        "/api/system-logs/pageview"
+    }:
+        event_type = "api_error" if response.status_code >= 400 else "api_request"
+        description = f"{request.method} {path} → HTTP {response.status_code}"
+        _record_system_event(
+            request, event_type, description, path=path,
+            method=request.method, status_code=response.status_code
+        )
     return response
 
 
