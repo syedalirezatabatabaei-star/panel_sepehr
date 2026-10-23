@@ -462,6 +462,71 @@ async function loadRolesFromDatabase() {
     }
 }
 
+
+function showCreateRoleModal() {
+    if (!isSettingsAdministrator()) return showPermissionDenied();
+    showModal("ایجاد نقش جدید", `
+      <div class="form-group">
+        <label class="form-label" for="newRoleName">شناسه/نام فنی</label>
+        <input id="newRoleName" class="form-input" maxlength="100" required placeholder="مثلاً content_manager">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="newRoleLabel">عنوان نمایشی</label>
+        <input id="newRoleLabel" class="form-input" maxlength="150" required placeholder="مدیر محتوا">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="newRoleDescription">توضیحات</label>
+        <textarea id="newRoleDescription" class="form-input" maxlength="1000" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="newRoleLevel">سطح نقش</label>
+        <select id="newRoleLevel" class="form-select">
+          <option value="1">سطح ۱ — پایه</option>
+          <option value="2">سطح ۲ — عملیاتی</option>
+        </select>
+        <small>نقش سفارشی نمی‌تواند سطح مدیر سیستم داشته باشد.</small>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="newRoleColor">رنگ</label>
+        <input id="newRoleColor" class="form-input" type="color" value="#64748b">
+      </div>
+    `, [
+      {label:"انصراف",class:"btn-secondary",action:"closeModalDirect()"},
+      {label:"ایجاد نقش",class:"btn-primary",action:"createDatabaseRole()"}
+    ]);
+}
+window.showCreateRoleModal = showCreateRoleModal;
+
+async function createDatabaseRole() {
+    const name = String(document.getElementById("newRoleName")?.value || "").trim();
+    const label = String(document.getElementById("newRoleLabel")?.value || "").trim();
+    const description = String(document.getElementById("newRoleDescription")?.value || "").trim();
+    const level = Number(document.getElementById("newRoleLevel")?.value || 1);
+    const color = String(document.getElementById("newRoleColor")?.value || "#64748b");
+    if (name.length < 2 || label.length < 2) {
+        return showToast("نام فنی و عنوان نمایشی نقش را وارد کنید.", "error");
+    }
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/permissions/roles`, {
+            method:"POST", credentials:"include",
+            headers:{"Content-Type":"application/json","Accept":"application/json"},
+            body:JSON.stringify({name,label,description,level,color})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail?.message || data.detail || "ایجاد نقش ناموفق بود");
+        closeModalDirect();
+        await loadRolesFromDatabase();
+        if (AppState.currentPage === "roles") {
+            const content = document.getElementById("settingsContent");
+            if (content) content.innerHTML = renderRoles();
+        }
+        showToast(data.message || "نقش جدید ایجاد شد", "success");
+    } catch (error) {
+        showToast(error.message || "ایجاد نقش ناموفق بود", "error");
+    }
+}
+window.createDatabaseRole = createDatabaseRole;
+
 async function saveRolePermissions(roleId) {
     const role = ROLES.find(item => String(item.id) === String(roleId));
     if (!role) return showToast("نقش انتخاب‌شده پیدا نشد", "error");
