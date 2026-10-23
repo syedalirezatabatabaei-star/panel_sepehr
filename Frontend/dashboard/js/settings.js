@@ -4275,40 +4275,7 @@ function renderSecurity() {
 
         </div>
 
-        <div class="security-card">
-
-            <div
-                class="security-icon"
-                style="
-                    background:var(--gray-100);
-                    color:var(--gray-600);
-                "
-            >
-                ⏱️
-            </div>
-
-            <div class="security-info">
-
-                <div class="security-title">
-                    محدودیت Session و Timeout
-                </div>
-
-                <div class="security-desc">
-                    تنظیم مدت زمان نشست و محدودیت تعداد
-                </div>
-
-            </div>
-
-            <div class="security-action">
-
-                <span class="badge badge-warning">
-                    به‌زودی
-                </span>
-
-            </div>
-
-        </div>
-    `;
+            `;
 }
 
 
@@ -4494,231 +4461,34 @@ async function changePassword() {
    ========================================================= */
 
 function renderSystemSettings() {
-    const s =
-        SYSTEM_SETTINGS;
-
+    if (!isSettingsAdministrator()) {
+        setTimeout(() => showPermissionDenied(), 0);
+        return '<div class="card">دسترسی محدود است</div>';
+    }
     return `
-        <div class="page-header">
-
-            <div class="breadcrumb">
-
-                <a
-                    href="#"
-                    onclick="navigateTo('overview'); return false;"
-                >
-                    تنظیمات
-                </a>
-
-                <span class="separator">/</span>
-
-                <span class="current">
-                    تنظیمات سیستم
-                </span>
-
-            </div>
-
-            <h1>
-                تنظیمات سیستم
-            </h1>
-
-            <p>
-                مدیریت تنظیمات کلی سیستم و پیکربندی
-            </p>
-
+      <div class="page-header">
+        <h1>تنظیمات سیستم</h1>
+        <p>تنظیمات عمومی پنل در دیتابیس ذخیره می‌شوند.</p>
+      </div>
+      <div class="card">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">نام سایت</label><input class="form-input" value="${escapeHtml(SYSTEM_SETTINGS.general.siteName || '')}"></div>
+          <div class="form-group"><label class="form-label">آدرس سایت</label><input class="form-input" dir="ltr" value="${escapeHtml(SYSTEM_SETTINGS.general.siteUrl || '')}"></div>
         </div>
-
-        <div class="card mb-6">
-
-            <div class="card-header">
-
-                <div class="card-title">
-                    تنظیمات عمومی
-                </div>
-
-                <span
-                    class="icon"
-                    style="font-size:var(--font-size-xl);"
-                >
-                    ⚙️
-                </span>
-
-            </div>
-
-            <div class="form-row">
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        نام سایت
-                    </label>
-
-                    <input
-                        type="text"
-                        class="form-input"
-                        value="${s.general.siteName}"
-                    >
-
-                </div>
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        آدرس سایت
-                    </label>
-
-                    <input
-                        type="text"
-                        class="form-input"
-                        value="${s.general.siteUrl}"
-                        dir="ltr"
-                        style="text-align:left;"
-                    >
-
-                </div>
-
-            </div>
-
-            <div class="form-row">
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        ایمیل پشتیبانی
-                    </label>
-
-                    <input
-                        type="email"
-                        class="form-input"
-                        value="${s.general.supportEmail}"
-                        dir="ltr"
-                        style="text-align:left;"
-                    >
-
-                </div>
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        منطقه زمانی
-                    </label>
-
-                    <select class="form-select">
-
-                        <option selected>
-                            Asia/Tehran
-                        </option>
-
-                        <option>
-                            UTC
-                        </option>
-
-                    </select>
-
-                </div>
-
-            </div>
-
-            <div class="form-row">
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        زبان
-                    </label>
-
-                    <select class="form-select">
-
-                        <option selected>
-                            فارسی
-                        </option>
-
-                        <option>
-                            English
-                        </option>
-
-                    </select>
-
-                </div>
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        فرمت تاریخ
-                    </label>
-
-                    <select class="form-select">
-
-                        <option selected>
-                            شمسی (جلالی)
-                        </option>
-
-                        <option>
-                            میلادی
-                        </option>
-
-                    </select>
-
-                </div>
-
-            </div>
-
-            <button
-                class="btn btn-primary mt-4"
-                onclick="
-                    savePersistentSystemSettings()
-                "
-            >
-                💾 ذخیره
-            </button>
-
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">ایمیل پشتیبانی</label><input class="form-input" type="email" dir="ltr" value="${escapeHtml(SYSTEM_SETTINGS.general.supportEmail || '')}"></div>
+          <div class="form-group"><label class="form-label">منطقه زمانی</label><select class="form-select"><option>Asia/Tehran</option><option>UTC</option></select></div>
         </div>
-
-        <div class="card mb-6">
-
-            <div class="card-header">
-
-                <div class="card-title">
-                    تنظیمات امنیتی
-                </div>
-
-                <span
-                    class="icon"
-                    style="font-size:var(--font-size-xl);"
-                >
-                    🔒
-                </span>
-
-            </div>
-
-
-
-                <div>
-
-                    <div
-                        style="
-                            font-size:var(--font-size-xs);
-                            color:var(--gray-500);
-                        "
-                    >
-                        ساخته شده توسط
-                    </div>
-
-                    <div>
-                        ${n.createdBy}
-                    </div>
-
-                </div>
-
-            </div>
-        `,
-        [
-            {
-                label: 'بستن',
-                class: 'btn-secondary',
-                action: 'closeModalDirect()'
-            }
-        ]
-    );
+        <div class="form-group"><label class="form-label">زبان</label><select class="form-select"><option>فارسی</option><option>English</option></select></div>
+        <button class="btn btn-primary mt-4" onclick="savePersistentSystemSettings()">ذخیره تنظیمات</button>
+      </div>
+      <div class="card mt-4">
+        <h2>تنظیمات امنیت حساب</h2>
+        <div class="form-group"><label class="form-label">حداکثر تلاش ورود</label><input class="form-input" type="number" min="1" max="20" value="${escapeHtml(SYSTEM_SETTINGS.security.maxLoginAttempts || 5)}"></div>
+        <div class="form-group"><label class="form-label">مدت قفل شدن (دقیقه)</label><input class="form-input" type="number" min="1" max="1440" value="${escapeHtml(SYSTEM_SETTINGS.security.lockoutDuration || 15)}"></div>
+        <div class="form-group"><label class="form-label">حداقل طول رمز عبور</label><input class="form-input" type="number" min="8" max="128" value="${escapeHtml(SYSTEM_SETTINGS.security.passwordMinLength || 8)}"></div>
+        <button class="btn btn-primary mt-4" onclick="savePersistentSystemSettings()">ذخیره تنظیمات امنیتی</button>
+      </div>`;
 }
 
 function showEditNotificationModal(
