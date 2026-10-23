@@ -3159,7 +3159,7 @@ body:has(.main-content.bale-chat-host) {
         ) {
 
             window.navigateTo(
-                'overview'
+                'my-account'
             );
         }
     }
