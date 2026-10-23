@@ -4281,40 +4281,6 @@ function renderSecurity() {
                     color:var(--gray-600);
                 "
             >
-                🔐
-            </div>
-
-            <div class="security-info">
-
-                <div class="security-title">
-                    احراز هویت دو مرحله‌ای (MFA)
-                </div>
-
-                <div class="security-desc">
-                    تنظیم و مدیریت احراز هویت دو مرحله‌ای
-                </div>
-
-            </div>
-
-            <div class="security-action">
-
-                <span class="badge badge-warning">
-                    به‌زودی
-                </span>
-
-            </div>
-
-        </div>
-
-        <div class="security-card">
-
-            <div
-                class="security-icon"
-                style="
-                    background:var(--gray-100);
-                    color:var(--gray-600);
-                "
-            >
                 ⏱️
             </div>
 
