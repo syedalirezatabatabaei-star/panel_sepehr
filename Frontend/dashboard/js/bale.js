@@ -208,7 +208,7 @@ async function checkBaleAccount() {
 
 function openBaleMessaging() {
     
-     if (typeof canRead === "function" && !canRead("bale_send")) {
+     if (typeof canRead === "function" && !canRead("bale.personal_message")) {
         if (typeof showPermissionDenied === "function") {
             showPermissionDenied();
         }
@@ -1305,6 +1305,10 @@ function showBaleMessagingPage() {
    ========================================================= */
 
 async function sendBaleMessages() {
+    if (typeof canWrite === "function" && !canWrite("bale.personal_message")) {
+        if (typeof showPermissionDenied === "function") showPermissionDenied();
+        return;
+    }
 
     const excelInput =
         document.getElementById(
