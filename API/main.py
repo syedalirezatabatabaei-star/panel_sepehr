@@ -81,15 +81,26 @@ async def require_authenticated_api_requests(request: Request, call_next):
         required_permission = "eitaa.personal_message"
     # Chat service and n8n webhook calls must pass through this authenticated
     # gateway so users cannot bypass chat read/write permissions via port 3000/3001.
-    elif path_lower.startswith("/api/chat/bale/"):
+    elif path_lower.startswith("/api/chat/bale/") or path_lower == "/api/chat/bale":
         required_permission = "bale.chats"
         permission_action = "read" if request.method in {"GET", "HEAD"} else "write"
-    elif path_lower.startswith("/api/chat/eitaa/"):
+    elif path_lower.startswith("/api/chat/eitaa/") or path_lower == "/api/chat/eitaa":
         required_permission = "eitaa.chats"
         permission_action = "read" if request.method in {"GET", "HEAD"} else "write"
-    elif path_lower in {"/api/chat/bale", "/api/chat/eitaa"}:
-        required_permission = "bale.chats" if path_lower.endswith("/bale") else "eitaa.chats"
+    # Granular access for the admin UI. Unknown admin endpoints remain admin-only.
+    elif path_lower.startswith("/api/admin/registration-requests"):
+        required_permission = "registration_requests"
         permission_action = "read" if request.method in {"GET", "HEAD"} else "write"
+    elif path_lower.startswith("/api/admin/users"):
+        required_permission = "users"
+        permission_action = "read" if request.method in {"GET", "HEAD"} else "write"
+    elif path_lower.startswith("/api/admin/"):
+        if int(user.get("access_level") or 0) != 3:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": {"message": "این عملیات فقط برای مدیران مجاز است."}},
+                headers={"Cache-Control": "no-store"},
+            )
 
     if required_permission:
         try:
