@@ -341,3 +341,55 @@ def get_panel_activities(request: Request, limit: int = 200):
     result = get_panel_audit_logs(request, limit)
     return {"success": True, "activities": result["logs"]}
 
+
+_DOCKER_LOG_CONTAINERS = {
+    "panel_sepehr", "chat_node", "chat_node_eitaa", "botbale_poli",
+    "eitaa-service", "n8n", "mysql", "chat_postgres", "openui_selfhosted_chat"
+}
+
+
+@router.get("/api/admin/docker-logs")
+def get_docker_container_logs(request: Request, container: str = "panel_sepehr", tail: int = 200):
+    user = _user(request)
+    _admin(user)
+    allowed = {
+        item.strip() for item in os.getenv(
+            "SYSTEM_LOG_CONTAINERS",
+            "panel_sepehr,chat_node,chat_node_eitaa,botbale_poli,eitaa-service,n8n,mysql,chat_postgres,openui_selfhosted_chat"
+        ).split(",") if item.strip()
+    } & _DOCKER_LOG_CONTAINERS
+    if container not in allowed:
+        raise HTTPException(400, "نام کانتینر مجاز نیست")
+    tail = max(1, min(int(tail), 1000))
+    root = Path("/host-docker-containers")
+    try:
+        for config_path in root.glob("*/config.v2.json"):
+            try:
+                config = json.loads(config_path.read_text(encoding="utf-8"))
+                if str(config.get("Name", "")).lstrip("/") != container:
+                    continue
+                log_path = config_path.parent / (config_path.parent.name + "-json.log")
+                if not log_path.is_file():
+                    raise HTTPException(404, "فایل لاگ این کانتینر پیدا نشد")
+                # Docker's json-file log driver; only tail a bounded number of lines.
+                with log_path.open("r", encoding="utf-8", errors="replace") as stream:
+                    lines = stream.readlines()[-tail:]
+                output = []
+                for line in lines:
+                    try:
+                        record = json.loads(line)
+                        output.append({
+                            "time": record.get("time", ""),
+                            "stream": record.get("stream", "stdout"),
+                            "message": str(record.get("log", "")).rstrip()
+                        })
+                    except json.JSONDecodeError:
+                        output.append({"time": "", "stream": "stdout", "message": line.rstrip()})
+                return {"success": True, "container": container, "logs": output}
+            except HTTPException:
+                raise
+            except (OSError, ValueError, TypeError):
+                continue
+        raise HTTPException(404, "کانتینر یا فایل لاگ آن روی میزبان پیدا نشد")
+    except PermissionError:
+        raise HTTPException(503, "دسترسی فقط‌خواندنی به فایل‌های لاگ Docker برقرار نیست")
