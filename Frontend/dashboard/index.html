@@ -81,10 +81,14 @@
 
     <nav class="sidebar-nav">
       <div class="sidebar-section-title">منوی اصلی</div>
-      <button class="sidebar-item" onclick="showToast('این بخش هنوز ساخته نشده', 'info')">
+      <button class="sidebar-item" data-section="dashboard" onclick="navigateTo('overview')">
+        <span class="icon">&#128202;</span>
+        <span>داشبورد و اطلاعات کلی</span>
+      </button>
+      <button class="sidebar-item" data-section="notifications" onclick="navigateTo('notifications')">
         <span class="icon">&#128276;</span>
         <span>اعلان‌ها</span>
-        <span class="badge">3</span>
+        <span class="badge" id="notificationBadge" hidden>0</span>
       </button>
 
       <button class="sidebar-item" onclick="if (!guardFeature('bale.personal_message')) return; openBaleMessaging()">
@@ -181,7 +185,7 @@
       </div>
       <div class="header-spacer"></div>
       <div class="header-actions">
-        <button class="header-btn" onclick="showToast('اعلان‌ها', 'info')">
+        <button class="header-btn" onclick="navigateTo('notifications')">
           &#128276;
           <span class="notification-dot"></span>
         </button>
