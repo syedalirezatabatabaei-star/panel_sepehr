@@ -897,7 +897,10 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
             content={
                 "success": True,
                 "message": "تأیید هویت با موفقیت انجام شد",
-                "redirect": "/dashboard",
+                "redirect": "/dashboard/index.html",
+                "access_token": raw_token,
+                "token_type": "Bearer",
+                "expires_in": SESSION_EXPIRE_MINUTES * 60,
 
                 "user": {
                     "id": user["id"],
@@ -1187,11 +1190,13 @@ def resend_otp(data: ResendOTPRequest):
 def get_user_from_session(request: Request):
 
     token = request.cookies.get("session_token")
+    if not token:
+        authorization = request.headers.get("Authorization", "")
+        scheme, _, bearer_token = authorization.partition(" ")
+        if scheme.lower() == "bearer" and bearer_token.strip():
+            token = bearer_token.strip()
 
     if not token:
-
-        print("SESSION CHECK: COOKIE NOT FOUND")
-
         return None
 
     token_hash = hashlib.sha256(
@@ -1360,6 +1365,11 @@ def get_current_user(request: Request):
 def logout(request: Request):
 
     token = request.cookies.get("session_token")
+    if not token:
+        authorization = request.headers.get("Authorization", "")
+        scheme, _, bearer_token = authorization.partition(" ")
+        if scheme.lower() == "bearer" and bearer_token.strip():
+            token = bearer_token.strip()
 
     response = JSONResponse(
         content={
@@ -1422,6 +1432,7 @@ def logout(request: Request):
         key="session_token",
         path="/"
     )
+    response.headers["Cache-Control"] = "no-store"
 
     return response
 #---------------------------------

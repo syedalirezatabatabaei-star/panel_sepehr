@@ -918,6 +918,9 @@ function startResendCountdown(seconds = State.countdownDuration) {
     const data = await response.json();
 
     if (data.success) {
+      if (data.access_token) {
+        sessionStorage.setItem("access_token", data.access_token);
+      }
       showMessage("success", "تأیید هویت با موفقیت انجام شد.");
 
       setTimeout(() => {
