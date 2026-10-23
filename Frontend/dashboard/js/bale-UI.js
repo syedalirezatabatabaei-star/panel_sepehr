@@ -39,10 +39,11 @@
         throw new Error(`ساختار پاسخ سرویس ${label} معتبر نیست؛ فهرست داده‌ها پیدا نشد`);
     }
 
-    // Bale service endpoints (direct upstream URLs).
-    const API = "http://95.38.187.123:3000";
-    const WEBHOOK = "https://n8n.sepehrsalamati.ir/webhook/seandms";
-    const CREATE_CHAT_WEBHOOK = "https://n8n.sepehrsalamati.ir/webhook/plasuser";
+    // Use the same-origin backend proxy. Upstream URLs and webhook targets
+    // are read by the backend from server-side environment variables (.env).
+    const API = "/api/chat/bale";
+    const WEBHOOK = "/api/chat/bale/webhook/send";
+    const CREATE_CHAT_WEBHOOK = "/api/chat/bale/webhook/create";
 
     const BALE_LOGO = "img/navid.jpg";
     const BALE_AVATAR = "img/images.jpg";
