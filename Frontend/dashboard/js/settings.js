@@ -2954,8 +2954,7 @@ function renderRolePermissions() {
     const role =
         ROLES.find(
             r =>
-                r.id ===
-                AppState.selectedRoleId
+                String(r.id) === String(AppState.selectedRoleId)
         );
 
     if (!role) {
