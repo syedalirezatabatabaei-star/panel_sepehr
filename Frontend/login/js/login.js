@@ -21,7 +21,7 @@ const closeModalOverlay = document.getElementById("closeModal");
 // API
 // ===============================
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:8005`;
+const API_BASE = "";
 
 
 // ===============================
