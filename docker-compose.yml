@@ -36,6 +36,7 @@ services:
       - "8005:8005"
     volumes:
       - eitaa-media-shared:/shared/eitaa-media
+      - /var/lib/docker/containers:/host-docker-containers:ro
     command: ["/app/start.sh"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=3)"]
