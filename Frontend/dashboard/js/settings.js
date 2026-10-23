@@ -1230,6 +1230,7 @@ function renderUsers() {
         );
 
     return `
+        <div class="users-page">
         <div class="page-header">
 
             <div class="breadcrumb">
@@ -1527,6 +1528,7 @@ function renderUsers() {
                 'goToUsersPage'
             )}
 
+        </div>
         </div>
     `;
 }
