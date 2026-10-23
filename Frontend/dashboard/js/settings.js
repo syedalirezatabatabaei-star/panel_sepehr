@@ -4795,34 +4795,46 @@ function showAuditExportModal() {
       {label:'دریافت خروجی',class:'btn-primary',action:'exportAuditLogsCsv()'}
     ]);
 }
-function exportAuditLogsCsv() {
+async function exportAuditLogsCsv() {
     const from = document.getElementById('auditExportFrom')?.value || '';
     const to = document.getElementById('auditExportTo')?.value || '';
-    const user = (document.getElementById('auditExportUser')?.value || '').trim().toLowerCase();
+    const user = (document.getElementById('auditExportUser')?.value || '').trim();
     const count = Math.max(1, Math.min(5000, Number(document.getElementById('auditExportCount')?.value || 500)));
     if (from && to && from > to) return showToast('تاریخ شروع نباید بعد از تاریخ پایان باشد.', 'error');
-    let rows = [...AUDIT_LOGS];
-    rows = rows.filter(log => {
-        const stamp = String(log.timestamp || '').slice(0, 10);
-        return (!from || stamp >= from) && (!to || stamp <= to) &&
-          (!user || String(log.userName || '').toLowerCase().includes(user));
-    });
-    rows = rows.slice(0, count);
-    if (!rows.length) return showToast('رکوردی با این فیلترها پیدا نشد.', 'warning');
-    const columns = ['شناسه','کاربر','عملیات','توضیحات','زمان','IP','نتیجه','User Agent'];
-    const cell = value => '"' + String(value ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
-    const csv = '\uFEFF' + [columns, ...rows.map(log => [
-      log.id,log.userName,log.action,log.description,log.timestamp,log.ip,
-      log.result === 'success' ? 'موفق' : 'ناموفق',log.userAgent
-    ])].map(row => row.map(cell).join(',')).join('\r\n');
-    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'system-logs-' + new Date().toISOString().slice(0,10) + '.csv';
-    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
-    closeModalDirect();
-    showToast(`خروجی ${rows.length} رکورد آماده شد.`, 'success');
+    const params = new URLSearchParams({limit:String(count)});
+    if (from) params.set('date_from', from);
+    if (to) params.set('date_to', to);
+    if (user) params.set('username', user);
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/audit-logs/export?${params.toString()}`, {credentials:'include',cache:'no-store'});
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail?.message || data.detail || 'گرفتن خروجی لاگ‌ها ناموفق بود');
+      const rows = (data.logs || []).map(log => ({
+        id:log.id,userName:log.username || log.user_name || ('کاربر #' + (log.user_id ?? '-')),
+        action:log.action || log.event_type || log.login_status || '-',
+        description:log.description || log.failure_reason || log.path || '-',
+        timestamp:log.created_at || log.timestamp || '',ip:log.ip_address || log.ip || '-',
+        result:(log.result === 'success' || log.login_status === 'success' || log.status_code < 400) ? 'success' : 'failure',
+        userAgent:log.user_agent || ''
+      }));
+      if (!rows.length) return showToast('رکوردی با این فیلترها پیدا نشد.', 'warning');
+      const columns = ['شناسه','کاربر','عملیات','توضیحات','زمان','IP','نتیجه','User Agent'];
+      const cell = value => '"' + String(value ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+      const csv = '\uFEFF' + [columns, ...rows.map(log => [
+        log.id,log.userName,log.action,log.description,log.timestamp,log.ip,
+        log.result === 'success' ? 'موفق' : 'ناموفق',log.userAgent
+      ])].map(row => row.map(cell).join(',')).join('\r\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'system-logs-' + new Date().toISOString().slice(0,10) + '.csv';
+      document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      closeModalDirect();
+      showToast(`خروجی ${rows.length} رکورد آماده شد.`, 'success');
+    } catch (error) {
+      showToast(error.message || 'گرفتن خروجی لاگ‌ها ناموفق بود', 'error');
+    }
 }
 window.showAuditExportModal = showAuditExportModal;
 window.exportAuditLogsCsv = exportAuditLogsCsv;
