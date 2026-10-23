@@ -415,8 +415,75 @@ function renderPage(page) {
             loadPersistentSystemSettings();
             setTimeout(() => { if (typeof refreshActiveSessionSummary === 'function') refreshActiveSessionSummary(); }, 0);
         }
+        if (page === 'roles' || page === 'role-permissions') {
+            loadRolesFromDatabase().then(() => {
+                if (AppState.currentPage !== page) return;
+                content.innerHTML = renderer();
+                initPageInteractions();
+            }).catch(error => {
+                if (AppState.currentPage !== page) return;
+                content.innerHTML = `<div class="card access-control-error">${escapePermissionText(error.message || "دریافت نقش‌ها ناموفق بود")}</div>`;
+            });
+        }
     }
 }
+
+
+let databaseRoleLoadInFlight = false;
+
+async function loadRolesFromDatabase() {
+    if (databaseRoleLoadInFlight) return;
+    databaseRoleLoadInFlight = true;
+    try {
+        const [rolesResponse, catalogResponse] = await Promise.all([
+            fetch(`${API_BASE}/api/admin/permissions/roles`, {credentials:"include", cache:"no-store"}),
+            fetch(`${API_BASE}/api/admin/permissions/catalog`, {credentials:"include", cache:"no-store"})
+        ]);
+        const [rolesData, catalogData] = await Promise.all([
+            rolesResponse.json().catch(() => ({})),
+            catalogResponse.json().catch(() => ({}))
+        ]);
+        if (!rolesResponse.ok) throw new Error(rolesData.detail?.message || rolesData.detail || "دریافت نقش‌ها از دیتابیس ناموفق بود");
+        if (!catalogResponse.ok) throw new Error(catalogData.detail?.message || catalogData.detail || "دریافت فهرست مجوزها ناموفق بود");
+        if (!Array.isArray(rolesData.roles) || !Array.isArray(catalogData.permissions)) {
+            throw new Error("ساختار نقش‌ها یا مجوزها از سرور معتبر نیست");
+        }
+        PERMISSIONS.splice(0, PERMISSIONS.length, ...catalogData.permissions.map(item => ({
+            id: item.code, group: item.group, label: item.label, icon: "🔑"
+        })));
+        Object.keys(PERMISSION_GROUPS).forEach(key => delete PERMISSION_GROUPS[key]);
+        [...new Set(PERMISSIONS.map(item => item.group))].forEach((group, index) => {
+            PERMISSION_GROUPS[group] = {label: group, icon: "🔑", order: index + 1};
+        });
+        ROLES.splice(0, ROLES.length, ...rolesData.roles);
+        return ROLES;
+    } finally {
+        databaseRoleLoadInFlight = false;
+    }
+}
+
+async function saveRolePermissions(roleId) {
+    const role = ROLES.find(item => String(item.id) === String(roleId));
+    if (!role) return showToast("نقش انتخاب‌شده پیدا نشد", "error");
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/permissions/roles/${encodeURIComponent(roleId)}`, {
+            method: "PUT", credentials: "include",
+            headers: {"Content-Type":"application/json", "Accept":"application/json"},
+            body: JSON.stringify({permissions: role.permissions})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail?.message || data.detail || "ذخیره مجوزهای نقش ناموفق بود");
+        await loadRolesFromDatabase();
+        if (AppState.currentPage === "role-permissions") {
+            const content = document.getElementById("settingsContent");
+            if (content) content.innerHTML = renderRolePermissions();
+        }
+        showToast(data.message || "مجوزهای نقش ذخیره شد", "success");
+    } catch (error) {
+        showToast(error.message || "ذخیره مجوزهای نقش ناموفق بود", "error");
+    }
+}
+window.saveRolePermissions = saveRolePermissions;
 
 function renderAccessControl() {
     if (!isSettingsAdministrator()) {
@@ -2117,7 +2184,7 @@ function changeUserRole(userId, roleId) {
 
     const role =
         ROLES.find(
-            r => r.id === roleId
+            r => String(r.id) === String(roleId)
         );
 
     user.role = roleId;
@@ -3160,10 +3227,7 @@ function renderRolePermissions() {
             <button
                 class="btn btn-primary"
                 onclick="
-                    showToast(
-                        'Permissionهای نقش ذخیره شد',
-                        'success'
-                    )
+                    saveRolePermissions('${role.id}')
                 "
             >
                 💾 ذخیره تغییرات
@@ -3187,7 +3251,7 @@ function toggleRolePermission(
 ) {
     const role =
         ROLES.find(
-            r => r.id === roleId
+            r => String(r.id) === String(roleId)
         );
 
     if (!role) return;
@@ -3223,7 +3287,7 @@ function toggleRolePermission(
 function selectAllRolePerms(roleId) {
     const role =
         ROLES.find(
-            r => r.id === roleId
+            r => String(r.id) === String(roleId)
         );
 
     if (!role) return;
@@ -3242,7 +3306,7 @@ function selectAllRolePerms(roleId) {
 function deselectAllRolePerms(roleId) {
     const role =
         ROLES.find(
-            r => r.id === roleId
+            r => String(r.id) === String(roleId)
         );
 
     if (!role) return;
