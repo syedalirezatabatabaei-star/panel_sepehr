@@ -209,6 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================= */
 
 function navigateTo(page, data) {
+    // System settings are administrator-only; keep the navigation visible and show
+    // the existing permission-denied message instead of hiding the icon.
+    if (page !== 'my-account' && !isSettingsAdministrator()) {
+        showPermissionDenied();
+        return;
+    }
     // ورود به صفحات تنظیمات → nav ساخته شود
     openSettingsSection();
 
