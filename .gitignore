@@ -32,3 +32,10 @@ test-results/
 !.env.example
 
 .openui
+
+# Local browser sessions and runtime state (may contain credentials/session data)
+browser_profile/
+browser_profile_backup_*/
+cookies.txt
+data/state.db
+data/*.db
