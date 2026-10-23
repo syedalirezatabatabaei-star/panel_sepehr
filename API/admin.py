@@ -149,7 +149,7 @@ def approve_registration(request_id: int, body: ApproveBody, request: Request):
 def delete_user(user_id: int, request: Request):
 
     db = get_connection()
-    cursor = db.cursor()
+    cursor = db.cursor(dictionary=True)
 
     try:
         cursor.execute(
@@ -205,7 +205,7 @@ def update_user(user_id: int, data: UpdateUserRequest, request: Request):
 
     try:
         cursor.execute(
-            "SELECT id FROM users WHERE id = %s LIMIT 1",
+            "SELECT id, access_level, is_active FROM users WHERE id = %s LIMIT 1",
             (user_id,)
         )
 
@@ -220,7 +220,7 @@ def update_user(user_id: int, data: UpdateUserRequest, request: Request):
         if not is_admin_actor and (
             int(data.access_level or 0) != int(target_user.get("access_level") or 0)
             or int(target_user.get("access_level") or 0) == 3
-            or int(data.is_active or 0) == 0
+            or int(data.is_active or 0) != int(target_user.get("is_active") or 0)
         ):
             raise HTTPException(403, "تغییر سطح مدیر یا غیرفعال‌سازی حساب‌ها فقط برای مدیران مجاز است")
         if int(data.access_level or 0) not in (1, 2, 3):
