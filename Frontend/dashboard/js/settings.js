@@ -208,9 +208,15 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================= */
 
 function navigateTo(page, data) {
-    // System settings are administrator-only; keep the navigation visible and show
-    // the existing permission-denied message instead of hiding the icon.
-    if (page !== 'my-account' && !isSettingsAdministrator()) {
+    // Only the genuinely privileged settings pages are restricted here.
+    // The old blanket check blocked every settings page for non-admin users,
+    // including the dashboard and notifications. Other pages rely on their
+    // page-specific UI checks and server-side API authorization.
+    const administratorOnlyPages = new Set([
+        'system-settings',
+        'access-control'
+    ]);
+    if (administratorOnlyPages.has(page) && !isSettingsAdministrator()) {
         showPermissionDenied();
         return;
     }
