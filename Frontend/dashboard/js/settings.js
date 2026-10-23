@@ -3176,7 +3176,7 @@ async function savePersistentNotification() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail?.message || data.detail || "ذخیره اعلان ناموفق بود");
       closeModalDirect(); showToast("اعلان در دیتابیس ذخیره شد", "success");
-      await loadPersistentNotifications(); renderNotificationsView();
+      await loadPersistentNotifications(true); renderNotificationSettingsView();
     } catch(e) { showToast(e.message || "ذخیره اعلان ناموفق بود", "error"); }
 }
 async function deactivatePersistentNotification(id) {
@@ -3185,7 +3185,7 @@ async function deactivatePersistentNotification(id) {
       const response = await fetch(`${API_BASE}/api/admin/notifications/${Number(id)}`, {method:"DELETE",credentials:"include"});
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail?.message || data.detail || "عملیات ناموفق بود");
-      await loadPersistentNotifications(); renderNotificationsView();
+      await loadPersistentNotifications(true); renderNotificationSettingsView();
       showToast("اعلان غیرفعال شد", "success");
     } catch(e) { showToast(e.message || "خطا", "error"); }
 }
