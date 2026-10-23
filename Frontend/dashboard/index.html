@@ -8,6 +8,35 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // Keep dashboard content hidden until the server confirms a valid session.
+    document.documentElement.style.visibility = "hidden";
+    (async function protectDashboard() {
+      const loginUrl = "/login/index.html";
+      try {
+        const headers = { "Accept": "application/json" };
+        const accessToken = sessionStorage.getItem("access_token");
+        if (accessToken) headers.Authorization = "Bearer " + accessToken;
+
+        const response = await fetch(
+          window.location.protocol + "//" + window.location.hostname + ":8005/api/auth/me",
+          { method: "GET", credentials: "include", headers, cache: "no-store" }
+        );
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.authenticated !== true || !data.user || Number(data.user.is_active) !== 1) {
+          sessionStorage.removeItem("access_token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("bale_account");
+          window.location.replace(loginUrl);
+          return;
+        }
+        document.documentElement.style.visibility = "";
+      } catch (_) {
+        // Fail closed when the auth service cannot be reached.
+        window.location.replace(loginUrl);
+      }
+    })();
+  </script>
 </head>
 <body>
 
