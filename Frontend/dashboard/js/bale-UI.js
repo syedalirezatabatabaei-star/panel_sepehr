@@ -43,8 +43,8 @@
     // The FastAPI backend is exposed separately on :8005; keep upstream service
     // and webhook URLs server-side in .env via API/chat_proxy.py.
     const API = "/api/chat/bale";
-    const WEBHOOK = API_ORIGIN + "/api/chat/bale/webhook/send";
-    const CREATE_CHAT_WEBHOOK = API_ORIGIN + "/api/chat/bale/webhook/create";
+    const WEBHOOK = "/api/chat/bale/webhook/send";
+    const CREATE_CHAT_WEBHOOK = "/api/chat/bale/webhook/create";
 
     const BALE_LOGO = "img/navid.jpg";
     const BALE_AVATAR = "img/images.jpg";
