@@ -197,8 +197,13 @@ def _resolve_contact(account_phone, target, contacts):
         }
     result = _request("POST", "/eitaa/contacts/add", json={"phone": account_phone, "peerPhone": target["phone"], "firstname": target["name"]})
     if result.get("id") is None:
-        detail = result.get("message") or result.get("error") or "مخاطب در ایتا پیدا نشد یا افزودن مخاطب تأیید نشد"
-        raise RuntimeError(str(detail))
+        # Empty/unexpected importContacts responses are not proof that the phone
+        # is not registered. Keep the upstream diagnostic for the report, but
+        # classify the result as unverified rather than "no Eitaa account".
+        detail = result.get("message") or result.get("msg") or result.get("error") or (
+            "ایتا هویت مخاطب را تأیید نکرد؛ این پاسخ به معنی عضو نبودن شماره در ایتا نیست."
+        )
+        raise RuntimeError("CONTACT_IMPORT_UNVERIFIED: " + str(detail))
     peer = {
         "id": result["id"],
         "access_hash": result.get("acces_hash", result.get("access_hash", 0)),
@@ -286,12 +291,17 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
         except Exception as exc:
             row["detail"] = str(exc)[:500]
             detail_lower = row["detail"].lower()
-            if ("user not found" in detail_lower or "user_not_found" in detail_lower or
+            if "contact_import_unverified" in detail_lower:
+                row["contact_status"] = "error"
+                row["status"] = "not_sent"
+                row["detail"] = row["detail"].replace("CONTACT_IMPORT_UNVERIFIED: ", "")
+            elif ("user not found" in detail_lower or "user_not_found" in detail_lower or
                     "phone_number_invalid" in detail_lower or "peer_id_invalid" in detail_lower):
+                # Only explicit upstream errors that identify an unresolved user
+                # are classified as not_registered. Generic RPC errors stay errors.
                 row["contact_status"] = "not_registered"
                 row["status"] = "not_sent"
             else:
-                # A generic service error is not proof that the recipient has no Eitaa account.
                 row["contact_status"] = "error"
             if not row["add_notification"]:
                 row["add_notification"] = row["detail"]
