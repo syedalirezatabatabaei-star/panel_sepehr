@@ -556,33 +556,69 @@ function renderAccessControl() {
         return '<div class="card"><h2>دسترسی محدود است</h2></div>';
     }
     return `
-      <div class="page-header">
-        <h1>مدیریت دسترسی‌ها</h1>
-        <p>برای هر کاربر، مجوز استفاده، مشاهده و ویرایش را جداگانه تنظیم کنید.</p>
-      </div>
-      <section class="card access-control-user-picker mb-6">
-        <div class="access-control-picker-heading">
-          <div>
-            <h2>انتخاب کاربر</h2>
-            <p>نام، نام کاربری یا شناسه را جستجو کنید.</p>
-          </div>
-          <span class="access-control-count" id="permissionUserCount">در حال بارگذاری…</span>
+      <style>
+        .access-control-page{direction:rtl;display:grid;gap:18px;min-width:0}
+        .access-control-page .page-header{margin:0}
+        .access-control-user-picker{padding:20px;display:grid;gap:12px}
+        .access-control-picker-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+        .access-control-picker-heading h2{margin:0 0 5px;font-size:18px}
+        .access-control-picker-heading p{margin:0;color:var(--gray-500,#64748b);font-size:13px}
+        .access-control-count{border-radius:999px;padding:6px 11px;background:var(--gray-100,#f1f5f9);font-size:12px;white-space:nowrap}
+        .access-control-search,.access-control-select{width:100%;max-width:none;min-width:0;box-sizing:border-box}
+        .access-control-status{margin:0;min-height:20px;font-size:13px;color:var(--gray-600,#475569);overflow-wrap:anywhere}
+        .access-control-editor{padding:18px;display:grid;gap:18px;min-width:0}
+        .permission-editor-intro{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+        .permission-editor-intro h2{margin:0;font-size:18px}
+        .permission-editor-intro p{margin:5px 0 0;color:var(--gray-500,#64748b);font-size:13px;line-height:1.8}
+        .permission-group-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:14px}
+        .permission-group-card{border:1px solid var(--gray-200,#e2e8f0);border-radius:14px;overflow:hidden;min-width:0;background:var(--surface,#fff)}
+        .permission-group-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;background:var(--gray-50,#f8fafc);border-bottom:1px solid var(--gray-200,#e2e8f0)}
+        .permission-group-heading h3{margin:0;font-size:15px}
+        .permission-group-heading span{font-size:12px;color:var(--gray-500,#64748b);white-space:nowrap}
+        .permission-rows{padding:0 14px}
+        .permission-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 2px;border-bottom:1px solid var(--gray-100,#f1f5f9);min-width:0}
+        .permission-row:last-child{border-bottom:0}
+        .permission-row-info{min-width:0;flex:1}
+        .permission-row-title{font-weight:600;line-height:1.8;overflow-wrap:anywhere}
+        .permission-row-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:4px;color:var(--gray-500,#64748b);font-size:11px;overflow-wrap:anywhere}
+        .permission-source-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;background:#e0f2fe;color:#075985;font-size:11px;white-space:nowrap}
+        .permission-personal-badge{background:#f1f5f9;color:#475569}
+        .permission-row-controls{display:flex;align-items:center;justify-content:flex-start;gap:12px;flex-wrap:wrap;flex-shrink:0}
+        .permission-row-controls label{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;cursor:pointer}
+        .permission-row-controls input{width:16px;height:16px;accent-color:var(--primary,#2563eb);margin:0}
+        .permission-row-controls input:disabled{cursor:not-allowed}
+        .permission-row-chat{background:linear-gradient(90deg,transparent,rgba(59,130,246,.045))}
+        .access-control-actions{display:flex;justify-content:flex-start;gap:10px;position:sticky;bottom:8px;z-index:2;padding:10px;background:var(--surface,#fff);border:1px solid var(--gray-200,#e2e8f0);border-radius:12px;box-shadow:0 5px 18px rgba(15,23,42,.08)}
+        .access-control-empty,.access-control-error{padding:28px 16px;text-align:center;line-height:1.9;overflow-wrap:anywhere}
+        .access-control-empty strong{display:block;margin:8px 0}
+        .access-control-error{color:#b91c1c}
+        @media(max-width:600px){.access-control-user-picker,.access-control-editor{padding:13px}.permission-row{align-items:flex-start;flex-direction:column}.permission-row-controls{width:100%}.permission-group-grid{grid-template-columns:minmax(0,1fr)}.access-control-actions{bottom:4px}}
+      </style>
+      <div class="access-control-page">
+        <div class="page-header">
+          <h1>مدیریت دسترسی‌ها</h1>
+          <p>دسترسی شخصی هر کاربر را تنظیم کنید؛ مجوزهای اعطاشده از طریق نقش نیز جداگانه نمایش داده می‌شوند.</p>
         </div>
-        <label class="form-label" for="permissionUserSearch">جستجوی کاربران</label>
-        <input id="permissionUserSearch" class="form-input access-control-search" type="search"
-          placeholder="مثلاً نام، نام کاربری یا شناسه…" autocomplete="off"
-          oninput="filterPermissionUsers()">
-        <label class="form-label" for="permissionUserSelect">فهرست کاربران</label>
-        <select id="permissionUserSelect" class="form-select access-control-select" onchange="loadSelectedUserPermissions()">
-          <option value="">در حال دریافت کاربران...</option>
-        </select>
-        <p id="permissionSaveStatus" class="access-control-status" role="status" aria-live="polite"></p>
-      </section>
-      <section id="permissionEditorRoot" class="card access-control-editor">
-        در حال دریافت فهرست مجوزها...
-      </section>
-      <div class="access-control-actions">
-        <button class="btn btn-primary" onclick="saveSelectedUserPermissions()">ذخیره تغییرات</button>
+        <section class="card access-control-user-picker">
+          <div class="access-control-picker-heading">
+            <div><h2>انتخاب کاربر</h2><p>با نام، نام کاربری یا شناسه جستجو کنید.</p></div>
+            <span class="access-control-count" id="permissionUserCount">در حال بارگذاری…</span>
+          </div>
+          <label class="form-label" for="permissionUserSearch">جستجوی کاربران</label>
+          <input id="permissionUserSearch" class="form-input access-control-search" type="search"
+            placeholder="نام، نام کاربری یا شناسه…" autocomplete="off" oninput="filterPermissionUsers()">
+          <label class="form-label" for="permissionUserSelect">کاربر</label>
+          <select id="permissionUserSelect" class="form-select access-control-select" onchange="loadSelectedUserPermissions()">
+            <option value="">در حال دریافت کاربران...</option>
+          </select>
+          <p id="permissionSaveStatus" class="access-control-status" role="status" aria-live="polite"></p>
+        </section>
+        <section id="permissionEditorRoot" class="card access-control-editor">
+          در حال دریافت فهرست مجوزها...
+        </section>
+        <div class="access-control-actions">
+          <button class="btn btn-primary" onclick="saveSelectedUserPermissions()">ذخیره تغییرات</button>
+        </div>
       </div>
     `;
 }
@@ -682,34 +718,63 @@ async function loadSelectedUserPermissions() {
         if (!response.ok) throw new Error(data.detail?.message || data.detail || "دریافت دسترسی کاربر ناموفق بود");
         accessControlValues = {};
         for (const p of data.permissions || []) {
-            accessControlValues[p.code] = {can_read: !!p.can_read, can_write: !!p.can_write};
+            const canRead = !!p.can_read;
+            accessControlValues[p.code] = {
+                can_read: canRead,
+                can_write: p.mode === "toggle" ? canRead : !!p.can_write,
+                role_granted: !!p.role_granted,
+                personal_grant: !!p.personal_grant
+            };
         }
         const groups = {};
         for (const p of accessControlCatalog) (groups[p.group] ||= []).push(p);
-        root.innerHTML = Object.entries(groups).map(([group, items]) => `
-          <section style="margin-bottom:22px">
-            <h3 style="margin-bottom:12px">${escapePermissionText(group)}</h3>
-            ${items.map(p => {
-              const value = accessControlValues[p.code] || {can_read:false,can_write:false};
-              const registered = p.registered;
-              return `
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--gray-200);padding:12px 0">
-                  <div>
-                    <div>${escapePermissionText(p.label)}</div>
-                    <small style="color:var(--gray-500)">${escapePermissionText(p.code)}${!registered ? " — ثبت‌نشده" : (value.role_granted ? " — دسترسی نقش جدا از مجوز شخصی است" : " — مجوز شخصی")}</small>
-                  </div>
-                  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-                    ${p.mode === "toggle" ? `
-                      <label><input type="checkbox" data-permission-code="${p.code}" data-permission-field="can_read" ${value.can_read ? "checked" : ""} ${registered ? "" : "disabled"}> استفاده شود</label>
-                    ` : `
-                      <label><input type="checkbox" data-permission-code="${p.code}" data-permission-field="can_read" ${value.can_read ? "checked" : ""} ${registered ? "" : "disabled"}> مشاهده</label>
-                      <label><input type="checkbox" data-permission-code="${p.code}" data-permission-field="can_write" ${value.can_write ? "checked" : ""} ${registered ? "" : "disabled"}> ویرایش</label>
-                    `}
-                  </div>
-                </div>`;
-            }).join("")}
-          </section>`
-        ).join("");
+        const permissionCount = items => items.filter(p => {
+            const value = accessControlValues[p.code] || {};
+            return value.can_read || value.can_write || value.role_granted;
+        }).length;
+        root.innerHTML = `
+          <div class="permission-editor-intro">
+            <div><h2>مجوزهای کاربر</h2><p>تغییرات این صفحه فقط مجوز شخصی را ذخیره می‌کند. دسترسی ناشی از نقش از بخش «مدیریت نقش‌ها» تنظیم می‌شود.</p></div>
+          </div>
+          <div class="permission-group-grid">
+            ${Object.entries(groups).map(([group, items]) => `
+              <section class="permission-group-card">
+                <div class="permission-group-heading">
+                  <h3>${escapePermissionText(group)}</h3>
+                  <span>${permissionCount(items)} از ${items.length} دارای دسترسی</span>
+                </div>
+                <div class="permission-rows">
+                  ${items.map(p => {
+                    const value = accessControlValues[p.code] || {can_read:false,can_write:false,role_granted:false,personal_grant:false};
+                    const registered = !!p.registered;
+                    const isChat = p.group === "چت‌ها" || /\.chats$/.test(p.code);
+                    const code = escapePermissionText(p.code);
+                    return `
+                      <div class="permission-row ${isChat ? "permission-row-chat" : ""}">
+                        <div class="permission-row-info">
+                          <div class="permission-row-title">${escapePermissionText(p.label)}</div>
+                          <div class="permission-row-meta">
+                            <code>${code}</code>
+                            ${value.role_granted ? '<span class="permission-source-badge">دسترسی از نقش</span>' : ''}
+                            ${value.personal_grant ? '<span class="permission-source-badge permission-personal-badge">مجوز شخصی</span>' : ''}
+                            ${!registered ? '<span class="permission-source-badge permission-personal-badge">ثبت‌نشده</span>' : ''}
+                          </div>
+                        </div>
+                        <div class="permission-row-controls">
+                          ${p.mode === "toggle" ? `
+                            <label><input type="checkbox" data-permission-code="${code}" data-permission-field="can_read" ${value.can_read ? "checked" : ""} ${registered ? "" : "disabled"}> استفاده شود</label>
+                          ` : `
+                            <label><input type="checkbox" data-permission-code="${code}" data-permission-field="can_read" ${value.can_read ? "checked" : ""} ${registered ? "" : "disabled"}> مشاهده</label>
+                            <label><input type="checkbox" data-permission-code="${code}" data-permission-field="can_write" ${value.can_write ? "checked" : ""} ${registered ? "" : "disabled"}> ویرایش</label>
+                          `}
+                        </div>
+                      </div>`;
+                  }).join("")}
+                </div>
+              </section>`
+            ).join("")}
+          </div>
+        `;
         root.querySelectorAll("input[data-permission-code]").forEach(input => {
           input.addEventListener("change", () => {
             const code = input.dataset.permissionCode;
