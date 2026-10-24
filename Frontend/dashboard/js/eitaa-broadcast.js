@@ -189,6 +189,11 @@
     const group = getEitaaResultGroup(row);
     if (group === "no_account") return "حساب ایتا ندارد / پیدا نشد";
     if (row.contact_status === "success") return "موجود / افزوده شد";
+    if (row.contact_status === "unverified" ||
+        String(row.detail || "").includes("به‌تنهایی ثابت نمی‌کند") ||
+        String(row.detail || "").includes("عضویت تأیید نشد")) {
+      return "عضویت تأیید نشد؛ پاسخ سرویس قطعی نیست";
+    }
     return "افزودن ناموفق";
   }
 
