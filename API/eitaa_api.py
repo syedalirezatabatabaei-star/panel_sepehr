@@ -37,7 +37,7 @@ def _request(method, path, **kwargs):
             payload = {"detail": response.text[:1000]}
         if response.status_code >= 400:
             if isinstance(payload, dict):
-                detail = payload.get("error") or payload.get("detail") or payload.get("message") or payload.get("msg") or str(payload)
+                detail = payload.get("msg") or payload.get("message") or payload.get("detail") or payload.get("error") or str(payload)
             else:
                 detail = str(payload)[:1000]
             logger.warning("EitaaBun request failed: %s %s status=%s detail=%s", method, path, response.status_code, str(detail)[:300])
@@ -233,6 +233,7 @@ def _write_report(job_id, results):
         contact_label = {
             "success": "مخاطب موجود/افزوده شد",
             "not_registered": "حساب ایتا ندارد یا پیدا نشد",
+            "unverified": "عضویت تأیید نشد (پاسخ سرویس)",
             "error": "افزودن ناموفق",
         }.get(contact_status, contact_status)
         message_label = {"success": "موفق", "error": "ناموفق", "not_sent": "ارسال نشد"}.get(item.get("status"), item.get("status", "نامشخص"))
@@ -291,14 +292,15 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
         except Exception as exc:
             row["detail"] = str(exc)[:500]
             detail_lower = row["detail"].lower()
-            if "contact_import_unverified" in detail_lower:
-                row["contact_status"] = "error"
+            if ("contact_import_unverified" in detail_lower or
+                    "does not prove that the recipient is not an eitaa member" in detail_lower or
+                    "به‌تنهایی ثابت نمی‌کند" in detail_lower):
+                row["contact_status"] = "unverified"
                 row["status"] = "not_sent"
                 row["detail"] = row["detail"].replace("CONTACT_IMPORT_UNVERIFIED: ", "")
             elif ("user not found" in detail_lower or "user_not_found" in detail_lower or
                     "phone_number_invalid" in detail_lower or "peer_id_invalid" in detail_lower):
-                # Only explicit upstream errors that identify an unresolved user
-                # are classified as not_registered. Generic RPC errors stay errors.
+                # Only explicit, stable upstream codes are classified as not_registered.
                 row["contact_status"] = "not_registered"
                 row["status"] = "not_sent"
             else:
