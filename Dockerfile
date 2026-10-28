@@ -23,7 +23,7 @@ RUN chmod +x /app/start.sh \
 
 EXPOSE 8085 8005
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=3)" || exit 1
 
 CMD ["/app/start.sh"]
