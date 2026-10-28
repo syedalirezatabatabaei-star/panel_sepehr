@@ -11,6 +11,19 @@ from starlette.staticfiles import StaticFiles
 from API.auth import get_user_from_session
 
 logger = logging.getLogger(__name__)
+
+class HealthCheckAccessLogFilter(logging.Filter):
+    """Keep routine local health probes out of access logs."""
+    def filter(self, record):
+        message = record.getMessage()
+        return not any(
+            f'"{method} /health HTTP/' in message
+            for method in ("GET", "HEAD")
+        )
+
+
+logging.getLogger("uvicorn.access").addFilter(HealthCheckAccessLogFilter())
+
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "Frontend"
 API_UPSTREAM = "http://127.0.0.1:8005"
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
