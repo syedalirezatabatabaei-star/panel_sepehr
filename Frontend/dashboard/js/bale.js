@@ -1813,6 +1813,7 @@ function showBaleProgress(total = 0) {
             <div id="baleProgressStatus" style="margin-bottom:12px;">در حال افزودن مخاطبین به بله...</div>
             <div id="baleRefreshErrorLog" role="log" aria-live="polite" style="display:none;margin:10px 0;padding:10px 12px;border:1px solid #fecaca;background:#fff7f7;border-radius:10px;color:#991b1b;font-size:13px;line-height:1.8;"></div>
             <div id="baleProgressResults" style="margin-top:15px;"></div>
+            <div id="baleExportContainer" style="margin-top:16px;display:flex;justify-content:center;"></div>
         </div>`;
     content.appendChild(progressCard);
     updateBaleProgress(0, total, 10, "مرحله ۱ از ۲: آماده‌سازی و افزودن مخاطبین", `در حال آماده‌سازی ${total} مخاطب`);
@@ -2030,15 +2031,17 @@ function handleBaleCompleted(data) {
     }
 
     const jobId = data.job_id || window.__baleLastJobId;
-    const box = document.getElementById("baleProgressResults");
-    if (box && jobId && data.has_report === true && !document.getElementById("baleExportBtn")) {
-        box.insertAdjacentHTML("beforeend", `
-            <div style="margin-top:16px;display:flex;justify-content:center;">
+    const exportContainer = document.getElementById("baleExportContainer");
+    if (exportContainer) {
+        if (jobId && data.has_report === true) {
+            exportContainer.innerHTML = `
                 <a id="baleExportBtn" href="${BALE_API_BASE}/send/export/${encodeURIComponent(jobId)}" target="_blank" rel="noopener"
                    style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:10px;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;font-weight:600;text-decoration:none;box-shadow:0 4px 12px rgba(13,148,136,.35);">
                     📥 دانلود گزارش اکسل
-                </a>
-            </div>`);
+                </a>`;
+        } else {
+            exportContainer.innerHTML = '<span style="color:#991b1b;font-size:13px;">گزارش اکسل برای این عملیات آماده نشد.</span>';
+        }
     }
 }
 
