@@ -16,6 +16,19 @@ from API.chat_proxy import router as chat_proxy_router
 from API.panel_admin import router as panel_admin_router, _record_system_event
 
 logger = logging.getLogger(__name__)
+
+class HealthCheckAccessLogFilter(logging.Filter):
+    """Keep routine local health probes out of access logs."""
+    def filter(self, record):
+        message = record.getMessage()
+        return not any(
+            f'"{method} /health HTTP/' in message
+            for method in ("GET", "HEAD")
+        )
+
+
+logging.getLogger("uvicorn.access").addFilter(HealthCheckAccessLogFilter())
+
 app = FastAPI()
 
 frontend_origins = [
