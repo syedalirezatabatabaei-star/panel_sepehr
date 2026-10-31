@@ -80,22 +80,20 @@
 
     <nav class="sidebar-nav">
       <div class="sidebar-section-title">منوی اصلی</div>
-      <button class="sidebar-item" onclick="openPersonalMessaging()">
+      <button class="sidebar-item" type="button" onclick="if (guardFeature('bale.personal_message')) openBaleMessaging()">
         <span class="icon">&#9993;&#65039;</span>
-        <span>ارسال پیام شخصی</span>
-        <span class="badge">API</span>
+        <span>ارسال پیام شخصی بله</span>
+        <span class="badge">بله</span>
       </button>
-
-            <button class="sidebar-item" hidden onclick="if (!guardFeature('eitaa.personal_message')) return; openEitaaBroadcast()">
-        <span class="icon">&#9993;&#65039;</span>
-        <span>ارسال پیام شخصی ایتا </span>
+      <button class="sidebar-item" type="button" onclick="if (guardFeature('eitaa.personal_message')) openEitaaBroadcast()">
+        <span class="icon"><img src="./img/eitaa.png" alt="" style="width:18px;height:18px;object-fit:contain"></span>
+        <span>ارسال پیام شخصی ایتا</span>
         <span class="badge">ایتا</span>
       </button>
-
-      <button class="sidebar-item" hidden onclick="if (!guardFeature('rubika.personal_message')) return; openRubikaPersonalMessage()">
-        <span class="icon">&#9993;&#65039;</span>
-        <span>ارسال پیام شخصی روبیکا</span>
-        <span class="badge">روبیکا</span>
+      <button class="sidebar-item" type="button" onclick="openSpanApiMessaging()">
+        <span class="icon">&#128225;</span>
+        <span>ارسال پیام شخصی داخل Span API</span>
+        <span class="badge">GoOmni</span>
       </button>
 
 <!--    <span class="icon">&#128172;</span> -->
@@ -237,6 +235,7 @@
 <script src="./js/bale.js"></script>
 <script src="./js/eitaa-broadcast.js?v=20261024-membership-status"></script>
 <script src="./js/rubika-broadcast.js?v=20261031-goomni-rubika"></script>
+<script src="./js/span-api.js?v=20261031-span-api-v2"></script>
 <script src="./js/bale-UI.js?v=20261024-bale-chat-init-fix"></script>
 <script src="./js/eita-ui.js"></script>
 <script src="./js/settings.js?v=20261024-chat-access-ui-fix"></script>

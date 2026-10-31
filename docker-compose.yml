@@ -30,6 +30,10 @@ services:
       GOOMNI_BASIC_AUTH: ${GOOMNI_BASIC_AUTH:?Set GOOMNI_BASIC_AUTH in server-side .env}
       RUBIKA_DEVICE_ID: ${RUBIKA_DEVICE_ID:-sepehr-rubika}
       RUBIKA_STATE_DIR: /app/data/rubika-state
+      SPAN_STATE_DIR: /app/data/span-api
+      SPAN_BALE_DEVICE_ID: ${SPAN_BALE_DEVICE_ID:-sepehr-span-bale}
+      SPAN_EITAA_DEVICE_ID: ${SPAN_EITAA_DEVICE_ID:-sepehr-span-eitaa}
+      SPAN_RUBIKA_DEVICE_ID: ${SPAN_RUBIKA_DEVICE_ID:-sepehr-span-rubika}
       EITAA_STATE_DIR: /app/data/eitaa-state
       EITAA_MEDIA_DIR: /shared/eitaa-media
       PYTHONDONTWRITEBYTECODE: "1"
@@ -41,6 +45,7 @@ services:
     volumes:
       - eitaa-media-shared:/shared/eitaa-media
       - rubika-state:/app/data/rubika-state
+      - span-api-state:/app/data/span-api
       - /var/lib/docker/containers:/host-docker-containers:ro
     command: ["/app/start.sh"]
     healthcheck:
