@@ -2877,3 +2877,59 @@ a {
   color: var(--gray-100, #f3f4f6);
   font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace;
 }
+
+/* Bale personal messaging: consistent spacing, clear actions and feedback */
+.bale-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.bale-logout-button,
+.bale-send-button {
+  min-height: 42px;
+  padding: 10px 18px;
+}
+
+.bale-send-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--gray-200);
+}
+
+.bale-send-status {
+  min-height: 24px;
+  margin: 12px 0 0;
+  padding: 0;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.bale-send-status:empty {
+  display: none;
+}
+
+.bale-send-status[data-state="success"] { color: var(--success); }
+.bale-send-status[data-state="error"] { color: var(--danger); }
+.bale-send-status[data-state="info"] { color: var(--gray-600); }
+
+@media (max-width: 640px) {
+  .bale-page-header {
+    align-items: stretch;
+  }
+  .bale-logout-button,
+  .bale-send-button {
+    width: 100%;
+  }
+  .bale-send-actions {
+    align-items: stretch;
+  }
+}
