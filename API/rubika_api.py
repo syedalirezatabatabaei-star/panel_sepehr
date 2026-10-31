@@ -214,7 +214,7 @@ def _load_recipients(path):
     wb = load_workbook(path, read_only=True, data_only=True)
     ws = wb.active
     headers = [str(cell.value or "").strip().lower() for cell in ws[1]]
-    peer_names = {"peer_id", "rubika_id", "user_guid", "user_id", "شناسه روبیکا", "آیدی روبیکا", "شناسه کاربر"}
+    peer_names = {"peer_id", "rubika_id", "user_guid", "user_id", "guid", "شناسه", "شناسه کاربری", "شناسه روبیکا", "آیدی روبیکا", "شناسه کاربر"}
     name_names = {"name", "firstname", "first name", "نام", "نام مخاطب"}
     peer_col = next((i + 1 for i, value in enumerate(headers) if value in peer_names), 1)
     name_col = next((i + 1 for i, value in enumerate(headers) if value in name_names), 2)
