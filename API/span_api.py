@@ -229,6 +229,10 @@ def logout_account(provider_name: str):
         saved = _read_account(p)
         old_device_id = str(saved.get("device_id") or DEVICES[p])
         instance_id = str(saved.get("instance_id") or "")
+        if not instance_id and (saved.get("phone") or saved.get("account_id")):
+            # Recover the immutable guard from GoOmni before retiring a legacy
+            # local mapping that predates persisted instance_id.
+            instance_id = _instance(p)
         remote_logout_warning = None
 
         # Stop local broadcasts first. GoOmni's DELETE endpoint also cancels
