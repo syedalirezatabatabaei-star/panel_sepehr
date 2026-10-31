@@ -218,6 +218,29 @@ def account_status(provider_name: str):
     return _status(provider(provider_name))
 
 
+@router.post("/{provider_name}/account/logout")
+def logout_account(provider_name: str):
+    """Log out only the selected provider while preserving its device instance."""
+    p = provider(provider_name)
+    saved = _read_account(p)
+    instance_id = saved.get("instance_id")
+
+    # GoOmni owns the actual provider session. Revoke it there before clearing
+    # the local phone/challenge mapping; never touch another provider's device.
+    if instance_id and (saved.get("phone") or saved.get("account_id")):
+        _request(
+            p, "POST", f"/devices/{_device(p)}/logout",
+            instance_id=str(instance_id), expected=(200, 202, 204),
+        )
+
+    _write_account(p, {
+        "provider": p,
+        "device_id": _device(p),
+        **({"instance_id": str(instance_id)} if instance_id else {}),
+    })
+    return {"success": True, "provider": p, "message": "از حساب این پیام‌رسان خارج شدید"}
+
+
 @router.post("/{provider_name}/auth/send-code")
 def send_code(provider_name: str, payload: dict):
     p = provider(provider_name)
