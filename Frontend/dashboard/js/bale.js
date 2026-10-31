@@ -819,6 +819,43 @@ async function verifyBaleOtp() {
 
 
 /* =========================================================
+   Bale Account Logout
+   ========================================================= */
+async function logoutBaleAccount() {
+    const button = document.getElementById("baleLogoutButton");
+    if (button?.disabled) return;
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = "در حال خروج...";
+    }
+
+    try {
+        const response = await fetch(`${BALE_API_BASE}/account/reset`, {
+            method: "POST",
+            headers: { "Accept": "application/json" }
+        });
+        let data = {};
+        try { data = await response.json(); } catch (_) {}
+
+        if (!response.ok || data.success === false) {
+            throw new Error(data.detail || data.message || "خروج از حساب انجام نشد.");
+        }
+
+        showToast("از حساب بله خارج شدید.", "success");
+        showBaleLoginPage();
+    } catch (error) {
+        console.error("[BALE LOGOUT ERROR]", error);
+        showToast(error.message || "خطا هنگام خروج از حساب بله.", "error");
+        if (button) {
+            button.disabled = false;
+            button.textContent = "خروج از حساب بله";
+        }
+    }
+}
+
+
+/* =========================================================
    Bale Messaging Page
    ========================================================= */
 
@@ -845,19 +882,16 @@ function showBaleMessagingPage() {
 
     content.innerHTML = `
 
-        <div class="page-header">
+        <div class="page-header bale-page-header">
 
             <div>
-
-                <h1 class="page-title">
-                    ارسال پیام - بله
-                </h1>
-
-                <p class="page-description">
-                    انتخاب مخاطبین و ارسال پیام
-                </p>
-
+                <h1 class="page-title">ارسال پیام - بله</h1>
+                <p class="page-description">انتخاب مخاطبین و ارسال پیام</p>
             </div>
+
+            <button type="button" id="baleLogoutButton" class="btn btn-secondary bale-logout-button">
+                خروج از حساب بله
+            </button>
 
         </div>
 
@@ -998,18 +1032,18 @@ function showBaleMessagingPage() {
                      Send
                      ========================================= -->
 
-                <div class="form-actions">
+                <div class="bale-send-actions">
 
                     <button
                         type="button"
                         id="baleSendButton"
-                        class="btn btn-primary"
-                        onclick="sendBaleMessages()"
+                        class="btn btn-primary bale-send-button"
                     >
                         ارسال پیام‌ها
                     </button>
 
                 </div>
+                <p id="baleSendStatus" class="bale-send-status" role="status" aria-live="polite"></p>
 
 
             </div>
@@ -1027,6 +1061,16 @@ function showBaleMessagingPage() {
         document.getElementById(
             "baleExcelFile"
         );
+
+    const sendButton = document.getElementById("baleSendButton");
+    if (sendButton) {
+        sendButton.addEventListener("click", () => void sendBaleMessages());
+    }
+
+    const logoutButton = document.getElementById("baleLogoutButton");
+    if (logoutButton) {
+        logoutButton.addEventListener("click", () => void logoutBaleAccount());
+    }
 
 
     const messageType =
@@ -1305,7 +1349,20 @@ function showBaleMessagingPage() {
    ========================================================= */
 
 async function sendBaleMessages() {
+    const sendStatus = document.getElementById("baleSendStatus");
+    const setSendStatus = (message, state = "info") => {
+        if (!sendStatus) return;
+        sendStatus.textContent = message;
+        sendStatus.dataset.state = state;
+    };
+
+    if (window.__baleSending) {
+        setSendStatus("درخواست ارسال قبلی هنوز در حال پردازش است.", "info");
+        return;
+    }
+
     if (typeof canWrite === "function" && !canWrite("bale.personal_message")) {
+        setSendStatus("دسترسی ارسال پیام بله برای حساب کاربری شما فعال نیست.", "error");
         if (typeof showPermissionDenied === "function") showPermissionDenied();
         return;
     }
@@ -1615,13 +1672,12 @@ async function sendBaleMessages() {
        Disable Button
        ===================================================== */
 
+    window.__baleSending = true;
+    setSendStatus("فایل دریافت شد؛ در حال ارسال اطلاعات به سرور...", "info");
+
     if (sendButton) {
-
         sendButton.disabled = true;
-
-        sendButton.textContent =
-            "در حال شروع ارسال...";
-
+        sendButton.textContent = "در حال شروع ارسال...";
     }
 
 
@@ -1722,6 +1778,7 @@ async function sendBaleMessages() {
         );
 
 
+        setSendStatus(`عملیات ارسال شروع شد؛ ${data.total || 0} مخاطب در صف پردازش قرار گرفتند.`, "success");
         showToast(
             `ارسال ${data.total || 0} پیام شروع شد.`,
             "success"
@@ -1755,13 +1812,14 @@ async function sendBaleMessages() {
         );
 
 
+        setSendStatus(error.message || "خطا در شروع ارسال پیام‌ها.", "error");
         showToast(
             error.message ||
             "خطا در ارسال پیام‌ها.",
             "error"
         );
 
-
+        window.__baleSending = false;
         if (sendButton) {
 
             sendButton.disabled = false;
