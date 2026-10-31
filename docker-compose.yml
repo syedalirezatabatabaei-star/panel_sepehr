@@ -63,6 +63,8 @@ networks:
 volumes:
   rubika-state:
     name: rubika-state
+  span-api-state:
+    name: span-api-state
   eitaa-media-shared:
     external: true
     name: eitaa-media-shared
