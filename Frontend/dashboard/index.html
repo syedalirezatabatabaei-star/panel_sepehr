@@ -80,13 +80,13 @@
 
     <nav class="sidebar-nav">
       <div class="sidebar-section-title">منوی اصلی</div>
-      <button class="sidebar-item" onclick="if (!guardFeature('bale.personal_message')) return; openBaleMessaging()">
+      <button class="sidebar-item" onclick="openPersonalMessaging()">
         <span class="icon">&#9993;&#65039;</span>
-        <span>ارسال پیام شخصی </span>
-        <span class="badge">بله</span>
+        <span>ارسال پیام شخصی</span>
+        <span class="badge">API</span>
       </button>
 
-            <button class="sidebar-item" onclick="if (!guardFeature('eitaa.personal_message')) return; openEitaaBroadcast()">
+            <button class="sidebar-item" hidden onclick="if (!guardFeature('eitaa.personal_message')) return; openEitaaBroadcast()">
         <span class="icon">&#9993;&#65039;</span>
         <span>ارسال پیام شخصی ایتا </span>
         <span class="badge">ایتا</span>
