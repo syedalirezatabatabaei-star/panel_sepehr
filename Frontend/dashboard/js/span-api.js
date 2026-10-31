@@ -199,7 +199,7 @@
   function renderJob(job) {
     const panel = el("spanJobPanel"); if (!panel) return;
     const rows = (job.results || []).map((row,index) => '<tr><td>'+(index+1)+'</td><td dir="ltr">'+esc(row.phone || row.peer_id || "")+'</td><td>'+esc(row.name)+'</td><td>'+esc(({success:"موفق",error:"ناموفق",unknown:"نامشخص؛ ارسال را تکرار نکنید"})[row.status] || row.status)+'</td><td>'+esc(row.detail || "")+'</td></tr>').join("");
-    const report = job.status === "completed" ? '<p><a class="btn btn-primary" href="'+BASE+selected+'/send/export/'+encodeURIComponent(job.job_id)+'">دانلود خروجی Excel</a></p>' : "";
+    const report = job.status === "completed" ? '<div class="span-actions"><a class="btn btn-primary" href="'+BASE+selected+'/send/export/'+encodeURIComponent(job.job_id)+'">دانلود خروجی Excel</a></div>' : "";
     panel.innerHTML = '<h3>وضعیت: '+esc(job.status)+'</h3><p>'+esc(job.phase || "")+' — '+Number(job.progress || 0)+'% — کل: '+Number(job.total || 0)+' — پردازش‌شده: '+Number(job.processed || 0)+' — موفق: '+Number(job.success || 0)+' — ناموفق: '+Number(job.failed || 0)+' — نامشخص: '+Number(job.unknown || 0)+'</p><div style="height:10px;background:#e5e7eb;border-radius:8px;overflow:hidden"><div style="height:10px;width:'+Math.max(0,Math.min(100,Number(job.progress || 0)))+'%;background:#2563eb"></div></div>'+report+'<div style="overflow:auto;margin-top:16px"><table style="width:100%;min-width:650px"><thead><tr><th>ردیف</th><th>شماره تلفن / شناسه مخاطب</th><th>نام</th><th>وضعیت</th><th>توضیحات</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
 })();
