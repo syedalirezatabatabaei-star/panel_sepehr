@@ -2051,6 +2051,7 @@ function renderBaleOutcome(message, imagePath, kind = "error") {
 }
 
 function handleBalePollEmergencyStop(jobId) {
+    window.__baleSending = false;
     const statusElement = document.getElementById("baleProgressStatus");
     if (statusElement) statusElement.textContent = "توقف اضطراری: پس از ۵ تلاش ناموفق، بررسی خودکار وضعیت متوقف شد.";
     renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "/dashboard/img/patrik.jpg", "error");
@@ -2064,6 +2065,7 @@ function handleBalePollEmergencyStop(jobId) {
 }
 
 function handleBaleCompleted(data) {
+    window.__baleSending = false;
     const total = Number(data.total || 0);
     const results = Array.isArray(data.results) ? data.results : [];
     const counts = getBaleResultCounts(results);
@@ -2104,6 +2106,7 @@ function handleBaleCompleted(data) {
 }
 
 function handleBaleFailed(data) {
+    window.__baleSending = false;
     const statusElement = document.getElementById("baleProgressStatus");
     if (statusElement) statusElement.textContent = data.message || data.error || "پردازش با خطا متوقف شد.";
     renderBaleResults(data.results || []);
