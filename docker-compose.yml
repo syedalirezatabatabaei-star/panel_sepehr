@@ -26,6 +26,10 @@ services:
       EITAA_SEND_WEBHOOK_URL: ${EITAA_SEND_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/}
       EITAA_CREATE_CHAT_WEBHOOK_URL: ${EITAA_CREATE_CHAT_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/}
       EITAA_SERVICE_URL: ${EITAA_SERVICE_URL:-http://eitaa-service:1234}
+      GOOMNI_URL: ${GOOMNI_URL:-http://goomni:3000}
+      GOOMNI_BASIC_AUTH: ${GOOMNI_BASIC_AUTH:?Set GOOMNI_BASIC_AUTH in server-side .env}
+      RUBIKA_DEVICE_ID: ${RUBIKA_DEVICE_ID:-sepehr-rubika}
+      RUBIKA_STATE_DIR: /app/data/rubika-state
       EITAA_STATE_DIR: /app/data/eitaa-state
       EITAA_MEDIA_DIR: /shared/eitaa-media
       PYTHONDONTWRITEBYTECODE: "1"
@@ -36,6 +40,7 @@ services:
       - "8005:8005"
     volumes:
       - eitaa-media-shared:/shared/eitaa-media
+      - rubika-state:/app/data/rubika-state
       - /var/lib/docker/containers:/host-docker-containers:ro
     command: ["/app/start.sh"]
     healthcheck:
@@ -51,6 +56,8 @@ networks:
     name: internal_net
 
 volumes:
+  rubika-state:
+    name: rubika-state
   eitaa-media-shared:
     external: true
     name: eitaa-media-shared

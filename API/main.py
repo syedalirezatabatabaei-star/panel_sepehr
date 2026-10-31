@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from API.registration_admin import router as registration_router
 from API.bale_api import router as bale_router
 from API.eitaa_api import router as eitaa_router
+from API.rubika_api import router as rubika_router
 from API.auth import router as auth_router, get_user_from_session
 from API.admin import router as admin_router
 from API.permissions import has_permission
@@ -93,6 +94,8 @@ async def require_authenticated_api_requests(request: Request, call_next):
         required_permission = "bale.personal_message"
     elif request.method == "POST" and path_lower == "/api/eitaa/send":
         required_permission = "eitaa.personal_message"
+    elif path_lower.startswith("/api/rubika/"):
+        required_permission = "rubika.personal_message"
     # Chat service and n8n webhook calls must pass through this authenticated
     # gateway so users cannot bypass chat read/write permissions via port 3000/3001.
     elif path_lower.startswith("/api/chat/bale/") or path_lower == "/api/chat/bale":
@@ -167,6 +170,7 @@ app.include_router(admin_router)
 app.include_router(permissions_admin_router)
 app.include_router(bale_router)
 app.include_router(eitaa_router)
+app.include_router(rubika_router)
 app.include_router(registration_router)
 app.include_router(chat_proxy_router)
 app.include_router(panel_admin_router)

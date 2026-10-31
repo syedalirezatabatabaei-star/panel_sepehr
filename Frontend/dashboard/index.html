@@ -80,19 +80,19 @@
 
     <nav class="sidebar-nav">
       <div class="sidebar-section-title">منوی اصلی</div>
-      <button class="sidebar-item" onclick="if (!guardFeature('bale.personal_message')) return; openBaleMessaging()">
+      <button class="sidebar-item" onclick="openPersonalMessaging()">
         <span class="icon">&#9993;&#65039;</span>
-        <span>ارسال پیام شخصی </span>
-        <span class="badge">بله</span>
+        <span>ارسال پیام شخصی</span>
+        <span class="badge">API</span>
       </button>
 
-            <button class="sidebar-item" onclick="if (!guardFeature('eitaa.personal_message')) return; openEitaaBroadcast()">
+            <button class="sidebar-item" hidden onclick="if (!guardFeature('eitaa.personal_message')) return; openEitaaBroadcast()">
         <span class="icon">&#9993;&#65039;</span>
         <span>ارسال پیام شخصی ایتا </span>
         <span class="badge">ایتا</span>
       </button>
 
-      <button class="sidebar-item" onclick="if (!guardFeature('rubika.personal_message')) return; openRubikaPersonalMessage()">
+      <button class="sidebar-item" hidden onclick="if (!guardFeature('rubika.personal_message')) return; openRubikaPersonalMessage()">
         <span class="icon">&#9993;&#65039;</span>
         <span>ارسال پیام شخصی روبیکا</span>
         <span class="badge">روبیکا</span>
@@ -236,7 +236,7 @@
 <script src="./js/app.js?v=20261024-header-notifications-users-logout"></script>
 <script src="./js/bale.js"></script>
 <script src="./js/eitaa-broadcast.js?v=20261024-membership-status"></script>
-<script src="./js/rubika-broadcast.js"></script>
+<script src="./js/rubika-broadcast.js?v=20261031-goomni-rubika"></script>
 <script src="./js/bale-UI.js?v=20261024-bale-chat-init-fix"></script>
 <script src="./js/eita-ui.js"></script>
 <script src="./js/settings.js?v=20261024-chat-access-ui-fix"></script>

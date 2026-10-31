@@ -2,7 +2,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-ENV EITAA_SERVICE_URL=http://eitaa-service:1234 \
+ENV GOOMNI_URL=http://goomni:3000 \
+    RUBIKA_STATE_DIR=/app/data/rubika-state \
+    EITAA_SERVICE_URL=http://eitaa-service:1234 \
     EITAA_STATE_DIR=/app/data/eitaa-state \
     EITAA_MEDIA_DIR=/shared/eitaa-media \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -19,7 +21,7 @@ RUN pip install --no-cache-dir -r /app/API/requirements.txt
 COPY . /app
 
 RUN chmod +x /app/start.sh \
-    && mkdir -p /app/data/eitaa-state /root/eitaSessions /shared/eitaa-media
+    && mkdir -p /app/data/eitaa-state /app/data/rubika-state /root/eitaSessions /shared/eitaa-media
 
 EXPOSE 8085 8005
 
