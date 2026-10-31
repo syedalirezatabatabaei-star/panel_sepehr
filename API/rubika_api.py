@@ -2,6 +2,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import threading
 import time
 import uuid
@@ -16,7 +17,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 router = APIRouter(prefix="/api/rubika", tags=["Rubika personal messaging"])
-GOOMNI_URL = os.getenv("GOOMNI_URL", "http://goomni:3000").rstrip("/")
+GOOMNI_URL = os.getenv("GOOMNI_URL", "http://eita-rubika-bale:3000").rstrip("/")
 GOOMNI_AUTH = os.getenv("GOOMNI_BASIC_AUTH", "")
 DEVICE_ID = os.getenv("RUBIKA_DEVICE_ID", "sepehr-rubika")
 STATE_DIR = Path(os.getenv("RUBIKA_STATE_DIR", "/app/data/rubika-state"))
@@ -213,18 +214,20 @@ def _load_recipients(path):
     wb = load_workbook(path, read_only=True, data_only=True)
     ws = wb.active
     headers = [str(cell.value or "").strip().lower() for cell in ws[1]]
-    phone_names = {"phone", "mobile", "number", "شماره", "شماره تلفن", "موبایل", "تلفن", "شماره همراه"}
+    peer_names = {"peer_id", "rubika_id", "user_guid", "user_id", "guid", "شناسه", "شناسه کاربری", "شناسه روبیکا", "آیدی روبیکا", "شناسه کاربر"}
     name_names = {"name", "firstname", "first name", "نام", "نام مخاطب"}
-    phone_col = next((i + 1 for i, value in enumerate(headers) if value in phone_names), 1)
+    peer_col = next((i + 1 for i, value in enumerate(headers) if value in peer_names), 1)
     name_col = next((i + 1 for i, value in enumerate(headers) if value in name_names), 2)
-    start_row = 2 if any(value in phone_names for value in headers) else 1
+    start_row = 2 if any(value in peer_names for value in headers) else 1
     recipients, seen = [], set()
     for row in range(start_row, ws.max_row + 1):
-        phone = _phone(ws.cell(row, phone_col).value)
+        peer_id = str(ws.cell(row, peer_col).value or "").strip()
+        if not re.fullmatch(r"u0[A-Za-z0-9]{1,126}", peer_id):
+            continue
         name = str(ws.cell(row, name_col).value or "").strip() if name_col <= ws.max_column else ""
-        if phone and phone not in seen:
-            seen.add(phone)
-            recipients.append({"phone": phone, "name": name or phone})
+        if peer_id not in seen:
+            seen.add(peer_id)
+            recipients.append({"peer_id": peer_id, "name": name or peer_id})
     wb.close()
     return recipients
 
@@ -234,7 +237,7 @@ def _write_report(job_id, results):
     wb = Workbook()
     ws = wb.active
     ws.title = "نتایج"
-    headers = ["ردیف", "شماره", "نام", "وضعیت پیام", "توضیحات"]
+    headers = ["ردیف", "شناسه روبیکا", "نام", "وضعیت پیام", "توضیحات"]
     ws.append(headers)
     for cell in ws[1]:
         cell.fill = PatternFill("solid", fgColor="1F4E79")
@@ -242,7 +245,7 @@ def _write_report(job_id, results):
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     for index, item in enumerate(results, 1):
         label = {"success": "موفق", "unknown": "نامشخص (ارسال را تکرار نکنید)", "error": "ناموفق"}.get(item.get("status"), "نامشخص")
-        ws.append([index, item.get("phone", ""), item.get("name", ""), label, item.get("detail", "")])
+        ws.append([index, item.get("peer_id", ""), item.get("name", ""), label, item.get("detail", "")])
     for col, width in {"A": 8, "B": 22, "C": 24, "D": 28, "E": 65}.items():
         ws.column_dimensions[col].width = width
     ws.freeze_panes = "A2"
@@ -259,27 +262,28 @@ def _write_report(job_id, results):
 
 def _send_one(instance, target, message, media_path, media_kind):
     key = str(uuid.uuid4())
+    peer = {"type": "user", "id": target["peer_id"]}
     if not media_path:
         result = _request("POST", "/send/message", instance_id=instance, idempotency_key=key,
-                          json={"phone": target["phone"], "message": message})
+                          json={"peer": peer, "message": message})
     else:
         mime = mimetypes.guess_type(media_path.name)[0] or "application/octet-stream"
         field = media_kind
         with media_path.open("rb") as handle:
             result = _request("POST", "/send/" + media_kind, instance_id=instance, idempotency_key=key,
-                             data={"phone": target["phone"], "caption": message},
-                             files={field: (media_path.name, handle, mime)})
+                              data={"peer": json.dumps(peer, ensure_ascii=False), "caption": message},
+                              files={field: (media_path.name, handle, mime)})
     send_id = result.get("send_id") or result.get("id")
     state = str(result.get("state") or result.get("status") or "").lower()
     if state in {"succeeded", "success", "message sent"}:
         return "success", "پیام توسط Gateway تأیید شد"
     if not send_id:
-        return ("unknown", "پاسخ Gateway شناسه عملیات نداشت؛ برای جلوگیری از ارسال تکراری بررسی دستی لازم است")
+        return "unknown", "پاسخ Gateway شناسه عملیات نداشت؛ برای جلوگیری از ارسال تکراری بررسی دستی لازم است"
     deadline = time.monotonic() + 45
     while time.monotonic() < deadline:
         operation = _request("GET", f"/send/operations/{send_id}", instance_id=instance)
         state = str(operation.get("state") or operation.get("status") or "").lower()
-        if state == "succeeded" or state == "message sent":
+        if state in {"succeeded", "message sent"}:
             return "success", "پیام ارسال شد"
         if state in {"failed", "rejected"}:
             return "error", str(operation.get("error_message") or operation.get("error_code") or "Gateway ارسال را رد کرد")
@@ -295,9 +299,9 @@ def _run_job(job_id, recipients, message, media_path, media_kind, delay, instanc
         JOBS[job_id]["status"] = "running"
         JOBS[job_id]["phase"] = "در حال ارسال پیام"
     for index, target in enumerate(recipients, 1):
-        row = {"phone": target["phone"], "name": target["name"], "status": "error", "detail": ""}
+        row = {"peer_id": target["peer_id"], "name": target["name"], "status": "error", "detail": ""}
         with JOBS_LOCK:
-            JOBS[job_id]["current"] = target["phone"]
+            JOBS[job_id]["current"] = target["peer_id"]
             JOBS[job_id]["processed"] = index - 1
             JOBS[job_id]["progress"] = int((index - 1) * 100 / max(1, len(recipients)))
             JOBS[job_id]["phase"] = "در حال ارسال به مخاطب " + str(index)
@@ -349,7 +353,7 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
         excel_path.write_bytes(await excel.read())
         recipients = _load_recipients(excel_path)
         if not recipients:
-            raise HTTPException(400, "هیچ شماره معتبر و تکرارنشده‌ای در فایل پیدا نشد")
+            raise HTTPException(400, "هیچ شناسه معتبر و تکرارنشده روبیکا (u0...) در فایل Excel پیدا نشد")
         if len(recipients) > 5000:
             raise HTTPException(400, "حداکثر ۵۰۰۰ مخاطب در هر نوبت مجاز است")
         media_kind = None
