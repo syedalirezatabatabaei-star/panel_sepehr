@@ -7,7 +7,6 @@ PERMISSION_CATALOG = [
     {"code":"bale.personal_message","group":"پیام‌رسانی","label":"استفاده از ارسال پیام شخصی بله","mode":"toggle"},
     {"code":"eitaa.personal_message","group":"پیام‌رسانی","label":"استفاده از ارسال پیام شخصی ایتا","mode":"toggle"},
     {"code":"rubika.personal_message","group":"پیام‌رسانی","label":"استفاده از ارسال پیام شخصی روبیکا","mode":"toggle"},
-    {"code":"rubika.personal_message","group":"پیام‌رسانی","label":"استفاده از ارسال پیام شخصی روبیکا","mode":"toggle"},
     {"code":"bale.chats","group":"چت‌ها","label":"صفحه چت‌های بله","mode":"read_write"},
     {"code":"eitaa.chats","group":"چت‌ها","label":"صفحه چت‌های ایتا","mode":"read_write"},
     {"code":"users","group":"مدیریت","label":"مدیریت کاربران","mode":"read_write"},
