@@ -530,6 +530,11 @@ def _report(job):
 
 def _run_job(job_id, targets, message, media_path, media_type, delay):
     job = _get_job(job_id)
+    # A queued worker can start after logout has already cancelled its job.
+    if job.get("status") == "cancelled":
+        if media_path:
+            media_path.unlink(missing_ok=True)
+        return
     job["status"], job["phase"] = "running", "در حال ارسال"
     _save_job(job)
     results = []
