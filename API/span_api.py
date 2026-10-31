@@ -305,6 +305,13 @@ def _get_job(job_id):
             return JOBS[job_id]
         try:
             job = json.loads(_job_path(job_id).read_text(encoding="utf-8"))
+            # Never resume a broadcast automatically after a process restart:
+            # the last recipient may have been accepted while its response was lost.
+            if job.get("status") in {"queued", "running"}:
+                job["status"] = "interrupted"
+                job["phase"] = "فرایند متوقف شد؛ نتیجه مخاطب جاری را قبل از هر ارسال مجدد بررسی کنید"
+                job["interrupted_at"] = datetime.now().isoformat(timespec="seconds")
+                _save_job(job)
             JOBS[job_id] = job
             return job
         except (OSError, ValueError):
