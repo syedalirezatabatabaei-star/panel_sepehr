@@ -306,41 +306,62 @@ def _recipients(path, p):
         sheet = workbook.active
         headers = [str(c.value or "").strip().lower() for c in sheet[1]]
         peer_headers = {"peer_id", "user_id", "guid", "شناسه", "شناسه کاربری", "شناسه مخاطب"}
+        phone_headers = {"phone", "mobile", "phone_number", "mobile_number", "شماره", "شماره موبایل", "شماره‌موبایل", "شماره همراه", "شماره‌همراه", "تلفن"}
         name_headers = {"name", "نام", "نام مخاطب"}
         type_headers = {"peer_type", "type", "نوع", "نوع مخاطب"}
-        peer_col = next((i + 1 for i, x in enumerate(headers) if x in peer_headers), 1)
+        peer_col = next((i + 1 for i, x in enumerate(headers) if x in peer_headers), None)
+        phone_col = next((i + 1 for i, x in enumerate(headers) if x in phone_headers), None)
         name_col = next((i + 1 for i, x in enumerate(headers) if x in name_headers), None)
         type_col = next((i + 1 for i, x in enumerate(headers) if x in type_headers), None)
-        has_header = any(x in peer_headers for x in headers)
+        has_header = any(x in (peer_headers | phone_headers | name_headers | type_headers) for x in headers)
+        if p == "bale" and phone_col is None and peer_col is None:
+            raise ValueError("برای ارسال بله با شماره تلفن، فایل Excel باید ستون phone یا «شماره موبایل» داشته باشد؛ ستون peer_id فقط برای شناسه مخاطب است")
+        if p != "bale" and peer_col is None:
+            raise ValueError("فایل Excel باید ستون peer_id برای شناسه مخاطب داشته باشد")
         targets, seen = [], set()
         for row in sheet.iter_rows(min_row=2 if has_header else 1, values_only=True):
-            raw = row[peer_col - 1] if len(row) >= peer_col else None
-            peer_id = str(raw or "").strip()
-            if not peer_id or len(peer_id) > 256:
-                continue
-            peer_type = str(row[type_col - 1] if type_col and len(row) >= type_col else "user").strip().lower()
-            if peer_type not in {"user", "group", "channel"}:
-                continue
-            if p == "rubika":
-                if peer_type != "user":
-                    raise ValueError("در نسخه فعلی Span API، ارسال روبیکا فقط به مخاطب user پشتیبانی می‌شود")
-                if not re.fullmatch(r"u0[A-Za-z0-9]{1,126}", peer_id):
-                    raise ValueError("شناسه مخاطب روبیکا باید GUID معتبر با پیشوند u0 باشد؛ شماره تلفن یا username قابل ارسال نیست")
-            elif p == "bale":
-                if peer_type not in {"user", "group", "channel"} or not re.fullmatch(r"[1-9][0-9]{0,9}", peer_id) or int(peer_id) > 4294967295:
-                    raise ValueError("شناسه مخاطب بله باید عدد مثبت uint32 باشد")
-            elif p == "eitaa":
-                valid_eitaa = re.fullmatch(r"[1-9][0-9]{0,18}", peer_id)
-                valid_eitaa_group = peer_type == "group" and re.fullmatch(r"channel_[1-9][0-9]{0,18}", peer_id)
-                if not (valid_eitaa or valid_eitaa_group):
-                    raise ValueError("شناسه مخاطب ایتا باید عدد مثبت باشد؛ گروه‌های سوپرگروه با channel_ و سپس عدد ثبت می‌شوند")
-            if peer_type == "user" and peer_id.startswith("channel_"):
-                raise ValueError("شناسه channel_ نباید با نوع user ارسال شود")
             name = str(row[name_col - 1] or "").strip() if name_col and len(row) >= name_col else ""
-            key = (peer_type, peer_id)
-            if key not in seen:
-                seen.add(key)
-                targets.append({"peer": {"type": peer_type, "id": peer_id}, "name": name or peer_id})
+            if p == "bale" and phone_col is not None:
+                raw_phone = row[phone_col - 1] if len(row) >= phone_col else None
+                if raw_phone is None or str(raw_phone).strip() == "":
+                    continue
+                if isinstance(raw_phone, float) and raw_phone.is_integer():
+                    raw_phone = int(raw_phone)
+                try:
+                    phone = normalize_login_phone("bale", raw_phone)
+                except HTTPException as exc:
+                    raise ValueError("شماره موبایل نامعتبر در فایل Excel: " + str(exc.detail))
+                key = ("phone", phone)
+                if key not in seen:
+                    seen.add(key)
+                    targets.append({"phone": phone, "name": name or phone})
+            else:
+                raw = row[peer_col - 1] if peer_col and len(row) >= peer_col else None
+                peer_id = str(raw or "").strip()
+                if not peer_id or len(peer_id) > 256:
+                    continue
+                peer_type = str(row[type_col - 1] if type_col and len(row) >= type_col else "user").strip().lower()
+                if peer_type not in {"user", "group", "channel"}:
+                    continue
+                if p == "rubika":
+                    if peer_type != "user":
+                        raise ValueError("در نسخه فعلی Span API، ارسال روبیکا فقط به مخاطب user پشتیبانی می‌شود")
+                    if not re.fullmatch(r"u0[A-Za-z0-9]{1,126}", peer_id):
+                        raise ValueError("شناسه مخاطب روبیکا باید GUID معتبر با پیشوند u0 باشد؛ شماره تلفن یا username قابل ارسال نیست")
+                elif p == "bale":
+                    if peer_type not in {"user", "group", "channel"} or not re.fullmatch(r"[1-9][0-9]{0,9}", peer_id) or int(peer_id) > 4294967295:
+                        raise ValueError("شناسه مخاطب بله باید عدد مثبت uint32 باشد؛ یا برای ارسال مستقیم از ستون phone استفاده کنید")
+                elif p == "eitaa":
+                    valid_eitaa = re.fullmatch(r"[1-9][0-9]{0,18}", peer_id)
+                    valid_eitaa_group = peer_type == "group" and re.fullmatch(r"channel_[1-9][0-9]{0,18}", peer_id)
+                    if not (valid_eitaa or valid_eitaa_group):
+                        raise ValueError("شناسه مخاطب ایتا باید عدد مثبت باشد؛ گروه‌های سوپرگروه با channel_ و سپس عدد ثبت می‌شوند")
+                if peer_type == "user" and peer_id.startswith("channel_"):
+                    raise ValueError("شناسه channel_ نباید با نوع user ارسال شود")
+                key = (peer_type, peer_id)
+                if key not in seen:
+                    seen.add(key)
+                    targets.append({"peer": {"type": peer_type, "id": peer_id}, "name": name or peer_id})
             if len(targets) > MAX_RECIPIENTS:
                 raise ValueError(f"حداکثر {MAX_RECIPIENTS} مخاطب در هر ارسال مجاز است")
         return targets
@@ -376,21 +397,24 @@ def _get_job(job_id):
 
 
 def _send_one(p, instance_id, target, message, media_path, media_type, key):
-    peer = target["peer"]
+    recipient = {"phone": target["phone"]} if target.get("phone") else {"peer": target["peer"]}
     if media_path:
         mime = mimetypes.guess_type(media_path.name)[0] or "application/octet-stream"
         with media_path.open("rb") as stream:
+            form_data = {**recipient, "caption": message}
+            if "peer" in form_data:
+                form_data["peer"] = json.dumps(form_data["peer"], ensure_ascii=False)
             result = _request(
                 p, "POST", "/send/" + media_type, instance_id=instance_id,
                 idempotency_key=key, expected=(200, 202),
-                data={"peer": json.dumps(peer, ensure_ascii=False), "caption": message},
+                data=form_data,
                 files={media_type: (media_path.name, stream, mime)},
             )
     else:
         result = _request(
             p, "POST", "/send/message", instance_id=instance_id,
             idempotency_key=key, expected=(200, 202),
-            json={"peer": peer, "message": message},
+            json={**recipient, "message": message},
         )
     send_id = result.get("send_id")
     state = str(result.get("state") or "").lower()
@@ -415,13 +439,13 @@ def _report(job):
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "نتایج"
-    sheet.append(["ردیف", "پیام‌رسان", "شناسه مخاطب", "نوع مخاطب", "نام", "وضعیت", "شناسه عملیات", "توضیحات"])
+    sheet.append(["ردیف", "پیام‌رسان", "شماره تلفن / شناسه مخاطب", "نوع مخاطب", "نام", "وضعیت", "شناسه عملیات", "توضیحات"])
     for cell in sheet[1]:
         cell.fill = PatternFill("solid", fgColor="1F4E79")
         cell.font = Font(color="FFFFFF", bold=True)
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     for index, row in enumerate(job["results"], 1):
-        sheet.append([index, job["provider"], row["peer_id"], row["peer_type"], row["name"], row["status"], row.get("send_id") or "", row.get("detail") or ""])
+        sheet.append([index, job["provider"], row.get("phone") or row.get("peer_id") or "", row["peer_type"], row["name"], row["status"], row.get("send_id") or "", row.get("detail") or ""])
     for col, width in {"A": 8, "B": 14, "C": 34, "D": 14, "E": 24, "F": 18, "G": 38, "H": 60}.items():
         sheet.column_dimensions[col].width = width
     sheet.freeze_panes = "A2"
@@ -440,8 +464,10 @@ def _run_job(job_id, targets, message, media_path, media_type, delay):
     _save_job(job)
     results = []
     for index, target in enumerate(targets, 1):
-        peer = target["peer"]
-        row = {"peer_id": peer["id"], "peer_type": peer["type"], "name": target["name"], "status": "error"}
+        peer = target.get("peer") or {}
+        row = {"peer_id": peer.get("id", ""), "phone": target.get("phone", ""),
+               "peer_type": peer.get("type", "user") if peer else "user",
+               "name": target["name"], "status": "error"}
         try:
             row.update(_send_one(job["provider"], job["instance_id"], target, message, media_path, media_type,
                                  f"sepehr-span-{job_id}-{index}"))
