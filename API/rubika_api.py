@@ -352,8 +352,7 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
         media_kind = None
         if media and media.filename:
             suffix = Path(media.filename).suffix.lower()
-            allowed = {".jpg": "image", ".jpeg": "image", ".png": "image", ".webp": "image",
-                       ".gif": "image", ".mp4": "video", ".mov": "video", ".m4v": "video",
+            allowed = {".jpg": "image", ".jpeg": "image", ".png": "image", ".mp4": "video",
                        ".pdf": "file", ".doc": "file", ".docx": "file"}
             if suffix not in allowed:
                 raise HTTPException(400, "فرمت رسانه پشتیبانی نمی‌شود")
