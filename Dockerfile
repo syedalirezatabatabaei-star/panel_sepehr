@@ -16,7 +16,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY API/requirements.txt /app/API/requirements.txt
-RUN pip install --no-cache-dir -r /app/API/requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir --index-url https://pypi.org/simple -r /app/API/requirements.txt
 
 COPY . /app
 
