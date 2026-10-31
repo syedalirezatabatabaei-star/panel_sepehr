@@ -26,7 +26,7 @@ services:
       EITAA_SEND_WEBHOOK_URL: ${EITAA_SEND_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/}
       EITAA_CREATE_CHAT_WEBHOOK_URL: ${EITAA_CREATE_CHAT_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/}
       EITAA_SERVICE_URL: ${EITAA_SERVICE_URL:-http://eitaa-service:1234}
-      GOOMNI_URL: ${GOOMNI_URL:-http://eita-rubika-bale:3000}
+      GOOMNI_URL: ${GOOMNI_URL:-http://eita-rubika-bale:1598}
       GOOMNI_BASIC_AUTH: ${GOOMNI_BASIC_AUTH:?Set GOOMNI_BASIC_AUTH in server-side .env}
       RUBIKA_DEVICE_ID: ${RUBIKA_DEVICE_ID:-sepehr-rubika}
       RUBIKA_STATE_DIR: /app/data/rubika-state
