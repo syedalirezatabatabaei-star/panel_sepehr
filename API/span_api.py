@@ -51,6 +51,35 @@ def provider(value):
     if key not in DEVICES:
         raise HTTPException(404, "پیام‌رسان Span API معتبر نیست")
     return key
+    
+def normalize_login_phone(p, value):
+    raw = str(value or "").strip()
+    digits = []
+    for char in raw:
+        if "0" <= char <= "9":
+            digits.append(char)
+        elif "۰" <= char <= "۹":
+            digits.append(str(ord(char) - ord("۰")))
+        elif "٠" <= char <= "٩":
+            digits.append(str(ord(char) - ord("٠")))
+        elif char in "+-() \\t":
+            continue
+        else:
+            raise HTTPException(422, "شماره تلفن فقط باید شامل رقم و جداکننده‌های معمول باشد")
+    phone = "".join(digits)
+    if phone.startswith("00"):
+        phone = phone[2:]
+    if p == "eitaa":
+        if len(phone) == 11 and phone.startswith("09"):
+            phone = "98" + phone[1:]
+        elif len(phone) == 10 and phone.startswith("9"):
+            phone = "98" + phone
+        if not (7 <= len(phone) <= 15) or phone.startswith("0"):
+            raise HTTPException(422, "برای ورود ایتا شماره را بین‌المللی وارد کنید؛ نمونه: 98912xxxxxxx")
+    elif not (8 <= len(phone) <= 16):
+        raise HTTPException(422, "شماره تلفن معتبر نیست")
+    return phone
+
 
 
 def _device(p):
@@ -173,9 +202,7 @@ def account_status(provider_name: str):
 @router.post("/{provider_name}/auth/send-code")
 def send_code(provider_name: str, payload: dict):
     p = provider(provider_name)
-    phone = str(payload.get("phone") or "").strip()
-    if not re.fullmatch(r"\+?[0-9۰-۹٠-٩]{8,16}", phone):
-        raise HTTPException(422, "شماره تلفن معتبر نیست")
+    phone = normalize_login_phone(p, payload.get("phone"))
     instance_id = _instance(p)
     result = _request(
         p, "POST", f"/devices/{_device(p)}/login",
@@ -275,8 +302,19 @@ def _recipients(path, p):
             peer_type = str(row[type_col - 1] if type_col and len(row) >= type_col else "user").strip().lower()
             if peer_type not in {"user", "group", "channel"}:
                 continue
-            if p == "rubika" and peer_type != "user":
-                raise ValueError("در نسخه فعلی Span API، ارسال روبیکا فقط به مخاطب user پشتیبانی می‌شود")
+            if p == "rubika":
+                if peer_type != "user":
+                    raise ValueError("در نسخه فعلی Span API، ارسال روبیکا فقط به مخاطب user پشتیبانی می‌شود")
+                if not re.fullmatch(r"u0[A-Za-z0-9]{1,126}", peer_id):
+                    raise ValueError("شناسه مخاطب روبیکا باید GUID معتبر با پیشوند u0 باشد؛ شماره تلفن یا username قابل ارسال نیست")
+            elif p == "bale":
+                if peer_type not in {"user", "group", "channel"} or not re.fullmatch(r"[1-9][0-9]{0,9}", peer_id) or int(peer_id) > 4294967295:
+                    raise ValueError("شناسه مخاطب بله باید عدد مثبت uint32 باشد")
+            elif p == "eitaa":
+                valid_eitaa = re.fullmatch(r"[1-9][0-9]{0,18}", peer_id)
+                valid_eitaa_group = peer_type == "group" and re.fullmatch(r"channel_[1-9][0-9]{0,18}", peer_id)
+                if not (valid_eitaa or valid_eitaa_group):
+                    raise ValueError("شناسه مخاطب ایتا باید عدد مثبت باشد؛ گروه‌های سوپرگروه با channel_ و سپس عدد ثبت می‌شوند")
             if peer_type == "user" and peer_id.startswith("channel_"):
                 raise ValueError("شناسه channel_ نباید با نوع user ارسال شود")
             name = str(row[name_col - 1] or "").strip() if name_col and len(row) >= name_col else ""
