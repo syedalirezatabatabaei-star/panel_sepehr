@@ -1917,7 +1917,7 @@ function getBaleResultCounts(results) {
     return counts;
 }
 
-async function pollBaleProgress(jobId) {
+async async function pollBaleProgress(jobId) {
     if (!jobId) {
         console.error("[BALE POLL] jobId is missing.");
         return;
