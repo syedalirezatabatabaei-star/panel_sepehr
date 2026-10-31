@@ -170,11 +170,29 @@ def _request(p, method, path, *, instance_id=None, idempotency_key=None, expecte
     return result
 
 
+def _device_items(payload):
+    """Normalize GoOmni's list envelope across supported response shapes."""
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("results", "devices", "items"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return value
+    return []
+
+
+def _new_device_alias(p):
+    # Never reuse an alias whose previous account lifetime was deleted.
+    return f"sepehr-span-{p}-{uuid.uuid4().hex[:16]}"
+
+
 def _ensure_device(p):
     alias = _device(p)
     devices = _request(p, "GET", "/devices")
-    items = devices if isinstance(devices, list) else devices.get("devices", []) if isinstance(devices, dict) else []
-    found = next((x for x in items if str(x.get("id") or x.get("device_id")) == alias), None)
+    items = _device_items(devices)
+    found = next((x for x in items if isinstance(x, dict)
+                  and str(x.get("id") or x.get("device_id")) == alias), None)
     if found:
         actual = str(found.get("provider") or "").lower()
         if actual and actual != p:
@@ -190,8 +208,33 @@ def _ensure_device(p):
 
 def _instance(p):
     saved = _read_account(p)
-    if saved.get("instance_id") and saved.get("device_id") == _device(p):
-        return str(saved["instance_id"])
+    alias = _device(p)
+    saved_instance = str(saved.get("instance_id") or "")
+
+    # A locally cached instance_id is not proof that the remote device still
+    # exists. Logout/deletion may have happened outside this panel. Reconcile
+    # against GoOmni's device list before using the cached reference.
+    if saved_instance and saved.get("device_id") == alias:
+        devices = _request(p, "GET", "/devices")
+        found = next((x for x in _device_items(devices)
+                      if isinstance(x, dict)
+                      and str(x.get("id") or x.get("device_id")) == alias), None)
+        if found:
+            actual = str(found.get("provider") or "").lower()
+            if actual and actual != p:
+                raise HTTPException(409, "این شناسه دستگاه در GoOmni متعلق به پیام‌رسان دیگری است")
+            remote_instance = str(found.get("instance_id") or found.get("instanceId") or "")
+            if not remote_instance or remote_instance == saved_instance:
+                return saved_instance
+            LOG.info("GoOmni instance changed for provider=%s; rotating stale local device reference", p)
+        else:
+            LOG.info("GoOmni device missing for provider=%s; provisioning a fresh device", p)
+
+        # Do not retry a prior operation against a replacement account. Rotate
+        # the alias and provision a new, independent device lifetime.
+        saved = {"provider": p, "device_id": _new_device_alias(p)}
+        _write_account(p, saved)
+
     device_data = _ensure_device(p)
     value = device_data.get("instance_id") or device_data.get("instanceId")
     if not value:
