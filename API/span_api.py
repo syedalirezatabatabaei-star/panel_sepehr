@@ -62,14 +62,26 @@ def normalize_login_phone(p, value):
             digits.append(str(ord(char) - ord("۰")))
         elif "٠" <= char <= "٩":
             digits.append(str(ord(char) - ord("٠")))
-        elif char in "+-() \\t":
+        elif char in "+-()" or char.isspace():
             continue
         else:
             raise HTTPException(422, "شماره تلفن فقط باید شامل رقم و جداکننده‌های معمول باشد")
     phone = "".join(digits)
     if phone.startswith("00"):
         phone = phone[2:]
-    if p == "eitaa":
+    if p == "bale":
+        # Accept common Iranian input forms and send the canonical international
+        # number expected by GoOmni's Bale auth adapter.
+        if len(phone) == 11 and phone.startswith("09"):
+            phone = "98" + phone[1:]
+        elif len(phone) == 10 and phone.startswith("9"):
+            phone = "98" + phone
+        elif len(phone) == 13 and phone.startswith("980"):
+            # Users sometimes enter the national trunk zero after +98.
+            phone = "98" + phone[3:]
+        if not (8 <= len(phone) <= 15) or phone.startswith("0"):
+            raise HTTPException(422, "برای ورود بله شماره را به فرمت بین‌المللی وارد کنید؛ نمونه: 98912xxxxxxx")
+    elif p == "eitaa":
         if len(phone) == 11 and phone.startswith("09"):
             phone = "98" + phone[1:]
         elif len(phone) == 10 and phone.startswith("9"):
@@ -141,7 +153,14 @@ def _request(p, method, path, *, instance_id=None, idempotency_key=None, expecte
         raise HTTPException(503, "ارتباط با GoOmni برقرار نشد؛ نتیجه عملیات احتمالا نیازمند بررسی است")
     result = payload.get("results", payload.get("Results", payload)) if isinstance(payload, dict) else payload
     if response.status_code not in expected:
-        message = payload.get("message") or payload.get("detail") or payload.get("code") or "خطای GoOmni"
+        code = payload.get("code") if isinstance(payload, dict) else None
+        message = payload.get("message") or payload.get("detail") or code or "خطای GoOmni"
+        # Keep diagnostics useful without logging phone numbers, OTPs, tokens,
+        # request bodies, or authorization headers.
+        LOG.warning(
+            "GoOmni rejected request provider=%s method=%s path=%s status=%s code=%s",
+            p, method.upper(), path, response.status_code, str(code or "UNKNOWN")[:80],
+        )
         if isinstance(result, dict) and result.get("send_id"):
             raise GatewayOperationError(str(message), result)
         raise HTTPException(response.status_code, str(message)[:500])
