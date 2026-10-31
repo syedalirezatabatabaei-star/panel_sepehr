@@ -304,7 +304,10 @@ def _run_job(job_id, recipients, message, media_path, media_kind, delay, instanc
         try:
             row["status"], row["detail"] = _send_one(instance, target, message, media_path, media_kind)
         except HTTPException as exc:
-            row["status"], row["detail"] = "error", str(exc.detail)[:500]
+            # A gateway timeout can happen after the provider accepted the write.
+            # Keep it explicitly uncertain; never invite an automatic resend.
+            row["status"] = "unknown" if exc.status_code == 503 else "error"
+            row["detail"] = str(exc.detail)[:500]
         except Exception as exc:
             row["status"], row["detail"] = "error", (type(exc).__name__ + ": " + str(exc))[:500]
         results.append(row)
