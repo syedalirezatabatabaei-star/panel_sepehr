@@ -95,7 +95,10 @@ def normalize_login_phone(p, value):
 
 
 def _device(p):
-    return DEVICES[p]
+    # A device alias is immutable to one messenger account lifetime. After
+    # logout, the saved alias is rotated and a fresh GoOmni device is provisioned.
+    saved = _read_account(p)
+    return str(saved.get("device_id") or DEVICES[p])
 
 
 def _account_path(p):
@@ -180,7 +183,7 @@ def _ensure_device(p):
     return _request(
         p, "POST", "/devices",
         json={"device_id": alias, "provider": p},
-        idempotency_key="sepehr-span-provision-" + p + "-v1",
+        idempotency_key="sepehr-span-provision-" + alias,
         expected=(200, 201),
     )
 
@@ -220,25 +223,69 @@ def account_status(provider_name: str):
 
 @router.post("/{provider_name}/account/logout")
 def logout_account(provider_name: str):
-    """Log out only the selected provider while preserving its device instance."""
+    """Retire this account's GoOmni device so a later login gets a new identity."""
     p = provider(provider_name)
-    saved = _read_account(p)
-    instance_id = saved.get("instance_id")
+    with LOCK:
+        saved = _read_account(p)
+        old_device_id = str(saved.get("device_id") or DEVICES[p])
+        instance_id = str(saved.get("instance_id") or "")
+        remote_logout_warning = None
 
-    # GoOmni owns the actual provider session. Revoke it there before clearing
-    # the local phone/challenge mapping; never touch another provider's device.
-    if instance_id and (saved.get("phone") or saved.get("account_id")):
-        _request(
-            p, "POST", f"/devices/{_device(p)}/logout",
-            instance_id=str(instance_id), expected=(200, 202, 204),
-        )
+        # Stop local broadcasts first. GoOmni's DELETE endpoint also cancels
+        # queued operations/schedules and marks in-flight sends as unknown.
+        for job_file in JOBS_DIR.glob("*.json"):
+            try:
+                job = _get_job(job_file.stem)
+            except Exception:
+                continue
+            if (job.get("provider") == p
+                    and (not instance_id or job.get("instance_id") == instance_id)
+                    and job.get("status") in {"queued", "running"}):
+                job["status"] = "cancelled"
+                job["phase"] = "لغو شد؛ حساب پیام‌رسان خارج شد"
+                job["finished_at"] = datetime.now().isoformat(timespec="seconds")
+                _save_job(job)
 
-    _write_account(p, {
+        # Revoke the provider session where possible. Even when the provider
+        # cannot confirm revocation, retire the local device identity below;
+        # never reuse a device that may still be bound to the previous account.
+        if instance_id and (saved.get("phone") or saved.get("account_id")):
+            try:
+                _request(
+                    p, "POST", f"/devices/{old_device_id}/logout",
+                    instance_id=instance_id, expected=(200, 202, 204),
+                )
+            except HTTPException as exc:
+                remote_logout_warning = str(exc.detail)[:300]
+
+        if instance_id:
+            try:
+                _request(
+                    p, "DELETE", f"/devices/{old_device_id}",
+                    instance_id=instance_id, expected=(200, 204),
+                )
+            except HTTPException as exc:
+                if exc.status_code != 404:
+                    raise
+
+        # The next _instance() call provisions this new alias with a unique
+        # idempotency key. Other messenger account files remain untouched.
+        new_device_id = f"sepehr-span-{p}-{uuid.uuid4().hex[:16]}"
+        _write_account(p, {"provider": p, "device_id": new_device_id})
+
+    response = {
+        "success": True,
         "provider": p,
-        "device_id": _device(p),
-        **({"instance_id": str(instance_id)} if instance_id else {}),
-    })
-    return {"success": True, "provider": p, "message": "از حساب این پیام‌رسان خارج شدید"}
+        "retired_device_id": old_device_id,
+        "next_device_id": new_device_id,
+        "message": "از حساب این پیام‌رسان خارج شدید؛ ورود بعدی با دستگاه جدید انجام می‌شود",
+    }
+    if remote_logout_warning:
+        response["warning"] = (
+            "GoOmni دستگاه قبلی را بازنشسته کرد، اما تأیید خروج از سمت پیام‌رسان دریافت نشد؛ "
+            "وضعیت نشست قبلی باید جداگانه بررسی شود."
+        )
+    return response
 
 
 @router.post("/{provider_name}/auth/send-code")
@@ -487,6 +534,9 @@ def _run_job(job_id, targets, message, media_path, media_type, delay):
     _save_job(job)
     results = []
     for index, target in enumerate(targets, 1):
+        # Logout may cancel this worker while it is waiting between recipients.
+        if job.get("status") == "cancelled":
+            break
         peer = target.get("peer") or {}
         row = {"peer_id": peer.get("id", ""), "phone": target.get("phone", ""),
                "peer_type": peer.get("type", "user") if peer else "user",
@@ -518,8 +568,12 @@ def _run_job(job_id, targets, message, media_path, media_type, delay):
     except Exception:
         LOG.exception("Span report creation failed")
         job["report_path"] = None
-    job.update({"status": "completed", "progress": 100, "phase": "پایان یافت",
-                "finished_at": datetime.now().isoformat(timespec="seconds")})
+    if job.get("status") == "cancelled":
+        job["phase"] = "لغو شد؛ ارسال‌های باقی‌مانده اجرا نشدند"
+        job["finished_at"] = job.get("finished_at") or datetime.now().isoformat(timespec="seconds")
+    else:
+        job.update({"status": "completed", "progress": 100, "phase": "پایان یافت",
+                    "finished_at": datetime.now().isoformat(timespec="seconds")})
     _save_job(job)
     if media_path:
         media_path.unlink(missing_ok=True)
