@@ -32,12 +32,12 @@
       ".span-shell{max-width:1120px;margin:0 auto;padding:8px 4px 34px;direction:rtl}",
       ".span-hero{overflow:hidden;border:1px solid #e5eaf2;border-radius:22px;background:linear-gradient(135deg,#f8fbff,#eef4ff 58%,#fdf2f8);padding:26px 28px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:22px;min-height:140px}",
       ".span-hero-copy{max-width:650px}.span-hero h1,.span-hero h2{margin:0 0 9px;font-size:22px;font-weight:800;color:#172554}.span-hero p{margin:0;color:#64748b;line-height:1.9}",
-      ".span-hero-art,.span-auth-art{display:flex;align-items:center;justify-content:center;gap:9px;flex:0 0 auto}.span-hero-art img{width:78px;height:78px;object-fit:contain;filter:drop-shadow(0 8px 12px #33415520)}.span-hero-art img:last-child{width:94px;height:94px}",
+      ".span-result-art{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;margin:24px auto;padding:18px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;text-align:center}.span-result-art img{width:112px;height:112px;object-fit:contain;filter:drop-shadow(0 8px 12px #33415520)}.span-result-art p{margin:0;color:#334155;font-weight:700;line-height:1.8}",
       ".span-provider-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin:18px 0}.span-provider-card{min-height:108px;border:1px solid #e2e8f0;background:#fff;border-radius:17px;padding:18px;display:flex;align-items:center;gap:13px;text-align:right;cursor:pointer;transition:.18s;color:#0f172a}.span-provider-card:hover{transform:translateY(-3px);border-color:#93c5fd;box-shadow:0 12px 26px #0f172a0d}.span-provider-icon{width:46px;height:46px;border-radius:14px;background:#eff6ff;display:grid;place-items:center;font-size:22px;flex:0 0 auto}.span-provider-card strong{display:block;font-size:16px}.span-provider-card small{display:block;color:#64748b;margin-top:5px}",
       ".span-card{background:#fff;border:1px solid #e5eaf2;border-radius:19px;padding:23px;box-shadow:0 8px 24px #0f172a08;margin:17px 0}.span-card h3{margin:0 0 18px;color:#172554;font-size:18px}.span-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.span-field{display:flex;flex-direction:column;gap:8px;min-width:0}.span-field.span-wide{grid-column:1/-1}.span-field label{font-weight:700;color:#334155;font-size:13px}.span-field .form-control{width:100%;min-height:44px;border:1px solid #dbe3ef;border-radius:11px;padding:10px 12px;box-sizing:border-box}.span-field small{color:#64748b;line-height:1.8}",
       ".span-actions{display:flex;justify-content:center;align-items:center;gap:13px;flex-wrap:wrap;margin:25px auto 3px}.span-actions .btn{min-width:150px;min-height:44px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;margin:0!important}.span-btn-danger{background:#fff1f2!important;color:#be123c!important;border:1px solid #fecdd3!important}.span-btn-quiet{background:#f1f5f9!important;color:#334155!important;border:1px solid #e2e8f0!important}",
       ".span-account-pill{display:inline-flex;align-items:center;gap:8px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:700;direction:ltr;margin-top:12px}.span-account-dot{width:8px;height:8px;border-radius:50%;background:#10b981}",
-      ".span-auth-art{padding:2px 0 18px}.span-auth-art img{width:96px;height:96px;object-fit:contain;filter:drop-shadow(0 9px 12px #33415520)}.span-auth-art img:last-child{width:110px;height:110px}",
+      
       ".span-status{margin-top:14px;min-height:22px;color:#475569;line-height:1.8}.span-status.error{color:#be123c}.span-status.success{color:#047857}",
       ".span-job-table{width:100%;min-width:650px;border-collapse:collapse}.span-job-table th,.span-job-table td{padding:11px 12px;border-bottom:1px solid #e2e8f0;text-align:right;vertical-align:top}.span-job-table th{background:#f8fafc;color:#475569;font-size:12px}",
       "@media(max-width:720px){.span-hero{padding:18px;align-items:flex-start}.span-hero-art img{width:54px;height:54px}.span-hero-art img:last-child{width:65px;height:65px}.span-provider-grid{grid-template-columns:1fr}.span-form-grid{grid-template-columns:1fr}.span-field.span-wide{grid-column:auto}.span-card{padding:17px}.span-actions{flex-direction:column}.span-actions .btn{width:100%}}"
@@ -49,9 +49,8 @@
     return Object.keys(labels).filter(p => typeof window.canRead !== "function" || window.canRead(permission(p)))
       .map(p => '<button type="button" class="span-provider-card" data-span-provider="' + p + '"><span class="span-provider-icon">' + icons[p] + '</span><span><strong>' + labels[p] + '</strong><small>ورود و مدیریت حساب</small></span></button>').join("");
   }
-  function artMarkup() {
-    return '<div class="span-hero-art"><img src="./img/patrik.jpg" alt="پاتریک"><img src="./img/babesfanch.jpg" alt="باب اسفنجی"></div>';
-  }
+  // Character artwork is shown only after a job has completed.
+  function artMarkup() { return ""; }
   function setStatus(message, kind) {
     const node = el("spanAuthMessage");
     if (!node) return;
@@ -92,7 +91,7 @@
     const target = el("spanProviderContent");
     if (!target) return;
     target.innerHTML = '<section class="span-hero"><div class="span-hero-copy"><h2>ورود به حساب ' + labels[selected] + '</h2><p>شماره تلفن حساب را وارد کنید و کد تأیید را برای اتصال دریافت کنید.</p></div>' + artMarkup() + '</section>' +
-      '<div class="span-card"><div class="span-auth-art"><img src="./img/patrik.jpg" alt="پاتریک"><img src="./img/babesfanch.jpg" alt="باب اسفنجی"></div>' +
+      '<div class="span-card">' +
       '<form id="spanPhoneForm"><div class="span-field"><label for="spanPhone">شماره تلفن</label><input id="spanPhone" class="form-control" type="tel" autocomplete="tel" inputmode="tel" required dir="ltr" placeholder="98912xxxxxxx"></div><div class="span-actions"><button class="btn btn-primary" type="submit">دریافت کد ورود</button><button class="btn span-btn-quiet" id="spanLoginBack" type="button">بازگشت</button></div></form>' +
       '<form id="spanCodeForm" style="display:none;margin-top:22px"><div class="span-form-grid"><div class="span-field"><label for="spanCode">کد ورود</label><input id="spanCode" class="form-control" required inputmode="numeric" dir="ltr" autocomplete="one-time-code"></div><div class="span-field" id="spanPasswordGroup" style="display:none"><label for="spanPassword">رمز دومرحله‌ای</label><input id="spanPassword" class="form-control" type="password" autocomplete="current-password"></div></div><div class="span-actions"><button class="btn btn-primary" type="submit">تأیید و ورود</button></div></form><p id="spanAuthMessage" class="span-status" role="status" aria-live="polite"></p></div>';
     el("spanLoginBack").onclick = window.openSpanApiMessaging;
@@ -199,7 +198,14 @@
   function renderJob(job) {
     const panel = el("spanJobPanel"); if (!panel) return;
     const rows = (job.results || []).map((row,index) => '<tr><td>'+(index+1)+'</td><td dir="ltr">'+esc(row.phone || row.peer_id || "")+'</td><td>'+esc(row.name)+'</td><td>'+esc(({success:"موفق",error:"ناموفق",unknown:"نامشخص؛ ارسال را تکرار نکنید"})[row.status] || row.status)+'</td><td>'+esc(row.detail || "")+'</td></tr>').join("");
-    const report = job.status === "completed" ? '<div class="span-actions"><a class="btn btn-primary" href="'+BASE+selected+'/send/export/'+encodeURIComponent(job.job_id)+'">دانلود خروجی Excel</a></div>' : "";
-    panel.innerHTML = '<h3>وضعیت: '+esc(job.status)+'</h3><p>'+esc(job.phase || "")+' — '+Number(job.progress || 0)+'% — کل: '+Number(job.total || 0)+' — پردازش‌شده: '+Number(job.processed || 0)+' — موفق: '+Number(job.success || 0)+' — ناموفق: '+Number(job.failed || 0)+' — نامشخص: '+Number(job.unknown || 0)+'</p><div style="height:10px;background:#e5e7eb;border-radius:8px;overflow:hidden"><div style="height:10px;width:'+Math.max(0,Math.min(100,Number(job.progress || 0)))+'%;background:#2563eb"></div></div>'+report+'<div style="overflow:auto;margin-top:16px"><table style="width:100%;min-width:650px"><thead><tr><th>ردیف</th><th>شماره تلفن / شناسه مخاطب</th><th>نام</th><th>وضعیت</th><th>توضیحات</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    const isCompleted = job.status === "completed";
+    const total = Math.max(0, Number(job.total || 0));
+    const success = Math.max(0, Number(job.success || 0));
+    const successRate = total > 0 ? (success / total) * 100 : 0;
+    const finalArtwork = isCompleted && total > 0
+      ? '<div class="span-result-art"><img src="./img/' + (successRate >= 50 ? 'babesfanch.jpg' : 'patrik.jpg') + '" alt="' + (successRate >= 50 ? 'باب اسفنجی' : 'پاتریک') + '"><p>' + (successRate >= 50 ? 'حداقل ۵۰٪ پیام‌ها با موفقیت ارسال شد.' : 'کمتر از ۵۰٪ پیام‌ها با موفقیت ارسال شد.') + '</p></div>'
+      : "";
+    const report = isCompleted ? '<div class="span-actions"><a class="btn btn-primary" href="'+BASE+selected+'/send/export/'+encodeURIComponent(job.job_id)+'">دانلود خروجی Excel</a></div>' : "";
+    panel.innerHTML = '<h3>وضعیت: '+esc(job.status)+'</h3><p>'+esc(job.phase || "")+' — '+Number(job.progress || 0)+'% — کل: '+total+' — پردازش‌شده: '+Number(job.processed || 0)+' — موفق: '+success+' — ناموفق: '+Number(job.failed || 0)+' — نامشخص: '+Number(job.unknown || 0)+'</p><div style="height:10px;background:#e5e7eb;border-radius:8px;overflow:hidden"><div style="height:10px;width:'+Math.max(0,Math.min(100,Number(job.progress || 0)))+'%;background:#2563eb"></div></div>'+finalArtwork+report+'<div style="overflow:auto;margin-top:16px"><table style="width:100%;min-width:650px"><thead><tr><th>ردیف</th><th>شماره تلفن / شناسه مخاطب</th><th>نام</th><th>وضعیت</th><th>توضیحات</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
 })();
