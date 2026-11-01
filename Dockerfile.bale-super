@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    BALELINK_HOME=/data \
+    BALELINK_HOST=0.0.0.0 \
+    BALELINK_PORT=8787
+
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir "balelink[gateway]==0.1.0"
+
+RUN mkdir -p /data
+VOLUME ["/data"]
+EXPOSE 8787
+
+CMD ["balelink", "serve"]
