@@ -18,7 +18,6 @@ services:
       DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-10}
       FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://95.38.187.123:3002}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      # Internal Docker DNS avoids routing container-to-container traffic via the host public IP.
       BALE_CHAT_SERVICE_URL: ${BALE_CHAT_SERVICE_URL:-http://chat_node:3000}
       EITAA_CHAT_SERVICE_URL: ${EITAA_CHAT_SERVICE_URL:-http://chat_node_eitaa:3001}
       BALE_SEND_WEBHOOK_URL: ${BALE_SEND_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/seandms}
@@ -36,6 +35,9 @@ services:
       SPAN_RUBIKA_DEVICE_ID: ${SPAN_RUBIKA_DEVICE_ID:-sepehr-span-rubika}
       EITAA_STATE_DIR: /app/data/eitaa-state
       EITAA_MEDIA_DIR: /shared/eitaa-media
+      BALELINK_BASE_URL: http://bale_super:8787
+      BALELINK_API_KEY: ${BALELINK_API_KEY:?Set a long random BALELINK_API_KEY in .env}
+      BALELINK_SESSION: sepehr
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
@@ -55,6 +57,33 @@ services:
       retries: 3
       start_period: 30s
 
+  bale_super:
+    image: python:3.12-slim
+    container_name: sepehr_bale_super
+    networks:
+      - internal_net
+    restart: unless-stopped
+    environment:
+      BALELINK_API_KEY: ${BALELINK_API_KEY:?Set a long random BALELINK_API_KEY in .env}
+      BALELINK_HOST: 0.0.0.0
+      BALELINK_PORT: 8787
+      BALELINK_HOME: /data
+      BALELINK_AUTOSTART: "true"
+    volumes:
+      - bale-super-state:/data
+    command:
+      - sh
+      - -ec
+      - python -m pip install --no-cache-dir "balelink[gateway]==0.1.0" && balelink serve
+    expose:
+      - "8787"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/health', timeout=5)"]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 90s
+
 networks:
   internal_net:
     external: true
@@ -68,3 +97,5 @@ volumes:
   eitaa-media-shared:
     external: true
     name: eitaa-media-shared
+  bale-super-state:
+    name: bale-super-state
