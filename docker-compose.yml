@@ -58,7 +58,10 @@ services:
       start_period: 30s
 
   bale_super:
-    image: python:3.12-slim
+    image: sepehr-bale-super:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.bale-super
     container_name: sepehr_bale_super
     networks:
       - internal_net
@@ -71,10 +74,6 @@ services:
       BALELINK_AUTOSTART: "true"
     volumes:
       - bale-super-state:/data
-    command:
-      - sh
-      - -ec
-      - python -m pip install --no-cache-dir "balelink[gateway]==0.1.0" && balelink serve
     expose:
       - "8787"
     healthcheck:
