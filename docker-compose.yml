@@ -61,7 +61,7 @@ services:
   # Private BaleLink gateway. Do not publish port 8787 on the host.
   bale_super:
     build:
-      context: ../bale_super
+      context: ${BALE_SUPER_BUILD_CONTEXT:-../bale_super}
       dockerfile: Dockerfile
     container_name: bale_super
     restart: unless-stopped
