@@ -75,3 +75,24 @@ docker exec panel_sepehr python -c "import urllib.request; print(urllib.request.
 - پورت 8787 را به اینترنت publish نکنید.
 - BaleLink یک کلاینت غیررسمی و در مرحله Alpha است؛ ابتدا با حساب و مخاطبان آزمایشی محدود تست کنید و قوانین و محدودیت‌های بله را رعایت کنید.
 - این تغییرات به‌تنهایی به معنی deploy شدن روی سرور نیست؛ دستورات بالا باید روی میزبان اجرا شوند.
+
+## وضعیت تغییرات GitHub
+
+تغییرات فعلاً در دو Pull Request پیش‌نویس قرار دارند و هنوز به `main` ادغام نشده‌اند:
+
+- پنل سپهر: https://github.com/syedalirezatabaei-star/panel_sepehr/pull/22
+- Dockerfile سرویس BaleLink: https://github.com/syedalirezatabaei-star/bale_super/pull/1
+
+برای آزمایش پیش از ادغام، هر دو شاخه زیر را روی سرور checkout کنید:
+
+```bash
+# در پوشه panel_sepehr
+git fetch origin
+git checkout feature/bale-super-gateway
+
+# در پوشه bale_super
+git fetch origin
+git checkout feature/docker-gateway
+```
+
+پس از ادغام هر دو PR، می‌توانید از شاخه `main` استفاده کنید.
