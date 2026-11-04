@@ -23,6 +23,11 @@ from bale_backend import (
     run_bale
 )
 
+from bale_gateway import (
+    gateway_enabled, gateway_account, gateway_start_login,
+    gateway_verify_login, gateway_reset, gateway_send,
+)
+
 
 # ============================================================
 # ROUTER
@@ -254,9 +259,10 @@ def reset_bale_account():
 
     try:
 
-        run_bale(
-            bale_backend.reset_bale_account
-        )
+        if gateway_enabled():
+            gateway_reset()
+        else:
+            run_bale(bale_backend.reset_bale_account)
 
         return {
             "success": True,
@@ -281,19 +287,17 @@ def reset_bale_account():
 @router.get("/account")
 def bale_account():
 
+    if gateway_enabled():
+        try:
+            return gateway_account()
+        except Exception as e:
+            print("[BALE GATEWAY] Account check failed:", e)
+            raise HTTPException(status_code=502, detail="خطا در بررسی حساب بله از طریق Gateway.")
+
     account = bale_backend.get_saved_account()
-
     if not account:
-
-        return {
-            "exists": False
-        }
-
-
-    return {
-        "exists": True,
-        "phone": account.get("phone")
-    }
+        return {"exists": False}
+    return {"exists": True, "phone": account.get("phone")}
 @router.post("/login")
 def bale_login(
     data: BaleLoginRequest
@@ -313,10 +317,10 @@ def bale_login(
 
     try:
 
-        run_bale(
-            bale_backend.start_login,
-            phone
-        )
+        if gateway_enabled():
+            gateway_start_login(phone)
+        else:
+            run_bale(bale_backend.start_login, phone)
 
         return {
             "success": True,
@@ -347,9 +351,10 @@ def bale_reset():
 
     try:
 
-        result = run_bale(
-            bale_backend.reset_bale_account
-        )
+        if gateway_enabled():
+            gateway_reset()
+        else:
+            run_bale(bale_backend.reset_bale_account)
 
         return {
             "success": True,
@@ -391,10 +396,11 @@ def bale_verify(
 
     try:
 
-        authenticated = run_bale(
-            bale_backend.verify_otp,
-            otp
-        )
+        if gateway_enabled():
+            gateway_verify_login(otp)
+            authenticated = True
+        else:
+            authenticated = run_bale(bale_backend.verify_otp, otp)
 
         if not authenticated:
 
@@ -795,6 +801,58 @@ def send_job_worker(
     )
 
     total = len(contacts)
+
+    # Gateway mode sends directly to phone numbers; Playwright remains fallback.
+    if gateway_enabled():
+        try:
+            for index, contact in enumerate(contacts, start=1):
+                phone = str(contact.get("phone", "")).strip()
+                name = str(contact.get("name") or phone).strip()
+                result = {
+                    "phone": phone, "name": name,
+                    "contact_status": "direct",
+                    "contact_add_status": "not_required",
+                    "contact_add_detail": "ارسال مستقیم از طریق BaleLink؛ افزودن مخاطب لازم نیست.",
+                    "ui_notification": "", "message_status": "failed",
+                    "status": "failed", "success": False, "error": None,
+                }
+                try:
+                    gateway_send(phone, message, message_type, media_path)
+                    result.update({"message_status": "sent", "status": "success", "success": True})
+                    with bale_jobs_lock:
+                        bale_jobs[job_id]["successful"] += 1
+                except Exception as send_error:
+                    result["error"] = str(send_error)
+                    with bale_jobs_lock:
+                        bale_jobs[job_id]["failed"] += 1
+                with bale_jobs_lock:
+                    job = bale_jobs[job_id]
+                    job["results"].append(result)
+                    job["processed"] = index
+                    job["current"] = phone
+                    job["progress"] = int((index / total) * 100)
+                if index < total:
+                    time.sleep(random.uniform(2.5, 5.0))
+
+            with bale_jobs_lock:
+                job = bale_jobs[job_id]
+                job["current"] = None
+                job["processed"] = total
+                job["progress"] = 100
+                job["status"] = "completed"
+                try:
+                    job["report_file"] = create_report(job.get("results") or [], job_id=job_id)
+                except Exception as report_error:
+                    print("[BALE GATEWAY] Report creation failed:", report_error)
+                    job["report_file"] = None
+            return
+        except Exception as gateway_error:
+            print("[BALE GATEWAY] Job failed:", gateway_error)
+            with bale_jobs_lock:
+                if job_id in bale_jobs:
+                    bale_jobs[job_id]["status"] = "failed"
+                    bale_jobs[job_id]["error"] = str(gateway_error)
+            return
 
     # ========================================================
     # INITIAL JOB STATE
