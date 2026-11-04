@@ -28,6 +28,9 @@ services:
       EITAA_SERVICE_URL: ${EITAA_SERVICE_URL:-http://eitaa-service:1234}
       GOOMNI_URL: ${GOOMNI_URL:-http://eita-rubika-bale:1598}
       GOOMNI_BASIC_AUTH: ${GOOMNI_BASIC_AUTH:?Set GOOMNI_BASIC_AUTH in server-side .env}
+      BALELINK_GATEWAY_URL: ${BALELINK_GATEWAY_URL:-http://bale_super:8787}
+      BALELINK_API_KEY: ${BALELINK_API_KEY:-}
+      BALELINK_SESSION: ${BALELINK_SESSION:-sepehr}
       RUBIKA_DEVICE_ID: ${RUBIKA_DEVICE_ID:-sepehr-rubika}
       RUBIKA_STATE_DIR: /app/data/rubika-state
       SPAN_STATE_DIR: /app/data/span-api
@@ -55,12 +58,42 @@ services:
       retries: 3
       start_period: 30s
 
+  # Private BaleLink gateway. Do not publish port 8787 on the host.
+  bale_super:
+    build:
+      context: ../bale_super
+      dockerfile: Dockerfile
+    container_name: bale_super
+    restart: unless-stopped
+    environment:
+      BALELINK_API_KEY: ${BALELINK_API_KEY:?Set BALELINK_API_KEY in server-side .env}
+      BALELINK_HOME: /data
+      BALELINK_HOST: 0.0.0.0
+      BALELINK_PORT: 8787
+      BALELINK_AUTOSTART: "true"
+    volumes:
+      - bale-super-data:/data
+    networks:
+      - internal_net
+      - internet_net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 networks:
   internal_net:
     external: true
     name: internal_net
+  internet_net:
+    external: true
+    name: internet_net
 
 volumes:
+  bale-super-data:
+    name: bale-super-data
   rubika-state:
     name: rubika-state
   span-api-state:
