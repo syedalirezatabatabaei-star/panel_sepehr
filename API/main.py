@@ -94,7 +94,7 @@ async def require_authenticated_api_requests(request: Request, call_next):
     # Personal broadcast permissions are checked on the server.
     if path_lower.startswith("/api/bale-super/"):
         required_permission = "bale.personal_message"
-        permission_action = "write" if request.method in {"POST", "PUT", "PATCH", "DELETE"} else "use"
+        permission_action = "use"
     elif request.method == "POST" and path_lower == "/api/bale/send":
         required_permission = "bale.personal_message"
     elif request.method == "POST" and path_lower == "/api/eitaa/send":
