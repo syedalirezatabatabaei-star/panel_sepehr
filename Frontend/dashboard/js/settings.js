@@ -85,19 +85,33 @@ const SETTINGS_PAGE_PERMISSION = {
 
 function hasPersonalSettingsAccess(page) {
     if (isSettingsAdministrator()) return true;
-    if (page === 'my-account' || page === 'notifications') return true;
-    if (page === 'access-control') return false;
+    if (page === 'my-account') return true;
+    if (page === 'access-control' || page === 'user-permissions') return false;
+
     const code = SETTINGS_PAGE_PERMISSION[page];
     if (!code) return false;
-    if (typeof window.hasPersonalPermission === 'function') {
-        return window.hasPersonalPermission(code);
-    }
+
+    // Effective permissions include role grants as well as personal grants.
+    // Older UI logic checked only personal_read/personal_write, hiding pages
+    // even when the user's assigned role explicitly granted access.
     const user = window.CURRENT_USER || (() => {
         try { return JSON.parse(localStorage.getItem('user') || 'null'); }
         catch (_) { return null; }
     })();
     const grant = user?.permissions?.[code];
-    return !!(grant?.personal_read || grant?.personal_write);
+    const hasEffectiveGrant = !!(
+        grant?.read ||
+        grant?.write ||
+        grant?.role_granted ||
+        grant?.personal_read ||
+        grant?.personal_write
+    );
+
+    if (hasEffectiveGrant) return true;
+    if (typeof window.hasPersonalPermission === 'function') {
+        return !!window.hasPersonalPermission(code);
+    }
+    return false;
 }
 
 /** true فقط وقتی کاربر در صفحات تنظیمات است (نه بله/ایتا) */
