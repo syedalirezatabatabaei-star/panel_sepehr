@@ -144,10 +144,6 @@ def _send_worker(job_id, contacts, message, message_type, media_path, delay_seco
                     job["failed"] += 1
                 job["progress"] = int(index * 100 / total)
 
-            # Gentle pacing; this is not a guarantee against platform rate limits.
-            if index < total:
-                time.sleep(random.uniform(2.5, 5.0))
-
         with _jobs_lock:
             job = _jobs[job_id]
             job["current"] = None
