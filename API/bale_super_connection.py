@@ -7,7 +7,7 @@ import os
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from API.bale_gateway import gateway_account, gateway_enabled
+from API.bale_gateway import ensure_gateway_session, gateway_account, gateway_enabled
 
 
 def check_bale_super_connection(timeout=8):
@@ -44,6 +44,8 @@ def check_bale_super_connection(timeout=8):
         }
 
     try:
+        # /health is public; this authenticated request also verifies X-Api-Key.
+        ensure_gateway_session()
         account = gateway_account()
     except Exception as exc:
         return {
