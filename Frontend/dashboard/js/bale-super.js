@@ -1027,6 +1027,13 @@ function baleSuperShowBaleMessagingPage() {
 
                 </div>
 
+                <!-- Delay between consecutive Bale Super send requests -->
+                <div class="form-group">
+                    <label for="baleSuperDelaySeconds">فاصله بین ارسال پیام‌ها (ثانیه)</label>
+                    <input type="number" id="baleSuperDelaySeconds" class="form-control"
+                           min="0" max="30" step="1" value="0" inputmode="numeric">
+                    <small>مقدار بین ۰ تا ۳۰ ثانیه؛ فقط قبل از درخواست ارسال پیام بعدی اعمال می‌شود.</small>
+                </div>
 
                 <!-- =========================================
                      Send
@@ -1390,6 +1397,13 @@ async function baleSuperSendBaleMessages() {
             "baleMediaFile"
         );
 
+    const delayInput = document.getElementById("baleSuperDelaySeconds");
+    const delaySeconds = delayInput ? Number(delayInput.value) : 0;
+    if (!Number.isInteger(delaySeconds) || delaySeconds < 0 || delaySeconds > 30) {
+        showToast("فاصله ارسال باید عددی صحیح بین ۰ تا ۳۰ ثانیه باشد.", "error");
+        if (delayInput) delayInput.focus();
+        return;
+    }
 
     const sendButton =
         document.getElementById(
@@ -1652,6 +1666,9 @@ async function baleSuperSendBaleMessages() {
         "message_type",
         messageType
     );
+
+    // This value affects only the Bale Super send worker.
+    formData.append("delay_seconds", String(delaySeconds));
 
 
     /* -----------------------------------------------
