@@ -153,6 +153,12 @@ def _send_worker(job_id, contacts, message, message_type, media_path):
                 job["status"] = "failed"
                 job["error"] = str(exc)
                 job["current"] = None
+    finally:
+        if media_path and os.path.isfile(media_path):
+            try:
+                os.remove(media_path)
+            except OSError:
+                pass
 
 
 @router.post("/send")
