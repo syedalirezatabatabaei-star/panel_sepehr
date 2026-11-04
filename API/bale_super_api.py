@@ -4,7 +4,6 @@ This router is the only panel feature that calls the separate BaleLink gateway.
 The legacy /api/bale routes intentionally remain unchanged.
 """
 import os
-import random
 import threading
 import time
 import uuid
@@ -96,13 +95,14 @@ def reset_account():
         raise HTTPException(status_code=502, detail=f"خروج از حساب ناموفق بود: {exc}") from exc
 
 
-def _send_worker(job_id, contacts, message, message_type, media_path):
+def _send_worker(job_id, contacts, message, message_type, media_path, delay_seconds):
     with _jobs_lock:
         job = _jobs[job_id]
         job["status"] = "running"
 
     try:
         total = len(contacts)
+        send_attempts = 0
         for index, contact in enumerate(contacts, start=1):
             phone = normalize_phone(contact.get("phone"))
             name = str(contact.get("name") or phone).strip()
@@ -119,6 +119,11 @@ def _send_worker(job_id, contacts, message, message_type, media_path):
                 "error": None,
             }
             try:
+                # Pace only consecutive message-send API requests. Excel parsing,
+                # contact handling, and status polling are intentionally unaffected.
+                if send_attempts > 0 and delay_seconds > 0:
+                    time.sleep(delay_seconds)
+                send_attempts += 1
                 gateway_send(phone, message, message_type, media_path)
                 result.update({
                     "message_status": "sent",
@@ -173,12 +178,15 @@ async def send_messages(
     file: UploadFile = File(...),
     message: str = Form(""),
     message_type: str = Form("text"),
+    delay_seconds: int = Form(0),
     media: UploadFile | None = File(None),
 ):
     _require_gateway()
 
     if message_type not in {"text", "image", "video"}:
         raise HTTPException(status_code=400, detail="نوع محتوا نامعتبر است.")
+    if not 0 <= delay_seconds <= 30:
+        raise HTTPException(status_code=400, detail="فاصله ارسال باید بین ۰ تا ۳۰ ثانیه باشد.")
     if message_type == "text" and not message.strip():
         raise HTTPException(status_code=400, detail="متن پیام وارد نشده است.")
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xlsm")):
@@ -232,7 +240,7 @@ async def send_messages(
 
     thread = threading.Thread(
         target=_send_worker,
-        args=(job_id, contacts, message, message_type, media_path),
+        args=(job_id, contacts, message, message_type, media_path, delay_seconds),
         daemon=True,
         name=f"bale-super-{job_id[:8]}",
     )
