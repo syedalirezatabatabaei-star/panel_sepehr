@@ -6,7 +6,7 @@ const BALE_SUPER_API_BASE = "/api/bale-super";
    Utility
    ========================================================= */
 
-function baleSetHeaderTitle(title) {
+function superBaleSetHeaderTitle(title) {
     const headerTitle = document.getElementById("headerTitle");
 
     if (headerTitle) {
@@ -15,9 +15,9 @@ function baleSetHeaderTitle(title) {
 }
 
 /*==================
-continueBaleAccount
+baleSuperContinueBaleAccount
 ======================*/
-async function continueBaleAccount() {
+async function baleSuperContinueBaleAccount() {
 
     showToast(
         "در حال بررسی حساب بله...",
@@ -35,11 +35,11 @@ async function continueBaleAccount() {
 
         if (data.exists) {
 
-            showBaleMessagingPage();
+            baleSuperShowBaleMessagingPage();
 
         } else {
 
-            showBaleLoginPage();
+            baleSuperShowBaleLoginPage();
 
         }
 
@@ -50,19 +50,19 @@ async function continueBaleAccount() {
             error
         );
 
-        showBaleLoginPage();
+        baleSuperShowBaleLoginPage();
 
     }
 }
 /*=============================
-baleSetActiveNav
+superBaleSetActiveNav
 +======================*/
-function baleSetActiveNav() {
+function superBaleSetActiveNav() {
     document.querySelectorAll(".settings-nav-item").forEach(item => {
         item.classList.remove("active");
     });
 }
-function showBaleSavedAccountPage(phone) {
+function baleSuperShowBaleSavedAccountPage(phone) {
 
     const content =
         document.getElementById("settingsContent");
@@ -101,7 +101,7 @@ function showBaleSavedAccountPage(phone) {
                         direction:ltr;
                         "
                     >
-                        ${escapeBaleHtml(phone)}
+                        ${escapeBaleSuperHtml(phone)}
                     </div>
 
                 </div>
@@ -111,7 +111,7 @@ function showBaleSavedAccountPage(phone) {
 
                     <button
                         class="btn btn-primary"
-                        onclick="continueBaleAccount()"
+                        onclick="baleSuperContinueBaleAccount()"
                     >
                         ادامه با این حساب
                     </button>
@@ -119,7 +119,7 @@ function showBaleSavedAccountPage(phone) {
 
                     <button
                         class="btn btn-secondary"
-                        onclick="changeBaleAccount()"
+                        onclick="baleSuperChangeBaleAccount()"
                     >
                         ورود با شماره جدید
                     </button>
@@ -134,9 +134,9 @@ function showBaleSavedAccountPage(phone) {
 }
 
 /*=============
-changeBaleAccount
+baleSuperChangeBaleAccount
 ================*/
-async function changeBaleAccount(){
+async function baleSuperChangeBaleAccount(){
 
     try{
 
@@ -154,7 +154,7 @@ async function changeBaleAccount(){
         );
 
 
-        showBaleLoginPage();
+        baleSuperShowBaleLoginPage();
 
 
     }catch(error){
@@ -168,9 +168,9 @@ async function changeBaleAccount(){
     }
 }
 /*======================================
-checkBaleAccount
+baleSuperCheckBaleAccount
 ======================================*/
-async function checkBaleAccount() {
+async function baleSuperCheckBaleAccount() {
 
     try {
 
@@ -182,13 +182,13 @@ async function checkBaleAccount() {
 
         if (data.exists) {
 
-            showBaleSavedAccountPage(
+            baleSuperShowBaleSavedAccountPage(
                 data.phone
             );
 
         } else {
 
-            showBaleLoginPage();
+            baleSuperShowBaleLoginPage();
 
         }
 
@@ -199,14 +199,14 @@ async function checkBaleAccount() {
             error
         );
 
-        showBaleLoginPage();
+        baleSuperShowBaleLoginPage();
     }
 }
 /* =========================================================
    Open Bale Messaging
    ========================================================= */
 
-function openBaleMessaging() {
+function openBaleSuperMessaging() {
     
      if (typeof canRead === "function" && !canRead("bale.personal_message")) {
         if (typeof showPermissionDenied === "function") {
@@ -223,13 +223,13 @@ function openBaleMessaging() {
         return;
     }
 
-    baleSetHeaderTitle("ارسال پیام - بله");
+    superBaleSetHeaderTitle("ارسال پیام - بله");
 
-    baleSetActiveNav();
+    superBaleSetActiveNav();
 
     console.log("[BALE] Opening Bale messaging.");
 
-    checkBaleAccount();
+    baleSuperCheckBaleAccount();
 }
 
 
@@ -237,7 +237,7 @@ function openBaleMessaging() {
    Bale Login Page
    ========================================================= */
 
-function showBaleLoginPage() {
+function baleSuperShowBaleLoginPage() {
 
     const content = document.getElementById("settingsContent");
 
@@ -246,7 +246,7 @@ function showBaleLoginPage() {
         return;
     }
 
-    baleSetHeaderTitle("ارسال پیام - بله");
+    superBaleSetHeaderTitle("ارسال پیام - بله");
 
     content.innerHTML = `
 
@@ -316,7 +316,7 @@ function showBaleLoginPage() {
                         type="button"
                         id="baleLoginButton"
                         class="btn btn-primary"
-                        onclick="startBaleLogin()"
+                        onclick="baleSuperStartBaleLogin()"
                     >
                         دریافت کد تایید
                     </button>
@@ -338,7 +338,7 @@ function showBaleLoginPage() {
         phoneInput.addEventListener("keydown", function (event) {
 
             if (event.key === "Enter") {
-                startBaleLogin();
+                baleSuperStartBaleLogin();
             }
 
         });
@@ -351,7 +351,7 @@ function showBaleLoginPage() {
    Start Bale Login
    ========================================================= */
 
-async function startBaleLogin() {
+async function baleSuperStartBaleLogin() {
 
     const phoneInput =
         document.getElementById("balePhone");
@@ -474,7 +474,7 @@ async function startBaleLogin() {
         );
 
 
-        showBaleOtpPage(phone);
+        baleSuperShowBaleOtpPage(phone);
 
 
     } catch (error) {
@@ -509,7 +509,7 @@ async function startBaleLogin() {
    Bale OTP Page
    ========================================================= */
 
-function showBaleOtpPage(phone) {
+function baleSuperShowBaleOtpPage(phone) {
 
     const content =
         document.getElementById("settingsContent");
@@ -525,7 +525,7 @@ function showBaleOtpPage(phone) {
     }
 
 
-    baleSetHeaderTitle(
+    superBaleSetHeaderTitle(
         "تایید ورود به بله"
     );
 
@@ -543,7 +543,7 @@ function showBaleOtpPage(phone) {
                 <p class="page-description">
                     کد ارسال‌شده برای شماره
                     <strong dir="ltr">
-                        ${escapeBaleHtml(phone)}
+                        ${escapeBaleSuperHtml(phone)}
                     </strong>
                     را وارد کنید.
                 </p>
@@ -600,7 +600,7 @@ function showBaleOtpPage(phone) {
                         type="button"
                         id="baleOtpButton"
                         class="btn btn-primary"
-                        onclick="verifyBaleOtp()"
+                        onclick="baleSuperVerifyBaleOtp()"
                     >
                         تایید و ورود
                     </button>
@@ -610,7 +610,7 @@ function showBaleOtpPage(phone) {
                         type="button"
                         id="baleChangePhoneButton"
                         class="btn btn-secondary"
-                        onclick="showBaleLoginPage()"
+                        onclick="baleSuperShowBaleLoginPage()"
                     >
                         تغییر شماره
                     </button>
@@ -651,7 +651,7 @@ function showBaleOtpPage(phone) {
             function (event) {
 
                 if (event.key === "Enter") {
-                    verifyBaleOtp();
+                    baleSuperVerifyBaleOtp();
                 }
 
             }
@@ -665,7 +665,7 @@ function showBaleOtpPage(phone) {
    Verify Bale OTP
    ========================================================= */
 
-async function verifyBaleOtp() {
+async function baleSuperVerifyBaleOtp() {
 
     const otpInput =
         document.getElementById("baleOtp");
@@ -787,7 +787,7 @@ async function verifyBaleOtp() {
         );
 
 
-        showBaleMessagingPage();
+        baleSuperShowBaleMessagingPage();
 
 
     } catch (error) {
@@ -821,7 +821,7 @@ async function verifyBaleOtp() {
 /* =========================================================
    Bale Account Logout
    ========================================================= */
-async function logoutBaleAccount() {
+async function baleSuperLogoutBaleAccount() {
     const button = document.getElementById("baleLogoutButton");
     if (button?.disabled) return;
 
@@ -843,7 +843,7 @@ async function logoutBaleAccount() {
         }
 
         showToast("از حساب بله خارج شدید.", "success");
-        showBaleLoginPage();
+        baleSuperShowBaleLoginPage();
     } catch (error) {
         console.error("[BALE LOGOUT ERROR]", error);
         showToast(error.message || "خطا هنگام خروج از حساب بله.", "error");
@@ -859,7 +859,7 @@ async function logoutBaleAccount() {
    Bale Messaging Page
    ========================================================= */
 
-function showBaleMessagingPage() {
+function baleSuperShowBaleMessagingPage() {
 
     const content =
         document.getElementById("settingsContent");
@@ -875,7 +875,7 @@ function showBaleMessagingPage() {
     }
 
 
-    baleSetHeaderTitle(
+    superBaleSetHeaderTitle(
         "ارسال پیام - بله"
     );
 
@@ -1064,12 +1064,12 @@ function showBaleMessagingPage() {
 
     const sendButton = document.getElementById("baleSendButton");
     if (sendButton) {
-        sendButton.addEventListener("click", () => void sendBaleMessages());
+        sendButton.addEventListener("click", () => void baleSuperSendBaleMessages());
     }
 
     const logoutButton = document.getElementById("baleLogoutButton");
     if (logoutButton) {
-        logoutButton.addEventListener("click", () => void logoutBaleAccount());
+        logoutButton.addEventListener("click", () => void baleSuperLogoutBaleAccount());
     }
 
 
@@ -1348,7 +1348,7 @@ function showBaleMessagingPage() {
    Send Bale Messages
    ========================================================= */
 
-async function sendBaleMessages() {
+async function baleSuperSendBaleMessages() {
     const sendStatus = document.getElementById("baleSendStatus");
     const setSendStatus = (message, state = "info") => {
         if (!sendStatus) return;
@@ -1789,7 +1789,7 @@ async function sendBaleMessages() {
            Progress
            ================================================= */
 
-        showBaleProgress(
+        baleSuperShowBaleProgress(
             data.total || 0
         );
 
@@ -1801,7 +1801,7 @@ async function sendBaleMessages() {
         window.__baleSuperPollState = { jobId: data.job_id, failures: 0, stopped: false };
         window.__baleSuperResultsFilter = "success";
         window.__baleSuperOutcome = null;
-        pollBaleProgress(data.job_id);
+        baleSuperPollBaleProgress(data.job_id);
 
 
     } catch (error) {
@@ -1843,7 +1843,7 @@ async function sendBaleMessages() {
    ========================================================= */
 
 
-function showBaleProgress(total = 0) {
+function baleSuperShowBaleProgress(total = 0) {
     const content = document.getElementById("settingsContent");
     if (!content) return;
     const existing = document.getElementById("baleProgressCard");
@@ -1874,10 +1874,10 @@ function showBaleProgress(total = 0) {
             <div id="baleExportContainer" style="margin-top:16px;display:flex;justify-content:center;"></div>
         </div>`;
     content.appendChild(progressCard);
-    updateBaleProgress(0, total, 10, "مرحله ۱ از ۲: آماده‌سازی و افزودن مخاطبین", `در حال آماده‌سازی ${total} مخاطب`);
+    baleSuperUpdateBaleProgress(0, total, 10, "مرحله ۱ از ۲: آماده‌سازی و افزودن مخاطبین", `در حال آماده‌سازی ${total} مخاطب`);
 }
 
-function updateBaleProgress(current, total, percentOverride = null, label = null, countText = null) {
+function baleSuperUpdateBaleProgress(current, total, percentOverride = null, label = null, countText = null) {
     current = Number(current) || 0;
     total = Number(total) || 0;
     let percent = percentOverride === null
@@ -1895,7 +1895,7 @@ function updateBaleProgress(current, total, percentOverride = null, label = null
     if (labelElement && label) labelElement.textContent = label;
 }
 
-function getBaleResultGroup(item) {
+function baleSuperGetBaleResultGroup(item) {
     const messageStatus = String(item.message_status || "").toLowerCase();
     const text = [item.ui_notification, item.contact_add_detail, item.error, item.message, item.detail, item.description]
         .filter(Boolean).join(" ").toLowerCase();
@@ -1911,13 +1911,13 @@ function getBaleResultGroup(item) {
     return "failed";
 }
 
-function getBaleResultCounts(results) {
+function baleSuperGetBaleResultCounts(results) {
     const counts = { success: 0, failed: 0, no_account: 0 };
-    (Array.isArray(results) ? results : []).forEach(item => counts[getBaleResultGroup(item)]++);
+    (Array.isArray(results) ? results : []).forEach(item => counts[baleSuperGetBaleResultGroup(item)]++);
     return counts;
 }
 
-async function pollBaleProgress(jobId) {
+async function baleSuperPollBaleProgress(jobId) {
     if (!jobId) {
         console.error("[BALE POLL] jobId is missing.");
         return;
@@ -1967,18 +1967,18 @@ async function pollBaleProgress(jobId) {
             label = "مرحله ۲ از ۲: ارسال و بررسی نتیجه پیام‌ها";
             countText = `${processed} از ${total} مخاطب بررسی شده`;
         }
-        updateBaleProgress(processed, total, percent, label, countText);
-        updateBaleProgressStatus(status, data);
+        baleSuperUpdateBaleProgress(processed, total, percent, label, countText);
+        baleSuperUpdateBaleProgressStatus(status, data);
 
         if (isComplete) {
-            handleBaleCompleted(data);
+            baleSuperHandleBaleCompleted(data);
             return;
         }
         if (status === "failed" || status === "error") {
-            handleBaleFailed(data);
+            baleSuperHandleBaleFailed(data);
             return;
         }
-        setTimeout(() => pollBaleProgress(jobId), 1000);
+        setTimeout(() => baleSuperPollBaleProgress(jobId), 1000);
     } catch (error) {
         console.error("[BALE POLL ERROR]", error);
         if (pollState.stopped) return;
@@ -1986,7 +1986,7 @@ async function pollBaleProgress(jobId) {
 
         if (pollState.failures >= 5) {
             pollState.stopped = true;
-            handleBalePollEmergencyStop(jobId);
+            baleSuperHandleBalePollEmergencyStop(jobId);
             return;
         }
         const statusElement = document.getElementById("baleProgressStatus");
@@ -2001,11 +2001,11 @@ async function pollBaleProgress(jobId) {
             entry.textContent = `[${timestamp}] خطای رفرش ${pollState.failures}/۵: ${error && error.message ? error.message : "خطای نامشخص"}`;
             logElement.appendChild(entry);
         }
-        setTimeout(() => pollBaleProgress(jobId), 60000);
+        setTimeout(() => baleSuperPollBaleProgress(jobId), 60000);
     }
 }
 
-function updateBaleProgressStatus(status, data) {
+function baleSuperUpdateBaleProgressStatus(status, data) {
     const element = document.getElementById("baleProgressStatus");
     if (!element) return;
     switch (status) {
@@ -2021,7 +2021,7 @@ function updateBaleProgressStatus(status, data) {
     }
 }
 
-function renderBaleOutcome(message, imagePath, kind = "error") {
+function baleSuperRenderBaleOutcome(message, imagePath, kind = "error") {
     window.__baleSuperOutcome = { message, image: imagePath, kind };
     const container = document.getElementById("baleProgressResults");
     if (!container) return;
@@ -2050,11 +2050,11 @@ function renderBaleOutcome(message, imagePath, kind = "error") {
     container.insertBefore(banner, container.firstChild);
 }
 
-function handleBalePollEmergencyStop(jobId) {
+function baleSuperHandleBalePollEmergencyStop(jobId) {
     window.__baleSuperSending = false;
     const statusElement = document.getElementById("baleProgressStatus");
     if (statusElement) statusElement.textContent = "توقف اضطراری: پس از ۵ تلاش ناموفق، بررسی خودکار وضعیت متوقف شد.";
-    renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "/dashboard/img/patrik.jpg", "error");
+    baleSuperRenderBaleOutcome("پیام بله خراب شده بالا نمیاد", "/dashboard/img/patrik.jpg", "error");
 
     const sendButton = document.getElementById("baleSendButton");
     if (sendButton) {
@@ -2064,23 +2064,23 @@ function handleBalePollEmergencyStop(jobId) {
     console.error("[BALE POLL] Frontend stopped checking after five consecutive status failures. Server job may still be running:", jobId);
 }
 
-function handleBaleCompleted(data) {
+function baleSuperHandleBaleCompleted(data) {
     window.__baleSuperSending = false;
     const total = Number(data.total || 0);
     const results = Array.isArray(data.results) ? data.results : [];
-    const counts = getBaleResultCounts(results);
+    const counts = baleSuperGetBaleResultCounts(results);
     const sentCount = counts.success;
     const percentSuccessful = total > 0 ? (sentCount / total) * 100 : 0;
 
-    updateBaleProgress(total, total, 100, "مرحله ۲ از ۲: پردازش تمام شد", `${total} از ${total} مخاطب بررسی شد`);
+    baleSuperUpdateBaleProgress(total, total, 100, "مرحله ۲ از ۲: پردازش تمام شد", `${total} از ${total} مخاطب بررسی شد`);
     const statusElement = document.getElementById("baleProgressStatus");
     if (statusElement) statusElement.textContent = "پردازش به پایان رسید.";
 
-    renderBaleResults(results);
+    baleSuperRenderBaleResults(results);
     if (percentSuccessful >= 50) {
-        renderBaleOutcome("شد بالاخره شد :)", "/dashboard/img/babesfanch.jpg", "success");
+        baleSuperRenderBaleOutcome("شد بالاخره شد :)", "/dashboard/img/babesfanch.jpg", "success");
     } else {
-        renderBaleOutcome("ما تمام تلاش خودمون رو کردیم اما نشد :(", "/dashboard/img/patrik.jpg", "error");
+        baleSuperRenderBaleOutcome("ما تمام تلاش خودمون رو کردیم اما نشد :(", "/dashboard/img/patrik.jpg", "error");
     }
 
     showToast(`پردازش تمام شد؛ پیام موفق برای ${sentCount} از ${total} مخاطب.`, "success");
@@ -2105,12 +2105,12 @@ function handleBaleCompleted(data) {
     }
 }
 
-function handleBaleFailed(data) {
+function baleSuperHandleBaleFailed(data) {
     window.__baleSuperSending = false;
     const statusElement = document.getElementById("baleProgressStatus");
     if (statusElement) statusElement.textContent = data.message || data.error || "پردازش با خطا متوقف شد.";
-    renderBaleResults(data.results || []);
-    renderBaleOutcome("پیام بله خراب شده بالا نمیاد", "/dashboard/img/patrik.jpg", "error");
+    baleSuperRenderBaleResults(data.results || []);
+    baleSuperRenderBaleOutcome("پیام بله خراب شده بالا نمیاد", "/dashboard/img/patrik.jpg", "error");
     showToast(data.message || data.error || "پردازش با خطا متوقف شد.", "error");
 
     const sendButton = document.getElementById("baleSendButton");
@@ -2120,7 +2120,7 @@ function handleBaleFailed(data) {
     }
 }
 
-function getBaleContactStatusLabel(item) {
+function baleSuperGetBaleContactStatusLabel(item) {
     const status = String(item.contact_status || item.contact_add_status || "").toLowerCase();
     if (["success", "added", "confirmed"].includes(status)) return "افزوده شد";
     if (status === "add_confirmed_but_not_found") return "افزودن تأیید شد؛ پیدا نشد";
@@ -2129,7 +2129,7 @@ function getBaleContactStatusLabel(item) {
     return status || "نامشخص";
 }
 
-function getBaleMessageStatusLabel(item) {
+function baleSuperGetBaleMessageStatusLabel(item) {
     const status = String(item.message_status || item.status || "").toLowerCase();
     if (["sent", "success"].includes(status) || item.success === true) return "موفق";
     if (["skipped", "not_sent"].includes(status)) return "ارسال نشد";
@@ -2137,7 +2137,7 @@ function getBaleMessageStatusLabel(item) {
     return status || "نامشخص";
 }
 
-function renderBaleResults(results) {
+function baleSuperRenderBaleResults(results) {
     const container = document.getElementById("baleProgressResults");
     if (!container) return;
     if (!Array.isArray(results) || results.length === 0) {
@@ -2146,7 +2146,7 @@ function renderBaleResults(results) {
     }
 
     const groups = { success: [], failed: [], no_account: [] };
-    results.forEach(item => groups[getBaleResultGroup(item)].push(item));
+    results.forEach(item => groups[baleSuperGetBaleResultGroup(item)].push(item));
     const counts = { success: groups.success.length, failed: groups.failed.length, no_account: groups.no_account.length };
     const activeFilter = ["success", "failed", "no_account"].includes(window.__baleSuperResultsFilter)
         ? window.__baleSuperResultsFilter : "success";
@@ -2188,13 +2188,13 @@ function renderBaleResults(results) {
         rowsContainer.innerHTML = '<tr><td colspan="7" style="padding:18px;color:#64748b;text-align:center;">موردی در این دسته وجود ندارد.</td></tr>';
     } else {
         rowsContainer.innerHTML = selected.map((item, index) => {
-            const phone = escapeBaleHtml(item.phone || "");
-            const name = escapeBaleHtml(item.name || item.phone || "بدون نام");
-            const contactStatus = escapeBaleHtml(getBaleContactStatusLabel(item));
-            const addNotification = escapeBaleHtml(item.ui_notification || item.add_notification || item.contact_add_detail || "");
-            const messageStatus = escapeBaleHtml(getBaleMessageStatusLabel(item));
-            const detail = escapeBaleHtml(item.error || item.detail || item.description || item.message || "");
-            const messageColor = getBaleResultGroup(item) === "success" ? "#166534" : (getBaleResultGroup(item) === "no_account" ? "#92400e" : "#991b1b");
+            const phone = escapeBaleSuperHtml(item.phone || "");
+            const name = escapeBaleSuperHtml(item.name || item.phone || "بدون نام");
+            const contactStatus = escapeBaleSuperHtml(baleSuperGetBaleContactStatusLabel(item));
+            const addNotification = escapeBaleSuperHtml(item.ui_notification || item.add_notification || item.contact_add_detail || "");
+            const messageStatus = escapeBaleSuperHtml(baleSuperGetBaleMessageStatusLabel(item));
+            const detail = escapeBaleSuperHtml(item.error || item.detail || item.description || item.message || "");
+            const messageColor = baleSuperGetBaleResultGroup(item) === "success" ? "#166534" : (baleSuperGetBaleResultGroup(item) === "no_account" ? "#92400e" : "#991b1b");
             return `<tr style="background:${index % 2 ? "#f8fafc" : "#fff"};">
                 <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;">${index + 1}</td>
                 <td style="padding:10px 11px;border-bottom:1px solid #e2e8f0;direction:ltr;text-align:right;white-space:nowrap;">${phone}</td>
@@ -2210,9 +2210,9 @@ function renderBaleResults(results) {
     container.querySelectorAll("[data-bale-filter]").forEach(button => {
         button.addEventListener("click", () => {
             window.__baleSuperResultsFilter = button.dataset.baleFilter;
-            renderBaleResults(results);
+            baleSuperRenderBaleResults(results);
             if (window.__baleSuperOutcome) {
-                renderBaleOutcome(window.__baleSuperOutcome.message, window.__baleSuperOutcome.image, window.__baleSuperOutcome.kind);
+                baleSuperRenderBaleOutcome(window.__baleSuperOutcome.message, window.__baleSuperOutcome.image, window.__baleSuperOutcome.kind);
             }
         });
     });
@@ -2222,7 +2222,7 @@ function renderBaleResults(results) {
    Escape HTML
    ========================================================= */
 
-function escapeBaleHtml(
+function escapeBaleSuperHtml(
     value
 ) {
 
@@ -2238,46 +2238,46 @@ function escapeBaleHtml(
 /* =========================================================
    Global Exports
    ========================================================= */
-window.changeBaleAccount =
-    changeBaleAccount;
+window.baleSuperChangeBaleAccount =
+    baleSuperChangeBaleAccount;
 
-window.openBaleMessaging =
-    openBaleMessaging;
+window.openBaleSuperMessaging =
+    openBaleSuperMessaging;
 
-window.showBaleLoginPage =
-    showBaleLoginPage;
+window.baleSuperShowBaleLoginPage =
+    baleSuperShowBaleLoginPage;
 
-window.startBaleLogin =
-    startBaleLogin;
+window.baleSuperStartBaleLogin =
+    baleSuperStartBaleLogin;
 
-window.showBaleOtpPage =
-    showBaleOtpPage;
+window.baleSuperShowBaleOtpPage =
+    baleSuperShowBaleOtpPage;
 
-window.verifyBaleOtp =
-    verifyBaleOtp;
+window.baleSuperVerifyBaleOtp =
+    baleSuperVerifyBaleOtp;
 
-window.showBaleMessagingPage =
-    showBaleMessagingPage;
+window.baleSuperShowBaleMessagingPage =
+    baleSuperShowBaleMessagingPage;
 
-window.sendBaleMessages =
-    sendBaleMessages;
+window.baleSuperSendBaleMessages =
+    baleSuperSendBaleMessages;
 
-window.showBaleProgress =
-    showBaleProgress;
+window.baleSuperShowBaleProgress =
+    baleSuperShowBaleProgress;
 
-window.pollBaleProgress =
-    pollBaleProgress;
+window.baleSuperPollBaleProgress =
+    baleSuperPollBaleProgress;
 
-window.updateBaleProgress =
-    updateBaleProgress;
+window.baleSuperUpdateBaleProgress =
+    baleSuperUpdateBaleProgress;
 
-window.showBaleSavedAccountPage =
-    showBaleSavedAccountPage;
+window.baleSuperShowBaleSavedAccountPage =
+    baleSuperShowBaleSavedAccountPage;
 
-window.continueBaleAccount =
-    continueBaleAccount;
+window.baleSuperContinueBaleAccount =
+    baleSuperContinueBaleAccount;
 
-window.changeBaleAccount = changeBaleAccount;
+window.baleSuperChangeBaleAccount = baleSuperChangeBaleAccount;
 
 window.__baleSuperLastJobId =
     data.job_id;
