@@ -2279,9 +2279,6 @@ window.baleSuperContinueBaleAccount =
 
 window.baleSuperChangeBaleAccount = baleSuperChangeBaleAccount;
 
-window.__baleSuperLastJobId =
-    data.job_id;
-
 function superballe() {
     if (typeof guardFeature === "function" && !guardFeature("bale.personal_message")) return;
     openBaleSuperMessaging();
