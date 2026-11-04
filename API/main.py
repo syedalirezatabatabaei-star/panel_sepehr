@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from API.registration_admin import router as registration_router
 from API.bale_api import router as bale_router
+from API.bale_super_api import router as bale_super_router
 from API.eitaa_api import router as eitaa_router
 from API.rubika_api import router as rubika_router
 from API.span_api import router as span_router
@@ -91,7 +92,10 @@ async def require_authenticated_api_requests(request: Request, call_next):
     permission_action = "use"
 
     # Personal broadcast permissions are checked on the server.
-    if request.method == "POST" and path_lower == "/api/bale/send":
+    if path_lower.startswith("/api/bale-super/"):
+        required_permission = "bale.personal_message"
+        permission_action = "write" if request.method in {"POST", "PUT", "PATCH", "DELETE"} else "use"
+    elif request.method == "POST" and path_lower == "/api/bale/send":
         required_permission = "bale.personal_message"
     elif request.method == "POST" and path_lower == "/api/eitaa/send":
         required_permission = "eitaa.personal_message"
@@ -176,6 +180,7 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(permissions_admin_router)
 app.include_router(bale_router)
+app.include_router(bale_super_router)
 app.include_router(eitaa_router)
 app.include_router(rubika_router)
 app.include_router(span_router)
