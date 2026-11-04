@@ -75,7 +75,6 @@ services:
       - bale-super-data:/data
     networks:
       - internal_net
-      - internet_net
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/health', timeout=5)"]
       interval: 30s
@@ -87,9 +86,6 @@ networks:
   internal_net:
     external: true
     name: internal_net
-  internet_net:
-    external: true
-    name: internet_net
 
 volumes:
   bale-super-data:
