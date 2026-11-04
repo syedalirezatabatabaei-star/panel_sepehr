@@ -6,7 +6,7 @@
 - کانتینر `bale_super` به هر دو شبکه `internal_net` و `internet_net` وصل است؛ پنل فقط به `internal_net` نیاز دارد.
 - پورت 8787 روی میزبان publish نمی‌شود و API فقط از شبکه Docker در دسترس است.
 - نشست BaleLink در volume دائمی `bale-super-data` نگهداری می‌شود.
-- اگر `BALELINK_API_KEY` و `BALELINK_GATEWAY_URL` در محیط پنل تنظیم باشند، ورود و ارسال از Gateway انجام می‌شود. در غیر این صورت مسیر قبلی Playwright باقی می‌ماند.
+- فقط دکمه `super` در منوی «ارسال پیام شخصی بله» از مسیر مستقل `/api/bale-super` و Gateway استفاده می‌کند. مسیرهای قدیمی `/api/bale` و سایر پیام‌رسان‌ها به Gateway وصل نشده‌اند و دست‌نخورده باقی مانده‌اند.
 
 ## آماده‌سازی سرور
 
@@ -83,16 +83,34 @@ docker exec panel_sepehr python -c "import urllib.request; print(urllib.request.
 - پنل سپهر: https://github.com/syedalirezatabaei-star/panel_sepehr/pull/22
 - Dockerfile سرویس BaleLink: https://github.com/syedalirezatabaei-star/bale_super/pull/1
 
-برای آزمایش پیش از ادغام، هر دو شاخه زیر را روی سرور checkout کنید:
+برای دریافت نسخه آماده آزمایش، هر دو مخزن را در کنار هم قرار دهید و شاخه‌های زیر را checkout کنید. اگر مخزن‌ها از قبل clone شده‌اند، دستورات را در پوشه همان مخزن اجرا کنید:
 
 ```bash
-# در پوشه panel_sepehr
+# داخل پوشه panel_sepehr
 git fetch origin
-git checkout feature/bale-super-gateway
+git checkout -B feature/bale-super-gateway origin/feature/bale-super-gateway
 
-# در پوشه bale_super
+# داخل پوشه bale_super (کنار panel_sepehr)
 git fetch origin
-git checkout feature/docker-gateway
+git checkout -B feature/docker-gateway origin/feature/docker-gateway
 ```
 
-پس از ادغام هر دو PR، می‌توانید از شاخه `main` استفاده کنید.
+ساختار مسیر باید به این شکل باشد تا build context پیش‌فرض Compose درست کار کند:
+
+```text
+deploy/
+  panel_sepehr/
+  bale_super/
+```
+
+در فایل `.env` پوشه `panel_sepehr` مقدار `BALELINK_API_KEY` را با یک مقدار تصادفی قوی پر کنید. همان کلید به پنل و کانتینر Gateway داده می‌شود. سپس از همان پوشه اجرا کنید:
+
+```bash
+docker compose config
+docker compose build panel_sepehr bale_super
+docker compose up -d panel_sepehr bale_super
+docker compose ps
+docker compose logs --tail=100 panel_sepehr bale_super
+```
+
+قبل از اجرا مطمئن شوید شبکه‌های Docker موجودند و build context به پوشه واقعی `bale_super` اشاره می‌کند. این نسخه هنوز روی سرور و حساب واقعی بله smoke-test نشده است؛ ابتدا ورود و ارسال محدود به شماره آزمایشی انجام دهید.
