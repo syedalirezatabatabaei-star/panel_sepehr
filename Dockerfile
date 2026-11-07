@@ -12,7 +12,7 @@ ENV GOOMNI_URL=http://goomni:3000 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates chromium bash unzip \
+    && apt-get install -y --no-install-recommends ca-certificates bash unzip \
     && rm -rf /var/lib/apt/lists/*
 
 COPY API/requirements.txt /app/API/requirements.txt

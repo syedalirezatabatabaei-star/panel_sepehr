@@ -12,7 +12,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from API.bale_api import create_report, normalize_phone, read_excel_contacts
+from API.bale_utils import create_report, normalize_phone, read_excel_contacts
 from API.bale_super_connection import check_bale_super_connection
 from API.bale_gateway import (
     gateway_account,
