@@ -16,7 +16,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the server-side .env file}
       DB_NAME: ${DB_NAME:-Bale_sender}
       DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-10}
-      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://95.38.187.123:3002}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://95.38.187.123:3214}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Internal Docker DNS avoids routing container-to-container traffic via the host public IP.
       BALE_CHAT_SERVICE_URL: ${BALE_CHAT_SERVICE_URL:-http://chat_node:3000}
@@ -45,7 +45,7 @@ services:
       PYTHONUNBUFFERED: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     ports:
-      - "3002:8085"
+      - "3214:8085"
       - "8005:8005"
     volumes:
       - eitaa-media-shared:/shared/eitaa-media
