@@ -12,8 +12,10 @@ ENV GOOMNI_URL=http://goomni:3000 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN set -eux; \
-    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i 's|http://deb.debian.org|https://deb.debian.org|g' {} +; \
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update; \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i \
+        -e 's|https\?://deb.debian.org|https://mirror.arvancloud.ir|g' \
+        -e 's|https\?://security.debian.org|https://mirror.arvancloud.ir/debian-security|g' {} +; \
+    apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 update; \
     apt-get -o Acquire::Retries=5 install -y --no-install-recommends ca-certificates chromium bash unzip; \
     rm -rf /var/lib/apt/lists/*
 
