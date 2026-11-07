@@ -131,7 +131,7 @@
         <span class="badge">بله</span>
         </button>
 
-            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+            <button class="sidebar-item" onclick="if (!guardFeature('tahlil.chats')) return; tahlil()">
         <span class="icon">&#128065;</span>
         <span>تحیل صدا </span>
         <span class="badge">گلشنی</span>
@@ -234,14 +234,15 @@
   </div>
 </div>
 
-<script src="./js/data.js"></script>
-<script src="./js/app.js?v=20261024-header-notifications-users-logout"></script>
-<script src="./js/bale.js"></script>
-<script src="./js/eitaa-broadcast.js?v=20261024-membership-status"></script>
-<script src="./js/rubika-broadcast.js?v=20261031-goomni-rubika"></script>
-<script src="./js/span-api.js?v=20261031-span-api-account-ui-v3"></script>
-<script src="./js/bale-UI.js?v=20261024-bale-chat-init-fix"></script>
-<script src="./js/eita-ui.js"></script>
-<script src="./js/settings.js?v=20261024-chat-access-ui-fix"></script>
+<script defer="defer" src="./js/data.js"></script>
+<script defer="defer" src="./js/tahlil.js"></script>
+<script defer="defer" src="./js/app.js?v=20261024-header-notifications-users-logout"></script>
+<script defer="defer" src="./js/bale.js"></script>
+<script defer="defer" src="./js/eitaa-broadcast.js?v=20261024-membership-status"></script>
+<script defer="defer" src="./js/rubika-broadcast.js?v=20261031-goomni-rubika"></script>
+<script defer="defer" src="./js/span-api.js?v=20261031-span-api-account-ui-v3"></script>
+<script defer="defer" src="./js/bale-UI.js?v=20261024-bale-chat-init-fix"></script>
+<script defer="defer" src="./js/eita-ui.js"></script>
+<script defer="defer" src="./js/settings.js?v=20261024-chat-access-ui-fix"></script>
 </body>
 </html>
