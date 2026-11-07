@@ -11,9 +11,11 @@ ENV GOOMNI_URL=http://goomni:3000 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates chromium bash unzip \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i 's|http://deb.debian.org|https://deb.debian.org|g' {} +; \
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update; \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends ca-certificates chromium bash unzip; \
+    rm -rf /var/lib/apt/lists/*
 
 COPY API/requirements.txt /app/API/requirements.txt
 RUN python -m pip install --no-cache-dir --upgrade pip \
