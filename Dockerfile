@@ -8,9 +8,9 @@ RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do \
         [ -f "$source" ] || continue; \
         sed -i \
-            -e 's|https\?://deb.debian.org/debian-security|http://mirror.arvancloud.ir/debian-security|g' \
-            -e 's|https\?://security.debian.org/debian-security|http://mirror.arvancloud.ir/debian-security|g' \
-            -e 's|https\?://deb.debian.org/debian|http://mirror.arvancloud.ir/debian|g' \
+            -e 's|https\?://deb.debian.org/debian-security|http://linux-mirror.liara.ir/repository/debian-security|g' \
+            -e 's|https\?://security.debian.org/debian-security|http://linux-mirror.liara.ir/repository/debian-security|g' \
+            -e 's|https\?://deb.debian.org/debian|http://linux-mirror.liara.ir/repository/debian|g' \
             "$source"; \
     done; \
     apt-get update; \
