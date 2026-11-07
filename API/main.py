@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from API.registration_admin import router as registration_router
-from API.bale_api import router as bale_router
+from API.bale_proxy import router as bale_router
 from API.bale_super_api import router as bale_super_router
 from API.eitaa_api import router as eitaa_router
 from API.rubika_api import router as rubika_router

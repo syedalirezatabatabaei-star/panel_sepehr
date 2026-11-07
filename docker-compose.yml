@@ -31,6 +31,8 @@ services:
       BALELINK_GATEWAY_URL: ${BALELINK_GATEWAY_URL:-http://bale_super:8787}
       BALELINK_API_KEY: ${BALELINK_API_KEY:?Set the same BALELINK_API_KEY used by bale_super in server-side .env}
       BALELINK_SESSION: ${BALELINK_SESSION:-sepehr}
+      BALE_WEB_SENDER_URL: ${BALE_WEB_SENDER_URL:-http://bale_sender:2587}
+      BALE_WEB_SENDER_API_KEY: ${BALE_WEB_SENDER_API_KEY:?Set BALE_WEB_SENDER_API_KEY in server-side .env}
       RUBIKA_DEVICE_ID: ${RUBIKA_DEVICE_ID:-sepehr-rubika}
       RUBIKA_STATE_DIR: /app/data/rubika-state
       SPAN_STATE_DIR: /app/data/span-api
