@@ -380,19 +380,9 @@ def login(data: LoginRequest, request: Request):
 
         bale_account = cursor.fetchone()
 
-        if not bale_account:
-
-            return {
-                "success": False,
-                "message": "حساب بله برای این کاربر ثبت نشده است"
-            }
-
-        if bale_account["is_active"] != 1:
-
-            return {
-                "success": False,
-                "message": "حساب بله کاربر غیرفعال است"
-            }
+        if not bale_account or bale_account["is_active"] != 1:
+            db.commit()
+            return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
 
         # -------------------------------------------------
         # Client information
@@ -447,10 +437,7 @@ def login(data: LoginRequest, request: Request):
             )
         }
 
-        print("========================================")
-        print("Sending OTP request to n8n:")
-        print(webhook_data)
-        print("========================================")
+        logger.info("OTP delivery requested for an authenticated account")
 
         # -------------------------------------------------
         # Send OTP
@@ -556,8 +543,7 @@ def login(data: LoginRequest, request: Request):
                 "message": "پاسخ نامعتبر از سرویس OTP"
             }
 
-        print("N8N RESPONSE:")
-        print(n8n_data)
+        logger.info("OTP delivery provider returned a response")
 
         # -------------------------------------------------
         # Request ID
@@ -611,7 +597,6 @@ def login(data: LoginRequest, request: Request):
         raise HTTPException(status_code=503, detail="سرویس احراز هویت موقتاً در دسترس نیست")
 
     finally:
-        print("ME USER DATA:", user)
         cursor.close()
         db.close()
 
@@ -945,12 +930,7 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
 
         db.commit()
 
-        print("========================================")
-        print("OTP VERIFIED SUCCESSFULLY")
-        print("SESSION CREATED")
-        print("USER:", user["username"])
-        print("SESSION COOKIE WILL BE SET")
-        print("========================================")
+        logger.info("OTP verification succeeded and a session was created")
 
         # -------------------------------------------------
         # Create response
@@ -988,20 +968,13 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
             key="session_token",
             value=raw_token,
             httponly=True,
-            secure=os.getenv("COOKIE_SECURE", "false").strip().lower() in {"1", "true", "yes"},
+            secure=os.getenv("COOKIE_SECURE", "true").strip().lower() in {"1", "true", "yes"},
             samesite="lax",
             max_age=SESSION_EXPIRE_MINUTES * 60,
             path="/"
         )
 
-        print("========================================")
-        print("SESSION COOKIE SET")
-        print("COOKIE NAME: session_token")
-        print("HTTPONLY: True")
-        print("SECURE: False")
-        print("SAMESITE: lax")
-        print("MAX AGE:", SESSION_EXPIRE_MINUTES * 60)
-        print("========================================")
+
 
         return response
 
@@ -1064,11 +1037,8 @@ def resend_otp(data: ResendOTPRequest, request: Request):
             return {"success": False, "message": "اگر حساب واجد شرایط باشد، کد ارسال خواهد شد"}
 
         if user["is_active"] != 1:
-
-            return {
-                "success": False,
-                "message": "حساب کاربری غیرفعال است"
-            }
+            db.commit()
+            return {"success": False, "message": "اگر حساب واجد شرایط باشد، کد ارسال خواهد شد"}
 
         # -------------------------------------------------
         # Bale account
@@ -1090,19 +1060,9 @@ def resend_otp(data: ResendOTPRequest, request: Request):
 
         bale_account = cursor.fetchone()
 
-        if not bale_account:
-
-            return {
-                "success": False,
-                "message": "حساب بله برای این کاربر ثبت نشده است"
-            }
-
-        if bale_account["is_active"] != 1:
-
-            return {
-                "success": False,
-                "message": "حساب بله کاربر غیرفعال است"
-            }
+        if not bale_account or bale_account["is_active"] != 1:
+            db.commit()
+            return {"success": False, "message": "اگر حساب واجد شرایط باشد، کد ارسال خواهد شد"}
 
         # -------------------------------------------------
         # N8N
@@ -1122,10 +1082,7 @@ def resend_otp(data: ResendOTPRequest, request: Request):
             "resend": True
         }
 
-        print("========================================")
-        print("RESEND OTP -> N8N")
-        print(webhook_data)
-        print("========================================")
+        logger.info("OTP resend requested for an eligible account")
 
         try:
 
@@ -1181,8 +1138,7 @@ def resend_otp(data: ResendOTPRequest, request: Request):
                 "message": "پاسخ نامعتبر از سرویس OTP"
             }
 
-        print("N8N RESEND RESPONSE:")
-        print(n8n_data)
+        logger.info("OTP resend provider returned a response")
 
         request_id = n8n_data.get("request_id")
 
