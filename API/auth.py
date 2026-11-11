@@ -11,7 +11,10 @@ import secrets
 import os
 import json
 from datetime import datetime, timedelta, timezone
+import logging
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/auth",
@@ -61,6 +64,73 @@ class VerifyOTPRequest(BaseModel):
 class ResendOTPRequest(BaseModel):
     username: str
     request_id: int | None = None
+
+
+# =========================================================
+# SECURITY HELPERS
+# =========================================================
+
+AUTH_DEFAULT_MAX_ATTEMPTS = 5
+AUTH_DEFAULT_LOCKOUT_MINUTES = 15
+
+
+def _load_security_policy(cursor):
+    policy = {"حداکثر تلاش ورود": AUTH_DEFAULT_MAX_ATTEMPTS, "مدت قفل شدن (دقیقه)": AUTH_DEFAULT_LOCKOUT_MINUTES}
+    cursor.execute(
+        "SELECT setting_key, setting_value FROM panel_system_settings WHERE setting_key IN (%s, %s)",
+        ("حداکثر تلاش ورود", "مدت قفل شدن (دقیقه)"),
+    )
+    for row in cursor.fetchall():
+        try:
+            policy[row["setting_key"]] = int(json.loads(row["setting_value"]))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            logger.warning("Invalid authentication setting value for %s; using default", row["setting_key"])
+    return max(1, min(20, int(policy["حداکثر تلاش ورود"]))), max(1, min(1440, int(policy["مدت قفل شدن (دقیقه)"])))
+
+
+def _rate_limit_key(scope, identity):
+    return hashlib.sha256(f"{scope}:{str(identity).strip().lower()}".encode("utf-8")).hexdigest()
+
+
+def _consume_rate_limit(cursor, scope, identity, max_attempts, lockout_minutes):
+    if identity is None or not str(identity).strip():
+        return True
+    key = _rate_limit_key(scope, identity)
+    cursor.execute(
+        "INSERT IGNORE INTO auth_rate_limits (bucket_key, window_started_at, attempts, blocked_until) VALUES (%s, UTC_TIMESTAMP(), 0, NULL)",
+        (key,),
+    )
+    cursor.execute("""
+        SELECT attempts,
+               (blocked_until IS NOT NULL AND blocked_until > UTC_TIMESTAMP()) AS is_blocked,
+               (window_started_at <= DATE_SUB(UTC_TIMESTAMP(), INTERVAL %s MINUTE)) AS is_expired
+        FROM auth_rate_limits WHERE bucket_key=%s FOR UPDATE
+    """, (lockout_minutes, key))
+    row = cursor.fetchone()
+    if not row:
+        raise RuntimeError("Authentication rate-limit bucket could not be read")
+    if bool(row.get("is_blocked")):
+        return False
+    if bool(row.get("is_expired")):
+        cursor.execute("UPDATE auth_rate_limits SET window_started_at=UTC_TIMESTAMP(), attempts=1, blocked_until=NULL WHERE bucket_key=%s", (key,))
+        return True
+    if int(row.get("attempts") or 0) >= max_attempts:
+        cursor.execute("UPDATE auth_rate_limits SET blocked_until=DATE_ADD(UTC_TIMESTAMP(), INTERVAL %s MINUTE) WHERE bucket_key=%s", (lockout_minutes, key))
+        return False
+    cursor.execute("UPDATE auth_rate_limits SET attempts=attempts+1 WHERE bucket_key=%s", (key,))
+    return True
+
+
+def _clear_rate_limit(cursor, scope, identity):
+    if identity is not None and str(identity).strip():
+        cursor.execute("DELETE FROM auth_rate_limits WHERE bucket_key=%s", (_rate_limit_key(scope, identity),))
+
+
+def _record_failed_login(cursor, username, client_ip, user_agent, reason, user_id=None):
+    cursor.execute("""
+        INSERT INTO login_logs (user_id, username, login_status, otp_status, ip_address, user_agent, failure_reason)
+        VALUES (%s, %s, 'failed', 'failed', %s, %s, %s)
+    """, (user_id, str(username or "")[:150], client_ip, (user_agent or "")[:500], reason[:250]))
 
 
 # =========================================================
@@ -209,34 +279,18 @@ def login(data: LoginRequest, request: Request):
 
     try:
 
-        # Enforce security policy saved by administrators in panel_system_settings.
-        security = {"حداکثر تلاش ورود": 5, "مدت قفل شدن (دقیقه)": 15, "حداقل طول رمز عبور": 8}
-        try:
-            cursor.execute(
-                "SELECT setting_key, setting_value FROM panel_system_settings WHERE setting_key IN (%s, %s, %s)",
-                ("حداکثر تلاش ورود", "مدت قفل شدن (دقیقه)", "حداقل طول رمز عبور")
+        max_attempts, lockout_minutes = _load_security_policy(cursor)
+        client_ip = request.client.host if request.client else None
+        user_agent = request.headers.get("user-agent")
+        user_allowed = _consume_rate_limit(cursor, "login:username", data.username, max_attempts, lockout_minutes)
+        ip_allowed = _consume_rate_limit(cursor, "login:ip", client_ip, max_attempts * 5, lockout_minutes)
+        if not user_allowed or not ip_allowed:
+            db.commit()
+            return JSONResponse(
+                status_code=429,
+                content={"success": False, "message": f"تعداد تلاش‌های ورود بیش از حد مجاز است. {lockout_minutes} دقیقه بعد دوباره تلاش کنید."},
+                headers={"Retry-After": str(lockout_minutes * 60), "Cache-Control": "no-store"},
             )
-            for setting in cursor.fetchall():
-                try:
-                    security[setting["setting_key"]] = int(json.loads(setting["setting_value"]))
-                except (TypeError, ValueError, json.JSONDecodeError):
-                    pass
-            max_attempts = max(1, min(20, int(security["حداکثر تلاش ورود"])))
-            lockout_minutes = max(1, min(1440, int(security["مدت قفل شدن (دقیقه)"])))
-            cursor.execute("""
-                SELECT COUNT(*) AS failures
-                FROM login_logs
-                WHERE username=%s AND login_status='failed'
-                  AND created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL %s MINUTE)
-                  AND id > COALESCE((SELECT MAX(id) FROM login_logs WHERE username=%s AND login_status='success'), 0)
-            """, (data.username, lockout_minutes, data.username))
-            failure_row = cursor.fetchone() or {}
-            if int(failure_row.get("failures") or 0) >= max_attempts:
-                return {"success": False, "message": f"به دلیل تلاش‌های ناموفق، ورود موقتاً قفل شده است. {lockout_minutes} دقیقه بعد دوباره تلاش کنید."}
-        except Exception:
-            # If the optional settings table is temporarily unavailable, retain
-            # the normal login flow rather than locking every user out.
-            db.rollback()
 
         # -------------------------------------------------
         # Find user
@@ -267,7 +321,8 @@ def login(data: LoginRequest, request: Request):
         # -------------------------------------------------
 
         if not user:
-
+            _record_failed_login(cursor, data.username, client_ip, user_agent, "نام کاربری یا رمز عبور اشتباه است")
+            db.commit()
             return {
                 "success": False,
                 "message": "نام کاربری یا رمز عبور اشتباه است"
@@ -278,11 +333,9 @@ def login(data: LoginRequest, request: Request):
         # -------------------------------------------------
 
         if user["is_active"] != 1:
-
-            return {
-                "success": False,
-                "message": "حساب کاربری غیرفعال است"
-            }
+            _record_failed_login(cursor, data.username, client_ip, user_agent, "حساب کاربری غیرفعال است", user["id"])
+            db.commit()
+            return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
 
         # -------------------------------------------------
         # Check password
@@ -295,34 +348,17 @@ def login(data: LoginRequest, request: Request):
                 user["password_hash"]
             )
 
-        except Exception as e:
-
-            print("PASSWORD VERIFY ERROR:", str(e))
-
-            return {
-                "success": False,
-                "message": "خطا در بررسی رمز عبور"
-            }
+        except Exception:
+            logger.exception("Password hash verification failed")
+            raise HTTPException(status_code=503, detail="سرویس احراز هویت موقتاً در دسترس نیست")
 
         if not password_valid:
-            try:
-                cursor.execute("""
-                    INSERT INTO login_logs
-                    (user_id, username, login_status, otp_status, ip_address, user_agent, failure_reason)
-                    VALUES (%s, %s, 'failed', 'failed', %s, %s, %s)
-                """, (
-                    user["id"], user["username"],
-                    request.client.host if request.client else None,
-                    request.headers.get("user-agent"),
-                    "رمز عبور اشتباه"
-                ))
-                db.commit()
-            except Exception:
-                db.rollback()
-            return {
-                "success": False,
-                "message": "نام کاربری یا رمز عبور اشتباه است"
-            }
+            _record_failed_login(cursor, user["username"], client_ip, user_agent, "رمز عبور اشتباه", user["id"])
+            db.commit()
+            return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
+
+        _clear_rate_limit(cursor, "login:username", data.username)
+        _clear_rate_limit(cursor, "login:ip", client_ip)
 
         # -------------------------------------------------
         # Find Bale account
@@ -566,16 +602,13 @@ def login(data: LoginRequest, request: Request):
             }
         }
 
-    except Exception as e:
-
+    except HTTPException:
         db.rollback()
-
-        print("LOGIN ERROR:", str(e))
-
-        return {
-            "success": False,
-            "message": "خطا در ورود"
-        }
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("Login request failed")
+        raise HTTPException(status_code=503, detail="سرویس احراز هویت موقتاً در دسترس نیست")
 
     finally:
         print("ME USER DATA:", user)
@@ -594,12 +627,14 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
     cursor = db.cursor(dictionary=True)
 
     try:
-
-        print("========================================")
-        print("VERIFY OTP REQUEST")
-        print("username:", data.username)
-        print("request_id:", data.request_id)
-        print("========================================")
+        max_attempts, lockout_minutes = _load_security_policy(cursor)
+        client_ip = request.client.host if request.client else None
+        otp_identity = f"{data.username}:{data.request_id}"
+        user_allowed = _consume_rate_limit(cursor, "otp:verify:user", otp_identity, max_attempts, lockout_minutes)
+        ip_allowed = _consume_rate_limit(cursor, "otp:verify:ip", client_ip, max_attempts * 5, lockout_minutes)
+        if not user_allowed or not ip_allowed:
+            db.commit()
+            return JSONResponse(status_code=429, content={"success": False, "error": "OTP_RATE_LIMITED", "message": "تعداد تلاش‌های واردکردن کد بیش از حد مجاز است."}, headers={"Retry-After": str(lockout_minutes * 60), "Cache-Control": "no-store"})
 
         # -------------------------------------------------
         # Find OTP
@@ -628,26 +663,16 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
         otp_record = cursor.fetchone()
 
         if not otp_record:
-
-            print("OTP RECORD NOT FOUND")
-
-            return {
-                "success": False,
-                "error": "INVALID_OTP",
-                "message": "درخواست OTP معتبر نیست"
-            }
+            db.commit()
+            return {"success": False, "error": "INVALID_OTP", "message": "درخواست OTP معتبر نیست"}
 
         # -------------------------------------------------
         # Check used
         # -------------------------------------------------
 
         if otp_record["is_used"] == 1:
-
-            return {
-                "success": False,
-                "error": "OTP_EXPIRED",
-                "message": "این کد قبلاً استفاده شده است"
-            }
+            db.commit()
+            return {"success": False, "error": "OTP_EXPIRED", "message": "این کد قبلاً استفاده شده است"}
 
         # -------------------------------------------------
         # Check expiration
@@ -705,16 +730,6 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
         submitted_hash = hashlib.sha256(
             data.otp.encode("utf-8")
         ).hexdigest()
-
-        print("========================================")
-        print("OTP HASH DEBUG")
-        print("CALCULATED HASH:", submitted_hash)
-        print("DATABASE HASH:", otp_record["otp_hash"])
-        print(
-            "HASH MATCH:",
-            submitted_hash == otp_record["otp_hash"]
-        )
-        print("========================================")
 
         # -------------------------------------------------
         # Invalid OTP
@@ -922,6 +937,9 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
         )
 
         # -------------------------------------------------
+        _clear_rate_limit(cursor, "otp:verify:user", otp_identity)
+        _clear_rate_limit(cursor, "otp:verify:ip", client_ip)
+
         # Commit everything
         # -------------------------------------------------
 
@@ -987,16 +1005,13 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
 
         return response
 
-    except Exception as e:
-
+    except HTTPException:
         db.rollback()
-
-        print("VERIFY OTP ERROR:", str(e))
-
-        return {
-            "success": False,
-            "message": "خطا در بررسی کد تأیید"
-        }
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("OTP verification failed")
+        raise HTTPException(status_code=503, detail="سرویس تأیید کد موقتاً در دسترس نیست")
 
     finally:
 
@@ -1009,12 +1024,19 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
 # =========================================================
 
 @router.post("/resend-otp")
-def resend_otp(data: ResendOTPRequest):
+def resend_otp(data: ResendOTPRequest, request: Request):
 
     db = get_connection()
     cursor = db.cursor(dictionary=True)
 
     try:
+        max_attempts, lockout_minutes = _load_security_policy(cursor)
+        client_ip = request.client.host if request.client else None
+        user_allowed = _consume_rate_limit(cursor, "otp:resend:user", data.username, 3, lockout_minutes)
+        ip_allowed = _consume_rate_limit(cursor, "otp:resend:ip", client_ip, 10, lockout_minutes)
+        if not user_allowed or not ip_allowed:
+            db.commit()
+            return JSONResponse(status_code=429, content={"success": False, "message": "تعداد درخواست ارسال مجدد کد بیش از حد مجاز است."}, headers={"Retry-After": str(lockout_minutes * 60), "Cache-Control": "no-store"})
 
         # -------------------------------------------------
         # User
@@ -1038,11 +1060,8 @@ def resend_otp(data: ResendOTPRequest):
         user = cursor.fetchone()
 
         if not user:
-
-            return {
-                "success": False,
-                "message": "کاربر پیدا نشد"
-            }
+            db.commit()
+            return {"success": False, "message": "اگر حساب واجد شرایط باشد، کد ارسال خواهد شد"}
 
         if user["is_active"] != 1:
 
@@ -1211,16 +1230,13 @@ def resend_otp(data: ResendOTPRequest):
             "countdown": 60
         }
 
-    except Exception as e:
-
+    except HTTPException:
         db.rollback()
-
-        print("RESEND OTP ERROR:", str(e))
-
-        return {
-            "success": False,
-            "message": "خطا در ارسال مجدد کد"
-        }
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("OTP resend failed")
+        raise HTTPException(status_code=503, detail="سرویس ارسال مجدد کد موقتاً در دسترس نیست")
 
     finally:
 
