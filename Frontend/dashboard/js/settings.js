@@ -469,7 +469,11 @@ async function loadRolesFromDatabase() {
         [...new Set(PERMISSIONS.map(item => item.group))].forEach((group, index) => {
             PERMISSION_GROUPS[group] = {label: group, icon: "🔑", order: index + 1};
         });
-        ROLES.splice(0, ROLES.length, ...rolesData.roles);
+        ROLES.splice(0, ROLES.length, ...rolesData.roles.map(role => ({
+            ...role,
+            permissions: Array.isArray(role.permissions) ? role.permissions : [],
+            permission_actions: role.permission_actions || {}
+        })));
         return ROLES;
     } finally {
         databaseRoleLoadInFlight = false;
@@ -548,7 +552,13 @@ async function saveRolePermissions(roleId) {
         const response = await fetch(`${API_BASE}/api/admin/permissions/roles/${encodeURIComponent(roleId)}`, {
             method: "PUT", credentials: "include",
             headers: {"Content-Type":"application/json", "Accept":"application/json"},
-            body: JSON.stringify({permissions: role.permissions})
+            body: JSON.stringify({
+                permissions: PERMISSIONS.map(permission => {
+                    const actions = role.permission_actions?.[permission.id] || {};
+                    const legacy = role.permissions.includes(permission.id) && !role.permission_actions?.[permission.id];
+                    return {code: permission.id, can_read: !!(actions.can_read || legacy), can_write: !!(actions.can_write || legacy)};
+                }).filter(item => item.can_read || item.can_write)
+            })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.detail?.message || data.detail || "ذخیره مجوزهای نقش ناموفق بود");
@@ -3273,13 +3283,11 @@ function renderRolePermissions() {
                                 groupKey
                         );
 
-                    const enabledCount =
-                        groupPerms.filter(
-                            p =>
-                                role.permissions.includes(
-                                    p.id
-                                )
-                        ).length;
+                    const enabledCount = groupPerms.filter(p => {
+                        const actions = role.permission_actions?.[p.id] || {};
+                        const legacy = role.permissions.includes(p.id) && !role.permission_actions?.[p.id];
+                        return !!(actions.can_read || actions.can_write || legacy);
+                    }).length;
 
                     return `
                         <div class="perm-group open">
@@ -3306,49 +3314,25 @@ function renderRolePermissions() {
 
                             <div class="perm-group-body">
 
-                                ${groupPerms.map(p => `
+                                ${groupPerms.map(p => {
+                                    const actions = role.permission_actions?.[p.id] || {};
+                                    const legacy = role.permissions.includes(p.id) && !role.permission_actions?.[p.id];
+                                    const canRead = !!(actions.can_read || legacy);
+                                    const canWrite = !!(actions.can_write || legacy);
+                                    return `
                                     <div class="perm-item">
-
                                         <div class="perm-item-info">
-
-                                            <label class="checkbox">
-
-                                                <input
-                                                    type="checkbox"
-                                                    ${
-                                                        role.permissions.includes(p.id)
-                                                            ? 'checked'
-                                                            : ''
-                                                    }
-                                                    onchange="
-                                                        toggleRolePermission(
-                                                            '${role.id}',
-                                                            '${p.id}',
-                                                            this.checked
-                                                        )
-                                                    "
-                                                >
-
-                                                <span class="checkbox-mark"></span>
-
-                                            </label>
-
                                             <div>
-
-                                                <div class="perm-item-label">
-                                                    ${p.label}
-                                                </div>
-
-                                                <div class="perm-item-id">
-                                                    ${p.id}
-                                                </div>
-
+                                                <div class="perm-item-label">${p.label}</div>
+                                                <div class="perm-item-id">${p.id}</div>
                                             </div>
-
                                         </div>
-
-                                    </div>
-                                `).join('')}
+                                        <div class="permission-row-controls">
+                                            <label><input type="checkbox" ${canRead ? 'checked' : ''} onchange="toggleRolePermission('${role.id}','${p.id}','read',this.checked)"> مشاهده</label>
+                                            <label><input type="checkbox" ${canWrite ? 'checked' : ''} ${canRead ? '' : 'disabled'} onchange="toggleRolePermission('${role.id}','${p.id}','write',this.checked)"> ویرایش</label>
+                                        </div>
+                                    </div>`;
+                                }).join('')}
 
                             </div>
 
@@ -3387,43 +3371,26 @@ function renderRolePermissions() {
     `;
 }
 
-function toggleRolePermission(
-    roleId,
-    permId,
-    checked
-) {
-    const role =
-        ROLES.find(
-            r => String(r.id) === String(roleId)
-        );
-
+function toggleRolePermission(roleId, permId, action, checked) {
+    const role = ROLES.find(r => String(r.id) === String(roleId));
     if (!role) return;
-
-    if (checked) {
-
-        if (
-            !role.permissions.includes(
-                permId
-            )
-        ) {
-            role.permissions.push(
-                permId
-            );
-        }
-
-    } else {
-
-        const idx =
-            role.permissions.indexOf(
-                permId
-            );
-
-        if (idx >= 0) {
-            role.permissions.splice(
-                idx,
-                1
-            );
-        }
+    role.permission_actions = role.permission_actions || {};
+    const current = role.permission_actions[permId] || {can_read: false, can_write: false};
+    if (action === "read") {
+        current.can_read = !!checked;
+        if (!checked) current.can_write = false;
+    } else if (action === "write") {
+        current.can_write = !!checked;
+        if (checked) current.can_read = true;
+    }
+    role.permission_actions[permId] = current;
+    const granted = current.can_read || current.can_write;
+    const index = role.permissions.indexOf(permId);
+    if (granted && index < 0) role.permissions.push(permId);
+    if (!granted && index >= 0) role.permissions.splice(index, 1);
+    if (AppState.currentPage === "role-permissions") {
+        const content = document.getElementById("settingsContent");
+        if (content) content.innerHTML = renderRolePermissions();
     }
 }
 
@@ -3435,10 +3402,8 @@ function selectAllRolePerms(roleId) {
 
     if (!role) return;
 
-    role.permissions =
-        PERMISSIONS.map(
-            p => p.id
-        );
+    role.permissions = PERMISSIONS.map(p => p.id);
+    role.permission_actions = Object.fromEntries(PERMISSIONS.map(p => [p.id, {can_read: true, can_write: true}]));
 
     navigateTo(
         'role-permissions',
@@ -3455,6 +3420,7 @@ function deselectAllRolePerms(roleId) {
     if (!role) return;
 
     role.permissions = [];
+    role.permission_actions = {};
 
     navigateTo(
         'role-permissions',
