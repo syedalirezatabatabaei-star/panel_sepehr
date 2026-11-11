@@ -13,7 +13,7 @@
 
 1. Back up the database and the current container configuration.
 2. Copy `deployment.env.example` to `.env` on the server. Put the **current, working database password** in `DB_PASSWORD`; never commit `.env`.
-3. Keep `COOKIE_SECURE=false` only while users access the site over plain HTTP. Set it to `true` after HTTPS is configured end-to-end for the browser/API path.
+3. Keep `COOKIE_SECURE=true` for production. Set it to `false` only for local development over plain HTTP; browsers served over HTTPS require Secure cookies.
 4. Confirm the existing external Docker network `internal_net` and volume `eitaa-media-shared` exist before using the Compose file.
 5. Build first, before replacing the running container:
 
