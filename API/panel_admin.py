@@ -6,12 +6,15 @@ are visible only to their recipient and administrators.
 """
 import json
 import os
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from API.database import get_connection
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Panel administration"])
 
@@ -65,12 +68,23 @@ def _record_system_event(request: Request, event_type: str, description: str,
         ))
         db.commit()
     except Exception:
+        logger.exception("Could not persist system audit event type=%s path=%s method=%s", event_type, path, method)
         if db:
-            try: db.rollback()
-            except Exception: pass
+            try:
+                db.rollback()
+            except Exception:
+                logger.exception("Could not roll back failed audit-log transaction")
     finally:
-        if cursor: cursor.close()
-        if db: db.close()
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                logger.exception("Could not close audit-log cursor")
+        if db:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Could not close audit-log database connection")
 
 
 class PageViewInput(BaseModel):
