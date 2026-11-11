@@ -1,0 +1,36 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+ENV GOOMNI_URL=http://goomni:3000 \
+    RUBIKA_STATE_DIR=/app/data/rubika-state \
+    EITAA_SERVICE_URL=http://eitaa-service:1234 \
+    EITAA_STATE_DIR=/app/data/eitaa-state \
+    EITAA_MEDIA_DIR=/shared/eitaa-media \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN set -eux; \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i \
+        -e 's|https\?://deb.debian.org|https://mirror.arvancloud.ir|g' \
+        -e 's|https\?://security.debian.org|https://mirror.arvancloud.ir|g' {} +; \
+    apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 update; \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends ca-certificates chromium bash unzip; \
+    rm -rf /var/lib/apt/lists/*
+
+COPY API/requirements.txt /app/API/requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir --index-url https://pypi.org/simple -r /app/API/requirements.txt
+
+COPY . /app
+
+RUN chmod +x /app/start.sh \
+    && mkdir -p /app/data/eitaa-state /app/data/rubika-state /root/eitaSessions /shared/eitaa-media
+
+EXPOSE 8085 8005
+
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=3)" || exit 1
+
+CMD ["/app/start.sh"]
