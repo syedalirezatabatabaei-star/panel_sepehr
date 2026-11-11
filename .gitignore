@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+vin/
+.env
+.env.*
+!.env.example
+.venv/
+
+# Playwright
+playwright-report/
+test-results/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Runtime and session data
+cookies.txt
+bale_session.json
+browser_profile/
+browser_profile_backup_*/
+data/state.db
+data/eitaa-state/
+data/eitaa-sessions/
+data/eitaa-media/
+data/uploads/
+reports/

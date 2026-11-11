@@ -1,0 +1,75 @@
+services:
+  panel_sepehr:
+    image: panel_sepehr:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: panel_sepehr
+    networks:
+      - internal_net
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_USER: ${DB_USER:-bale_api}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the server-side .env file}
+      DB_NAME: ${DB_NAME:-Bale_sender}
+      DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-10}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://95.38.187.123:3214}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Internal Docker DNS avoids routing container-to-container traffic via the host public IP.
+      BALE_CHAT_SERVICE_URL: ${BALE_CHAT_SERVICE_URL:-http://chat_node:3000}
+      EITAA_CHAT_SERVICE_URL: ${EITAA_CHAT_SERVICE_URL:-http://chat_node_eitaa:3001}
+      BALE_SEND_WEBHOOK_URL: ${BALE_SEND_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/seandms}
+      BALE_CREATE_CHAT_WEBHOOK_URL: ${BALE_CREATE_CHAT_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/plasuser}
+      EITAA_SEND_WEBHOOK_URL: ${EITAA_SEND_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/}
+      EITAA_CREATE_CHAT_WEBHOOK_URL: ${EITAA_CREATE_CHAT_WEBHOOK_URL:-https://n8n.sepehrsalamati.ir/webhook/}
+      EITAA_SERVICE_URL: ${EITAA_SERVICE_URL:-http://eitaa-service:1234}
+      GOOMNI_URL: ${GOOMNI_URL:-http://eita-rubika-bale:1598}
+      GOOMNI_BASIC_AUTH: ${GOOMNI_BASIC_AUTH:?Set GOOMNI_BASIC_AUTH in server-side .env}
+      BALELINK_GATEWAY_URL: ${BALELINK_GATEWAY_URL:-http://bale_super:8787}
+      BALELINK_API_KEY: ${BALELINK_API_KEY:?Set the same BALELINK_API_KEY used by bale_super in server-side .env}
+      BALELINK_SESSION: ${BALELINK_SESSION:-sepehr}
+      BALE_WEB_SENDER_URL: ${BALE_WEB_SENDER_URL:-http://bale_sender:2587}
+      BALE_WEB_SENDER_API_KEY: ${BALE_WEB_SENDER_API_KEY:?Set BALE_WEB_SENDER_API_KEY in server-side .env}
+      RUBIKA_DEVICE_ID: ${RUBIKA_DEVICE_ID:-sepehr-rubika}
+      RUBIKA_STATE_DIR: /app/data/rubika-state
+      SPAN_STATE_DIR: /app/data/span-api
+      SPAN_BALE_DEVICE_ID: ${SPAN_BALE_DEVICE_ID:-sepehr-span-bale}
+      SPAN_EITAA_DEVICE_ID: ${SPAN_EITAA_DEVICE_ID:-sepehr-span-eitaa}
+      SPAN_RUBIKA_DEVICE_ID: ${SPAN_RUBIKA_DEVICE_ID:-sepehr-span-rubika}
+      EITAA_STATE_DIR: /app/data/eitaa-state
+      EITAA_MEDIA_DIR: /shared/eitaa-media
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    ports:
+      - "3214:8085"
+      - "8005:8005"
+    volumes:
+      - eitaa-media-shared:/shared/eitaa-media
+      - rubika-state:/app/data/rubika-state
+      - span-api-state:/app/data/span-api
+      - /var/lib/docker/containers:/host-docker-containers:ro
+    command: ["/app/start.sh"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=3)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  internal_net:
+    external: true
+    name: internal_net
+
+volumes:
+  rubika-state:
+    name: rubika-state
+  span-api-state:
+    name: span-api-state
+  eitaa-media-shared:
+    external: true
+    name: eitaa-media-shared

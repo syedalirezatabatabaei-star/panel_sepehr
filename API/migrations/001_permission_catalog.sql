@@ -1,0 +1,4 @@
+-- Do not run direct INSERTs here: deployed permissions schemas can have
+-- required label/description columns. Use the schema-aware seeder instead:
+--   python -m API.migrations.seed_permissions
+-- The seeder refuses to guess values for unknown required columns.
