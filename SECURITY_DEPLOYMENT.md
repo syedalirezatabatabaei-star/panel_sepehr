@@ -42,3 +42,18 @@ Removing `cookies.txt` and browser-profile files from the current branch does no
 ## Validation
 
 The GitHub Actions workflow `.github/workflows/validate.yml` compiles Python source and checks JavaScript syntax on pushes and pull requests. Passing syntax checks does not replace testing login/OTP, session expiry, permission denial, chat reads/writes, and message sending against the actual deployment.
+
+
+## Authentication throttling and role permission migration
+
+Back up the database and re-apply the idempotent panel migration before deploying the updated application:
+
+```bash
+mysql --defaults-extra-file=/path/to/secure-mysql.cnf < migrations/20261023_panel_admin_tables.sql
+```
+
+Existing role grants are preserved as both read and write. New role grants store separate read/write flags. Authentication throttling uses database-backed buckets for password login, OTP verification, and OTP resend. If security settings or the rate-limit table cannot be read, authentication fails closed with HTTP 503 rather than silently bypassing limits.
+
+## Git history and exposed session material
+
+Ignore rules prevent session files from being re-added but do not erase old Git objects. Treat previously committed browser cookies/session material as compromised: revoke affected sessions and rotate any credentials stored in them. History rewriting is not included in an ordinary application push because it invalidates existing clones and requires a coordinated force-push. If approved, rotate/revoke exposed material first, then run a reviewed `git filter-repo` operation and coordinate the force-push with all collaborators.
