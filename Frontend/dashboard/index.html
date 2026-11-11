@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>پنل مدیریتی سپهر</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=20261024-security-sessions-backend">
+  <!-- Load permission guards before any dashboard controls can invoke them; versioned to bypass stale browser caches. -->
+  <script src="./js/permissions.js?v=20261023-guardfix"></script>
+  <script>
+    // Keep dashboard content hidden until the server confirms a valid session.
+    document.documentElement.style.visibility = "hidden";
+    (async function protectDashboard() {
+      const loginUrl = "/login/index.html";
+      try {
+        const headers = { "Accept": "application/json" };
+        const accessToken = sessionStorage.getItem("access_token");
+        if (accessToken) headers.Authorization = "Bearer " + accessToken;
+
+        const response = await fetch(
+          "/api/auth/me",
+          { method: "GET", credentials: "include", headers, cache: "no-store" }
+        );
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.authenticated !== true || !data.user || Number(data.user.is_active) !== 1) {
+          sessionStorage.removeItem("access_token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("bale_account");
+          window.location.replace(loginUrl);
+          return;
+        }
+        // Attach the opaque access token to dashboard API calls, while retaining
+        // cookie-based sessions for compatibility with existing frontend code.
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = function(input, init = {}) {
+          const requestUrl = typeof input === "string" ? input : input.url;
+          const url = new URL(requestUrl, window.location.href);
+          if (url.pathname.startsWith("/api/")) {
+            const headers = new Headers(
+              input instanceof Request ? input.headers : undefined
+            );
+            new Headers(init.headers || {}).forEach((value, key) => headers.set(key, value));
+            const token = sessionStorage.getItem("access_token");
+            if (token && !headers.has("Authorization")) {
+              headers.set("Authorization", "Bearer " + token);
+            }
+            return nativeFetch(input, {
+              ...init,
+              credentials: init.credentials || "include",
+              headers
+            });
+          }
+          return nativeFetch(input, init);
+        };
+        document.documentElement.style.visibility = "";
+      } catch (_) {
+        // Fail closed when the auth service cannot be reached.
+        window.location.replace(loginUrl);
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- ═══ Sidebar ═══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+	<img src="./img/logo.jpg">
+	</div>
+      <div>
+        <div class="logo-text">سپهر سلامتی</div>
+        <div class="logo-sub">پنل مدیریتی</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-title">منوی اصلی</div>
+      <button class="sidebar-item" type="button" onclick="if (guardFeature('bale.personal_message')) openBaleMessaging()">
+        <span class="icon">&#9993;&#65039;</span>
+        <span>ارسال پیام شخصی بله</span>
+        <span class="badge">src</span>
+      </button>
+        <button class="sidebar-item" type="button" onclick=" if (guardFeature('bale.personal_message')) superballe()">
+            <span class="icon">&#9993;&#65039;</span>
+            <span>ارسال پیام شخصی بله</span>
+            <span class="badge">super</span>
+        </button>
+      <button class="sidebar-item" type="button" onclick="if (guardFeature('eitaa.personal_message')) openEitaaBroadcast()">
+        <span class="icon"><img src="./img/eitaa.png" alt="" style="width:18px;height:18px;object-fit:contain"></span>
+        <span>ارسال پیام شخصی ایتا</span>
+        <span class="badge">ایتا</span>
+      </button>
+      <button class="sidebar-item" type="button" onclick="openSpanApiMessaging()">
+        <span class="icon">&#128225;</span>
+        <span>ارسال پیام شخصی </span>
+        <span class="badge">Span</span>
+      </button>
+
+<!--    <span class="icon">&#128172;</span> -->
+<button class="sidebar-item" onclick="if (!guardFeature('bale.chats')) return; openBaleChatPage()">
+    <span class="icon">
+    <img src="./img/images.jpg" alt="icon"
+         style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
+</span>
+    <span>صفحه چت ربات بله</span>
+    <span class="badge">آرامش</span>
+</button>
+
+      <button class="sidebar-item" onclick="if (!guardFeature('eitaa.chats')) return; openEitaaChatPage()">
+	<span class="icon">	
+<img src="./img/eitaa.png" alt="icon" 
+         style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
+</span>
+	
+        <span>صفحه چت ربات ایتا</span>
+        <span class="badge">ایتا</span>        
+	</button>
+
+            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+	<span class="icon">&#9993;</span>
+	<span>داشبورد AI </span>
+	</button>
+            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+        <span class="icon">&#128202;</span>
+        <span>ربات نظر سنجی</span>
+        <span class="badge">بله</span>
+        </button>
+
+            <button class="sidebar-item" onclick="if (!guardFeature('tahlil.chats')) return; tahlil()">
+        <span class="icon">&#128065;</span>
+        <span>تحیل صدا </span>
+        <span class="badge">گلشنی</span>
+        </button>
+
+            <button class="sidebar-item" onclick="showToast('به زودی این بخش اماده میشود','info')">
+        <span class="icon">&#128220;</span>
+        <span>آیین نامه</span>
+        </button>
+
+
+      <div class="sidebar-section-title" style="margin-top: var(--space-4)">مدیریت</div>
+      <button class="sidebar-item active" data-section="settings" onclick="navigateTo('my-account')">
+        <span class="icon">&#9881;&#65039;</span>
+        <span>تنظیمات</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="avatar md" style="background: var(--primary)">کاربر</div>
+<div class="user-info">
+  <div class="user-name">در حال بارگذاری...</div>
+  <div class="user-role">در حال دریافت اطلاعات...</div>
+</div>
+    </div>
+  </aside>
+
+  <!-- ═══ Sidebar Overlay (Mobile) ═══ -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- ═══ Main Content ═══ -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="header">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+      <button class="settings-toggle-btn" id="settingsToggleBtn" onclick="toggleSettingsNav()">
+        <span class="icon">&#9881;&#65039;</span>
+        <span>تنظیمات</span>
+      </button>
+      <div>
+        <div class="header-title" id="headerTitle">تنظیمات</div>
+      </div>
+      <div class="header-spacer"></div>
+      <div class="header-actions">
+        <button class="header-btn notification-trigger" id="notificationTrigger" type="button" aria-label="اعلان‌ها" aria-expanded="false" onclick="toggleNotificationDropdown(event)">
+          <span aria-hidden="true">&#128276;</span>
+          <span class="notification-count" id="notificationBadge" hidden>0</span>
+        </button>
+        <section class="notification-dropdown" id="notificationDropdown" aria-label="اعلان‌ها" hidden>
+          <div class="notification-dropdown-header">
+            <div><strong>اعلان‌ها</strong><span>آخرین پیام‌های سامانه</span></div>
+            <button type="button" class="notification-refresh" onclick="refreshNotificationDropdown(event)" aria-label="به‌روزرسانی اعلان‌ها">↻</button>
+          </div>
+          <div class="notification-dropdown-list" id="notificationDropdownList"><div class="notification-dropdown-empty">برای دریافت اعلان‌ها کلیک کنید.</div></div>
+        </section>
+      </div>
+      <div class="header-user" onclick="toggleUserDropdown(event)" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
+        <div>
+  <div class="name">در حال بارگذاری...</div>
+  <div class="role-badge">در حال دریافت اطلاعات...</div>
+</div>
+<div class="avatar md" style="background: var(--primary)">کاربر</div>
+        <div class="user-dropdown" id="userDropdown">
+          <button class="user-dropdown-item" onclick="event.stopPropagation(); closeUserDropdown(); navigateTo('my-account')">👤 حساب من</button>
+          <button class="user-dropdown-item" onclick="event.stopPropagation(); closeUserDropdown(); navigateTo('settings')">⚙️ تنظیمات</button>
+          <div class="user-dropdown-divider"></div>
+          <button class="user-dropdown-item danger" onclick="logoutFromDashboard(event)">🚪 خروج</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Settings Layout (nav is injected by JS only when settings is opened) -->
+    <div class="settings-layout">
+      <!-- Settings Overlay (Mobile) -->
+      <div class="settings-nav-overlay" id="settingsNavOverlay" onclick="toggleSettingsNav()"></div>
+
+      <!-- Settings Navigation — rendered dynamically by ensureSettingsNav() in settings.js -->
+      <div id="settingsNavContainer"></div>
+
+      <!-- Content Area -->
+      <div class="settings-content" id="settingsContent">
+        <!-- Dynamic content rendered by JS -->
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══ Toast Container ═══ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══ Modal Container ═══ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<script defer="defer" src="./js/data.js"></script>
+<script defer="defer" src="./js/tahlil.js"></script>
+<script defer="defer" src="./js/app.js?v=20261024-header-notifications-users-logout"></script>
+<script defer="defer" src="./js/bale.js"></script>
+<script defer="defer" src="./js/eitaa-broadcast.js?v=20261024-membership-status"></script>
+<script defer="defer" src="./js/rubika-broadcast.js?v=20261031-goomni-rubika"></script>
+<script defer="defer" src="./js/span-api.js?v=20261031-span-api-account-ui-v3"></script>
+<script defer="defer" src="./js/bale-UI.js?v=20261024-bale-chat-init-fix"></script>
+<script defer="defer" src="./js/eita-ui.js"></script>
+<script defer="defer" src="./js/settings.js?v=20261024-chat-access-ui-fix"></script>
+</body>
+</html>

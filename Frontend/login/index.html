@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>پنل سپهر سلامتی</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="login-wrapper">
+
+    <!-- Bs -->
+    <div class="brand-side">
+
+        <div class="brand-content">
+
+            <div class="brand-logo">
+                <img 
+                    src="images/images.jpg"
+                    alt="لوگوی سپهر سلامتی"
+                    class="company-logo">
+            </div>
+
+
+            <h1 class="brand-title">
+                پنل سپهر سلامتی
+            </h1>
+
+
+            <p class="brand-subtitle">
+               پنل واحد تحول دیجیتال (هوش مصنوعی)
+            </p>
+
+
+            <div class="features-list">
+
+                <div class="feature">
+
+                    <div class="feature-icon">
+                       🎓  
+                    </div>
+
+                    <div class="feature-text">
+
+                        <h4>
+                          آموزش
+                        </h4>
+
+                        <p>
+                            دانلود pdf آموزش
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Login Side -->
+    <div class="form-side">
+
+        <div class="form-container">
+
+
+            <div class="mobile-logo">
+
+                <img 
+                    src="images/images.jpg"
+                    alt="لوگوی سپهر سلامتی"
+                    class="company-logo-small">
+
+            </div>
+
+
+
+            <div class="form-header">
+
+                <h2>
+                    ورود به پنل
+                </h2>
+
+                <p>
+                    اطلاعات حساب خود را وارد کنید
+                </p>
+
+            </div>
+
+
+
+            <!-- Login Form -->
+
+            <form id="loginForm" class="login-form">
+
+
+                <div class="input-group">
+
+                    <label>
+                        نام کاربری
+                    </label>
+
+
+                    <div class="input-wrapper">
+
+                        <span class="input-icon">
+                            👤
+                        </span>
+
+
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            placeholder="نام کاربری"
+                            required>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="input-group">
+
+                    <label>
+                        رمز عبور
+                    </label>
+
+
+                    <div class="input-wrapper">
+
+                        <span class="input-icon">
+                            🔒
+                        </span>
+
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="رمز عبور"
+                            required>
+
+                    </div>
+
+                </div>
+
+
+
+                <div id="message" class="message"></div>
+
+
+                <button 
+                    type="submit"
+                    class="btn-submit">
+
+                    ورود
+
+                </button>
+
+
+            </form>
+
+
+
+            <div class="form-footer">
+
+                <p>
+                    حساب کاربری ندارید؟
+                    <a href="#" id="showRegister">
+                        درخواست دسترسی
+                    </a>
+                </p>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+
+</div>
+
+
+
+
+
+<!-- Register Modal -->
+
+<div id="registerModal" class="modal">
+
+
+<div class="modal-overlay" id="closeModal"></div>
+
+
+<div class="modal-content">
+
+
+<button 
+class="close-modal"
+id="closeModalBtn">
+
+×
+
+
+</button>
+
+
+
+<div class="modal-header">
+
+
+<img 
+src="images/images.jpg"
+alt="لوگوی سپهر سلامتی"
+class="modal-logo">
+
+
+
+<h2>
+ایجاد درخواست دسترسی
+</h2>
+
+
+<p>
+درخواست شما پس از تایید مدیر فعال می‌شود
+</p>
+
+
+
+</div>
+
+
+
+
+
+<form id="registerForm" class="register-form">
+
+
+
+<div class="input-group">
+
+<label>
+نام
+</label>
+
+
+<div class="input-wrapper">
+
+<input
+type="text"
+id="first_name"
+name="first_name"
+placeholder="نام"
+required>
+
+</div>
+
+
+</div>
+
+
+
+
+
+<div class="input-group">
+
+<label>
+نام خانوادگی
+</label>
+
+
+<div class="input-wrapper">
+
+<input
+type="text"
+id="last_name"
+name="last_name"
+placeholder="نام خانوادگی"
+required>
+
+</div>
+
+</div>
+
+
+
+
+
+
+<div class="input-group">
+
+<label>
+نام کاربری
+</label>
+
+
+<div class="input-wrapper">
+
+<input
+type="text"
+id="regUsername"
+name="username"
+placeholder="نام کاربری"
+required>
+
+</div>
+
+</div>
+
+
+
+
+
+<div class="input-group">
+
+<label>
+رمز عبور
+</label>
+
+
+<div class="input-wrapper">
+
+
+<input
+type="password"
+id="regPassword"
+name="password"
+placeholder="رمز عبور"
+required>
+
+
+</div>
+
+</div>
+
+
+
+
+
+
+<div class="input-group">
+
+<label>
+تکرار رمز عبور
+</label>
+
+
+<div class="input-wrapper">
+
+
+<input
+type="password"
+id="regPasswordConfirm"
+name="passwordConfirm"
+placeholder="تکرار رمز عبور"
+required>
+
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="input-group">
+
+<label>
+سمت سازمانی
+</label>
+
+
+<div class="input-wrapper">
+
+
+<input
+type="text"
+id="organizational_position"
+name="organizational_position"
+placeholder="مثال: کارشناس فروش">
+
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="input-group">
+
+<label>
+سطح دسترسی درخواستی
+</label>
+
+
+<select 
+id="requested_access_level"
+name="requested_access_level">
+
+
+<option value="1">
+سطح ۱
+</option>
+
+
+<option value="2">
+سطح ۲
+</option>
+
+
+<option value="3">
+سطح ۳
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+
+
+
+<div id="registerMessage" class="message"></div>
+
+
+
+
+
+<button 
+type="submit"
+class="btn-submit btn-register">
+
+ارسال درخواست
+
+</button>
+
+
+
+
+
+</form>
+
+
+
+</div>
+
+
+</div>
+
+
+
+<script src="js/login.js"></script>
+
+
+</body>
+</html>
