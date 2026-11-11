@@ -123,8 +123,14 @@ class CreateRoleRequest(BaseModel):
     color: str = Field(default="#64748b", min_length=7, max_length=7)
 
 
+class RolePermissionChange(BaseModel):
+    code: str = Field(min_length=1, max_length=128)
+    can_read: bool = True
+    can_write: bool = True
+
+
 class SaveRolePermissionsRequest(BaseModel):
-    permissions: list[str]
+    permissions: list[str | RolePermissionChange]
 
 
 def _role_table_rows(cursor):
@@ -136,13 +142,19 @@ def _role_table_rows(cursor):
     cursor.execute("SELECT * FROM roles ORDER BY id")
     raw_roles = cursor.fetchall()
     cursor.execute("""
-        SELECT rp.role_id, p.code
+        SELECT rp.role_id, p.code, rp.can_read, rp.can_write
         FROM role_permissions rp
         JOIN permissions p ON p.id=rp.permission_id
     """)
     role_permissions = {}
+    role_permission_actions = {}
     for row in cursor.fetchall():
-        role_permissions.setdefault(str(row["role_id"]), []).append(row["code"])
+        role_key, code = str(row["role_id"]), row["code"]
+        role_permissions.setdefault(role_key, []).append(code)
+        role_permission_actions.setdefault(role_key, {})[code] = {
+            "can_read": bool(row["can_read"]),
+            "can_write": bool(row["can_write"]),
+        }
     cursor.execute("SELECT role_id, COUNT(*) AS user_count FROM users GROUP BY role_id")
     counts = {str(row["role_id"]): int(row["user_count"]) for row in cursor.fetchall()}
     result = []
@@ -159,6 +171,7 @@ def _role_table_rows(cursor):
             "color": str(row.get("color") or "#64748b"),
             "userCount": counts.get(role_key, 0),
             "permissions": sorted(set(role_permissions.get(role_key, []))),
+            "permission_actions": role_permission_actions.get(role_key, {}),
             "isSystem": bool(row.get("is_system", row.get("is_system_role", 0))),
         })
     return result
@@ -234,10 +247,16 @@ def get_database_roles():
 @router.put("/roles/{role_id}")
 def save_database_role_permissions(role_id: int, body: SaveRolePermissionsRequest):
     allowed = {item["code"] for item in PERMISSION_CATALOG}
-    if any(code not in allowed for code in body.permissions):
-        raise HTTPException(status_code=400, detail="کد مجوز نقش نامعتبر است")
-    if len(set(body.permissions)) != len(body.permissions):
-        raise HTTPException(status_code=400, detail="مجوز تکراری در درخواست وجود دارد")
+    normalized = {}
+    for item in body.permissions:
+        code, can_read, can_write = (item, True, True) if isinstance(item, str) else (item.code, item.can_read, item.can_write)
+        if code not in allowed:
+            raise HTTPException(status_code=400, detail="کد مجوز نقش نامعتبر است")
+        if code in normalized:
+            raise HTTPException(status_code=400, detail="مجوز تکراری در درخواست وجود دارد")
+        if can_write and not can_read:
+            raise HTTPException(status_code=400, detail="برای هر نقش، مجوز ویرایش نیازمند مجوز مشاهده است")
+        normalized[code] = (bool(can_read), bool(can_write))
     db = get_connection()
     cursor = db.cursor(dictionary=True)
     try:
@@ -247,15 +266,18 @@ def save_database_role_permissions(role_id: int, body: SaveRolePermissionsReques
         _ensure_permission_catalog(cursor)
         cursor.execute("SELECT id, code FROM permissions")
         ids = {row["code"]: row["id"] for row in cursor.fetchall()}
-        selected_ids = [ids[code] for code in body.permissions if code in ids]
+        missing = [code for code in normalized if code not in ids]
+        if missing:
+            raise HTTPException(status_code=409, detail={"message": "ثبت مجوزها ناموفق بود", "missing": missing})
         cursor.execute("DELETE FROM role_permissions WHERE role_id=%s", (role_id,))
-        for permission_id in selected_ids:
-            cursor.execute(
-                "INSERT INTO role_permissions (role_id, permission_id) VALUES (%s,%s)",
-                (role_id, permission_id),
-            )
+        for code, (can_read, can_write) in normalized.items():
+            if can_read or can_write:
+                cursor.execute("""
+                    INSERT INTO role_permissions (role_id, permission_id, can_read, can_write)
+                    VALUES (%s, %s, %s, %s)
+                """, (role_id, ids[code], int(can_read), int(can_write)))
         db.commit()
-        return {"success": True, "message": "مجوزهای نقش در دیتابیس ذخیره شد"}
+        return {"success": True, "message": "مجوزهای مشاهده و ویرایش نقش ذخیره شد"}
     except HTTPException:
         db.rollback()
         raise
@@ -295,6 +317,8 @@ def get_user_permission_settings(user_id: int):
             SELECT p.code,
                    MAX(COALESCE(up.can_read, 0)) AS personal_read,
                    MAX(COALESCE(up.can_write, 0)) AS personal_write,
+                   MAX(COALESCE(rp.can_read, 0)) AS role_read,
+                   MAX(COALESCE(rp.can_write, 0)) AS role_write,
                    MAX(CASE WHEN rp.id IS NOT NULL THEN 1 ELSE 0 END) AS role_granted
             FROM permissions p
             LEFT JOIN user_permissions up
@@ -317,6 +341,8 @@ def get_user_permission_settings(user_id: int):
                         or rows.get(item["code"], {}).get("personal_write")
                     ),
                     "role_granted": bool(rows.get(item["code"], {}).get("role_granted")),
+                    "role_read": bool(rows.get(item["code"], {}).get("role_read")),
+                    "role_write": bool(rows.get(item["code"], {}).get("role_write")),
                     "registered": item["code"] in rows,
                 }
                 for item in PERMISSION_CATALOG
