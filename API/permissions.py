@@ -76,13 +76,19 @@ def has_permission(user_id: int, permission_code: str, action: str = "use") -> b
             return True
 
         cursor.execute("""
-            SELECT rp.id
+            SELECT COALESCE(MAX(rp.can_read), 0) AS role_read,
+                   COALESCE(MAX(rp.can_write), 0) AS role_write
             FROM role_permissions rp
             JOIN permissions p ON p.id=rp.permission_id
             WHERE rp.role_id=%s AND p.code=%s
-            LIMIT 1
         """, (user.get("role_id"), permission_code))
-        return cursor.fetchone() is not None
+        role = cursor.fetchone() or {}
+        role_read, role_write = bool(role.get("role_read")), bool(role.get("role_write"))
+        if action == "read":
+            return role_read
+        if action == "write":
+            return role_write
+        return role_read or role_write
     finally:
         cursor.close()
         connection.close()
