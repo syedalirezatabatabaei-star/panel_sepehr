@@ -1348,7 +1348,8 @@ def get_user_permissions(user_id: int):
         cursor.execute("""
             SELECT
                 p.code,
-                MAX(COALESCE(rp.id IS NOT NULL, 0)) AS role_permission,
+                MAX(COALESCE(rp.can_read, 0)) AS role_read,
+                MAX(COALESCE(rp.can_write, 0)) AS role_write,
                 MAX(COALESCE(up.can_read, 0)) AS personal_read,
                 MAX(COALESCE(up.can_write, 0)) AS personal_write
             FROM permissions p
@@ -1363,20 +1364,23 @@ def get_user_permissions(user_id: int):
         permissions = {}
         for row in cursor.fetchall():
             code = row["code"]
-            role_granted = bool(row["role_permission"])
+            role_read = bool(row["role_read"])
+            role_write = bool(row["role_write"])
             personal_read = bool(row["personal_read"])
             personal_write = bool(row["personal_write"])
             entry = permissions.setdefault(code, {
                 "read": False, "write": False,
                 "personal_read": False, "personal_write": False,
+                "role_read": False, "role_write": False,
                 "role_granted": False,
             })
-            # OR duplicates defensively until the integrity migration has run.
-            entry["read"] = entry["read"] or role_granted or personal_read
-            entry["write"] = entry["write"] or role_granted or personal_write
+            entry["read"] = entry["read"] or role_read or personal_read
+            entry["write"] = entry["write"] or role_write or personal_write
             entry["personal_read"] = entry["personal_read"] or personal_read
             entry["personal_write"] = entry["personal_write"] or personal_write
-            entry["role_granted"] = entry["role_granted"] or role_granted
+            entry["role_read"] = entry["role_read"] or role_read
+            entry["role_write"] = entry["role_write"] or role_write
+            entry["role_granted"] = entry["role_granted"] or role_read or role_write
         return permissions
     finally:
         cursor.close()
