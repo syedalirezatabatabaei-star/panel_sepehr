@@ -41,12 +41,10 @@ services:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     ports:
       - "3002:8085"
-      - "8005:8005"
     volumes:
       - eitaa-media-shared:/shared/eitaa-media
       - rubika-state:/app/data/rubika-state
       - span-api-state:/app/data/span-api
-      - /var/lib/docker/containers:/host-docker-containers:ro
     command: ["/app/start.sh"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=3)"]
@@ -62,8 +60,10 @@ networks:
 
 volumes:
   rubika-state:
+    external: true
     name: rubika-state
   span-api-state:
+    external: true
     name: span-api-state
   eitaa-media-shared:
     external: true
