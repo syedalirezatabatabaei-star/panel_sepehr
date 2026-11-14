@@ -139,9 +139,11 @@ def approve_registration(request_id: int, body: ApproveBody, request: Request):
     except HTTPException:
         db.rollback()
         raise
-    except Exception as e:
+    except Exception:
         db.rollback()
-        raise HTTPException(500, str(e))
+        import logging
+        logging.getLogger(__name__).exception("Registration approval failed")
+        raise HTTPException(500, "خطا در تأیید درخواست")
     finally:
         cursor.close()
         db.close()
