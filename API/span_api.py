@@ -632,9 +632,9 @@ def _run_job(job_id, targets, message, media_path, media_type, delay):
 
 
 @router.post("/{provider_name}/send")
-async def start_send(provider_name: str, excel: UploadFile = File(...), message: str = Form(""),
+async def start_send(request: Request, provider_name: str, excel: UploadFile = File(...), message: str = Form(""),
                      media: UploadFile | None = File(None), media_type: str = Form("text"),
-                     delay_seconds: int = Form(0, ge=0, le=30), request: Request):
+                     delay_seconds: int = Form(0, ge=0, le=30)):
     p = provider(provider_name)
     instance_id = _instance(p)
     if not _status(p)["exists"]:
