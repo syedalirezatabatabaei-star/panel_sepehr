@@ -1454,11 +1454,11 @@ def send_job_worker(
 
 @router.post("/send")
 async def bale_send_messages(
+    request: Request,
     file: UploadFile = File(...),
     message: str = Form(...),
     message_type: str = Form("text"),
-    media: UploadFile | None = File(None),
-    request: Request = None
+    media: UploadFile | None = File(None)
 ):
 
     print(
@@ -1641,6 +1641,8 @@ async def bale_send_messages(
                 )
 
 
+        except HTTPException:
+            raise
         except Exception as e:
 
             print(
@@ -1770,6 +1772,8 @@ async def bale_send_messages(
                 "فایل خالی دریافت شد."
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
 
         print(
