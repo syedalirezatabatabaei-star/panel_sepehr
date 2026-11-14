@@ -23,6 +23,39 @@ const closeModalOverlay = document.getElementById("closeModal");
 
 const API_BASE = "";
 
+async function readApiResponse(response) {
+    const responseText = await response.text();
+    let data;
+
+    try {
+        data = JSON.parse(responseText);
+    } catch (parseError) {
+        const contentType = response.headers.get("content-type") || "نامشخص";
+        const preview = responseText.replace(/\s+/g, " ").slice(0, 300);
+        console.error("API returned a non-JSON response", {
+            status: response.status,
+            contentType,
+            url: response.url,
+            preview
+        });
+
+        const error = new Error(
+            "پاسخ سرور قابل پردازش نیست (HTTP " + response.status + "). لطفاً صفحه را تازه‌سازی کنید؛ جزئیات در کنسول مرورگر ثبت شده است."
+        );
+        error.name = "ApiResponseError";
+        throw error;
+    }
+
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+        const error = new Error("ساختار پاسخ سرور معتبر نیست.");
+        error.name = "ApiResponseError";
+        throw error;
+    }
+
+    return data;
+}
+
+
 
                                   
           
@@ -220,7 +253,7 @@ registerForm.addEventListener("submit", async(e)=>{
 
 
 
-        const data = await response.json();
+        const data = await readApiResponse(response);
 
 
 
@@ -244,7 +277,7 @@ registerForm.addEventListener("submit", async(e)=>{
 
             showMessage(
                 registerMessageDiv,
-                data.message || "خطا در ثبت درخواست"
+                data.message || data.detail || "خطا در ثبت درخواست"
             );
 
 
@@ -261,7 +294,7 @@ registerForm.addEventListener("submit", async(e)=>{
 
         showMessage(
             registerMessageDiv,
-            "خطا در ارتباط با سرور"
+            error?.name === "ApiResponseError" ? error.message : "خطا در ارتباط با سرور"
         );
 
 
@@ -336,7 +369,7 @@ password
 
 
 
-const data = await response.json();
+const data = await readApiResponse(response);
 
 
 
@@ -375,7 +408,7 @@ else{
 
 showMessage(
 messageDiv,
-data.message || "خطا در ورود"
+data.message || data.detail || "خطا در ورود"
 );
 
 
