@@ -40,7 +40,7 @@ services:
       PYTHONUNBUFFERED: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     ports:
-      - "3002:8085"
+      - "3214:8085"
     volumes:
       - eitaa-media-shared:/shared/eitaa-media
       - rubika-state:/app/data/rubika-state
