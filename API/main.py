@@ -37,7 +37,7 @@ frontend_origins = [
     origin.strip()
     for origin in os.getenv(
         "FRONTEND_ORIGINS",
-        "http://95.38.187.123:3002",
+        "",
     ).split(",")
     if origin.strip()
 ]
@@ -157,6 +157,10 @@ async def require_authenticated_api_requests(request: Request, call_next):
 
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     # Persist authenticated API activity for developer diagnostics, but avoid
     # recursive noise from the log reader and the page-view recording endpoint.
     if path.startswith("/api/") and path not in {
