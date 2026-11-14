@@ -375,33 +375,12 @@ const data = await readApiResponse(response);
 
 if(data.success){
 
-    showMessage(
-        messageDiv,
-        "کد تایید ارسال شد",
-        "success"
-    );
+    localStorage.setItem("user", JSON.stringify(data.user || {}));
+    localStorage.setItem("bale_account", JSON.stringify(data.bale_account || {}));
+    sessionStorage.removeItem("otp_username");
+    sessionStorage.removeItem("otp_request_id");
 
-    localStorage.setItem(
-        "user",
-        JSON.stringify(data.user || {})
-    );
-
-    localStorage.setItem(
-        "bale_account",
-        JSON.stringify(data.bale_account || {})
-    );
-
-    sessionStorage.setItem(
-        "otp_username",
-        data.user.username
-    );
-
-    sessionStorage.setItem(
-        "otp_request_id",
-        data.request_id
-    );
-
-    window.location.href = "/Token/otp.html";
+    window.location.replace(data.redirect || "/dashboard/index.html");
 }
 else{
 
@@ -425,7 +404,7 @@ console.error(error);
 
 showMessage(
 messageDiv,
-"خطا در ارتباط با سرور"
+error?.name === "ApiResponseError" ? error.message : (error?.message || "خطا در ارتباط با سرور")
 );
 
 
