@@ -28,6 +28,10 @@ services:
       EITAA_SERVICE_URL: ${EITAA_SERVICE_URL:-http://eitaa-service:1234}
       GOOMNI_URL: ${GOOMNI_URL:-http://eita-rubika-bale:1598}
       GOOMNI_BASIC_AUTH: ${GOOMNI_BASIC_AUTH:?Set GOOMNI_BASIC_AUTH in server-side .env}
+      # Dedicated Bale Super gateway; private Docker DNS only, never publish port 8787.
+      BALELINK_GATEWAY_URL: ${BALELINK_GATEWAY_URL:-http://bale_super:8787}
+      BALELINK_API_KEY: ${BALELINK_API_KEY:-}
+      BALELINK_SESSION: ${BALELINK_SESSION:-sepehr}
       RUBIKA_DEVICE_ID: ${RUBIKA_DEVICE_ID:-sepehr-rubika}
       RUBIKA_STATE_DIR: /app/data/rubika-state
       SPAN_STATE_DIR: /app/data/span-api
