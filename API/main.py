@@ -31,7 +31,7 @@ class HealthCheckAccessLogFilter(logging.Filter):
 
 logging.getLogger("uvicorn.access").addFilter(HealthCheckAccessLogFilter())
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 frontend_origins = [
     origin.strip()
