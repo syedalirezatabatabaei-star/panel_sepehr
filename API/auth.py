@@ -85,7 +85,7 @@ def _load_security_policy(cursor):
             policy[row["setting_key"]] = int(json.loads(row["setting_value"]))
         except (TypeError, ValueError, json.JSONDecodeError):
             logger.warning("Invalid authentication setting value for %s; using default", row["setting_key"])
-    return max(1, min(20, int(policy["حداکثر تلاش ورود"]))), max(1, min(1440, int(policy["مدت قفل شدن (دقیقه)"])))
+    return 5, max(1, min(1440, int(policy["مدت قفل شدن (دقیقه)"])))
 
 
 def _rate_limit_key(scope, identity):
