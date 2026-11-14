@@ -298,7 +298,14 @@ document.getElementById("username").value.trim();
 const password =
 document.getElementById("password").value.trim();
 
-
+const loginButton = loginForm.querySelector('button[type="submit"]');
+if (loginForm.dataset.submitting === "true") return;
+loginForm.dataset.submitting = "true";
+if (loginButton) {
+    loginButton.disabled = true;
+    loginButton.dataset.originalText = loginButton.textContent;
+    loginButton.textContent = "در حال بررسی...";
+}
 
 try{
 
@@ -389,8 +396,13 @@ messageDiv,
 );
 
 
+} finally {
+    loginForm.dataset.submitting = "false";
+    if (loginButton) {
+        loginButton.disabled = false;
+        loginButton.textContent = loginButton.dataset.originalText || "ورود";
+    }
 }
-
 
 
 });

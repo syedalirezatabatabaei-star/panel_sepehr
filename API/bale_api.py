@@ -10,7 +10,8 @@ from fastapi import (
     HTTPException,
     UploadFile,
     File,
-    Form
+    Form,
+    Request
 )
 from fastapi.responses import FileResponse
 
@@ -802,9 +803,13 @@ def send_job_worker(
 
     with bale_jobs_lock:
 
+        owner_user_id = bale_jobs.get(job_id, {}).get("owner_user_id")
+
         bale_jobs[job_id] = {
 
             "job_id": job_id,
+
+            "owner_user_id": owner_user_id,
 
             "status": "running",
 
@@ -1449,6 +1454,7 @@ def send_job_worker(
 
 @router.post("/send")
 async def bale_send_messages(
+    request: Request,
     file: UploadFile = File(...),
     message: str = Form(...),
     message_type: str = Form("text"),
@@ -1623,7 +1629,9 @@ async def bale_send_messages(
 
         try:
 
-            media_bytes = await media.read()
+            media_bytes = await media.read(20 * 1024 * 1024 + 1)
+            if len(media_bytes) > 20 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="حجم رسانه نباید بیشتر از ۲۰ مگابایت باشد")
 
 
             if not media_bytes:
@@ -1633,6 +1641,8 @@ async def bale_send_messages(
                 )
 
 
+        except HTTPException:
+            raise
         except Exception as e:
 
             print(
@@ -1747,7 +1757,9 @@ async def bale_send_messages(
 
     try:
 
-        file_bytes = await file.read()
+        file_bytes = await file.read(10 * 1024 * 1024 + 1)
+        if len(file_bytes) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="حجم فایل Excel نباید بیشتر از ۱۰ مگابایت باشد")
 
         print(
             f"[BALE API] Uploaded file size: "
@@ -1760,6 +1772,8 @@ async def bale_send_messages(
                 "فایل خالی دریافت شد."
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
 
         print(
@@ -1916,6 +1930,8 @@ async def bale_send_messages(
 
             "job_id": job_id,
 
+            "owner_user_id": int(request.state.user["id"]),
+
             "status": "starting",
 
             "total": len(contacts),
@@ -2057,7 +2073,8 @@ async def bale_send_messages(
     "/send/status/{job_id}"
 )
 def bale_send_status(
-    job_id: str
+    job_id: str,
+    request: Request
 ):
 
     with bale_jobs_lock:
@@ -2066,7 +2083,7 @@ def bale_send_status(
             job_id
         )
 
-        if not job:
+        if not job or job.get("owner_user_id") != int(request.state.user["id"]):
 
             raise HTTPException(
                 status_code=404,
@@ -2119,14 +2136,14 @@ def bale_send_status(
 
 
 @router.get("/send/screenshot/{job_id}/{stage}")
-def bale_send_screenshot(job_id: str, stage: str):
+def bale_send_screenshot(job_id: str, stage: str, request: Request):
     if stage not in ("before", "after"):
         raise HTTPException(status_code=400, detail="مرحله اسکرین‌شات نامعتبر است.")
 
     key = "contact6_screenshot_before" if stage == "before" else "contact6_screenshot_after"
     with bale_jobs_lock:
         job = bale_jobs.get(job_id)
-        if not job:
+        if not job or job.get("owner_user_id") != int(request.state.user["id"]):
             raise HTTPException(status_code=404, detail="عملیات ارسال پیدا نشد.")
         screenshot_file = job.get(key)
 
@@ -2145,12 +2162,12 @@ def bale_send_screenshot(job_id: str, stage: str):
 # ============================================================
 
 @router.get("/send/export/{job_id}")
-def bale_send_export(job_id: str):
+def bale_send_export(job_id: str, request: Request):
 
     with bale_jobs_lock:
         job = bale_jobs.get(job_id)
 
-        if not job:
+        if not job or job.get("owner_user_id") != int(request.state.user["id"]):
             raise HTTPException(
                 status_code=404,
                 detail="عملیات ارسال پیدا نشد."

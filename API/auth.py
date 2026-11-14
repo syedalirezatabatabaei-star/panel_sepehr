@@ -85,7 +85,7 @@ def _load_security_policy(cursor):
             policy[row["setting_key"]] = int(json.loads(row["setting_value"]))
         except (TypeError, ValueError, json.JSONDecodeError):
             logger.warning("Invalid authentication setting value for %s; using default", row["setting_key"])
-    return max(1, min(20, int(policy["حداکثر تلاش ورود"]))), max(1, min(1440, int(policy["مدت قفل شدن (دقیقه)"])))
+    return 5, max(1, min(1440, int(policy["مدت قفل شدن (دقیقه)"])))
 
 
 def _rate_limit_key(scope, identity):
@@ -124,6 +124,79 @@ def _consume_rate_limit(cursor, scope, identity, max_attempts, lockout_minutes):
 def _clear_rate_limit(cursor, scope, identity):
     if identity is not None and str(identity).strip():
         cursor.execute("DELETE FROM auth_rate_limits WHERE bucket_key=%s", (_rate_limit_key(scope, identity),))
+
+
+def _login_is_locked(cursor, username, lockout_minutes):
+    """Check the failed-password counter without consuming an attempt."""
+    key = _rate_limit_key("login:username", username)
+    cursor.execute(
+        """INSERT IGNORE INTO auth_rate_limits
+           (bucket_key, window_started_at, attempts, blocked_until)
+           VALUES (%s, UTC_TIMESTAMP(), 0, NULL)""",
+        (key,),
+    )
+    cursor.execute(
+        """SELECT attempts,
+                  (blocked_until IS NOT NULL AND blocked_until > UTC_TIMESTAMP()) AS is_blocked,
+                  (window_started_at <= DATE_SUB(UTC_TIMESTAMP(), INTERVAL %s MINUTE)) AS is_expired
+           FROM auth_rate_limits WHERE bucket_key=%s FOR UPDATE""",
+        (lockout_minutes, key),
+    )
+    row = cursor.fetchone() or {}
+    if bool(row.get("is_expired")):
+        cursor.execute(
+            """UPDATE auth_rate_limits
+               SET window_started_at=UTC_TIMESTAMP(), attempts=0, blocked_until=NULL
+               WHERE bucket_key=%s""",
+            (key,),
+        )
+        return False
+    return bool(row.get("is_blocked"))
+
+
+def _record_failed_login_attempt(cursor, username, max_attempts, lockout_minutes):
+    """Increment only after an invalid login and lock immediately on failure N."""
+    key = _rate_limit_key("login:username", username)
+    cursor.execute(
+        """INSERT IGNORE INTO auth_rate_limits
+           (bucket_key, window_started_at, attempts, blocked_until)
+           VALUES (%s, UTC_TIMESTAMP(), 0, NULL)""",
+        (key,),
+    )
+    cursor.execute(
+        """SELECT attempts,
+                  (window_started_at <= DATE_SUB(UTC_TIMESTAMP(), INTERVAL %s MINUTE)) AS is_expired
+           FROM auth_rate_limits WHERE bucket_key=%s FOR UPDATE""",
+        (lockout_minutes, key),
+    )
+    row = cursor.fetchone() or {}
+    expired = bool(row.get("is_expired"))
+    attempts = 0 if expired else int(row.get("attempts") or 0)
+    attempts += 1
+    if attempts >= max_attempts:
+        cursor.execute(
+            """UPDATE auth_rate_limits
+               SET window_started_at=UTC_TIMESTAMP(), attempts=%s,
+                   blocked_until=DATE_ADD(UTC_TIMESTAMP(), INTERVAL %s MINUTE)
+               WHERE bucket_key=%s""",
+            (attempts, lockout_minutes, key),
+        )
+    else:
+        cursor.execute(
+            """UPDATE auth_rate_limits
+               SET window_started_at=IF(%s, UTC_TIMESTAMP(), window_started_at),
+                   attempts=%s, blocked_until=NULL
+               WHERE bucket_key=%s""",
+            (expired, attempts, key),
+        )
+
+
+def _request_client_ip(request):
+    # The only public entry point is the frontend proxy, which overwrites X-Forwarded-For.
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded.strip():
+        return forwarded.split(",", 1)[0].strip()[:64]
+    return request.client.host if request.client else None
 
 
 def _record_failed_login(cursor, username, client_ip, user_agent, reason, user_id=None):
@@ -276,19 +349,28 @@ def login(data: LoginRequest, request: Request):
 
     db = get_connection()
     cursor = db.cursor(dictionary=True)
+    login_lock_name = "panel-login-" + hashlib.sha256(str(data.username).strip().lower().encode("utf-8")).hexdigest()[:48]
+    login_lock_acquired = False
 
     try:
+        # Serialize concurrent requests for the same account across all app workers.
+        cursor.execute("SELECT GET_LOCK(%s, 0) AS acquired", (login_lock_name,))
+        login_lock_acquired = int((cursor.fetchone() or {}).get("acquired") or 0) == 1
+        if not login_lock_acquired:
+            return JSONResponse(
+                status_code=429,
+                content={"success": False, "message": "درخواست ورود قبلی هنوز در حال پردازش است؛ لطفاً تا دریافت پاسخ صبر کنید."},
+                headers={"Retry-After": "2", "Cache-Control": "no-store"},
+            )
 
         max_attempts, lockout_minutes = _load_security_policy(cursor)
-        client_ip = request.client.host if request.client else None
+        client_ip = _request_client_ip(request)
         user_agent = request.headers.get("user-agent")
-        user_allowed = _consume_rate_limit(cursor, "login:username", data.username, max_attempts, lockout_minutes)
-        ip_allowed = _consume_rate_limit(cursor, "login:ip", client_ip, max_attempts * 5, lockout_minutes)
-        if not user_allowed or not ip_allowed:
+        if _login_is_locked(cursor, data.username, lockout_minutes):
             db.commit()
             return JSONResponse(
                 status_code=429,
-                content={"success": False, "message": f"تعداد تلاش‌های ورود بیش از حد مجاز است. {lockout_minutes} دقیقه بعد دوباره تلاش کنید."},
+                content={"success": False, "message": f"به دلیل ۵ تلاش ناموفق، ورود موقتاً قفل شده است. {lockout_minutes} دقیقه بعد دوباره تلاش کنید."},
                 headers={"Retry-After": str(lockout_minutes * 60), "Cache-Control": "no-store"},
             )
 
@@ -322,6 +404,7 @@ def login(data: LoginRequest, request: Request):
 
         if not user:
             _record_failed_login(cursor, data.username, client_ip, user_agent, "نام کاربری یا رمز عبور اشتباه است")
+            _record_failed_login_attempt(cursor, data.username, max_attempts, lockout_minutes)
             db.commit()
             return {
                 "success": False,
@@ -334,6 +417,7 @@ def login(data: LoginRequest, request: Request):
 
         if user["is_active"] != 1:
             _record_failed_login(cursor, data.username, client_ip, user_agent, "حساب کاربری غیرفعال است", user["id"])
+            _record_failed_login_attempt(cursor, data.username, max_attempts, lockout_minutes)
             db.commit()
             return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
 
@@ -354,11 +438,11 @@ def login(data: LoginRequest, request: Request):
 
         if not password_valid:
             _record_failed_login(cursor, user["username"], client_ip, user_agent, "رمز عبور اشتباه", user["id"])
+            _record_failed_login_attempt(cursor, user["username"], max_attempts, lockout_minutes)
             db.commit()
             return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
 
         _clear_rate_limit(cursor, "login:username", data.username)
-        _clear_rate_limit(cursor, "login:ip", client_ip)
 
         # -------------------------------------------------
         # Find Bale account
@@ -381,6 +465,8 @@ def login(data: LoginRequest, request: Request):
         bale_account = cursor.fetchone()
 
         if not bale_account or bale_account["is_active"] != 1:
+            _record_failed_login(cursor, user["username"], client_ip, user_agent, "حساب بله فعال نیست", user["id"])
+            _record_failed_login_attempt(cursor, user["username"], max_attempts, lockout_minutes)
             db.commit()
             return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
 
@@ -388,7 +474,7 @@ def login(data: LoginRequest, request: Request):
         # Client information
         # -------------------------------------------------
 
-        client_ip = request.client.host if request.client else None
+        client_ip = _request_client_ip(request)
         user_agent = request.headers.get("user-agent")
 
         # -------------------------------------------------
@@ -590,6 +676,11 @@ def login(data: LoginRequest, request: Request):
         raise HTTPException(status_code=503, detail="سرویس احراز هویت موقتاً در دسترس نیست")
 
     finally:
+        if login_lock_acquired:
+            try:
+                cursor.execute("SELECT RELEASE_LOCK(%s)", (login_lock_name,))
+            except Exception:
+                logger.exception("Could not release login serialization lock")
         cursor.close()
         db.close()
 
@@ -606,7 +697,7 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
 
     try:
         max_attempts, lockout_minutes = _load_security_policy(cursor)
-        client_ip = request.client.host if request.client else None
+        client_ip = _request_client_ip(request)
         otp_identity = f"{data.username}:{data.request_id}"
         user_allowed = _consume_rate_limit(cursor, "otp:verify:user", otp_identity, max_attempts, lockout_minutes)
         ip_allowed = _consume_rate_limit(cursor, "otp:verify:ip", client_ip, max_attempts * 5, lockout_minutes)
@@ -846,7 +937,7 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
         # Client information
         # -------------------------------------------------
 
-        client_ip = request.client.host if request.client else None
+        client_ip = _request_client_ip(request)
         user_agent = request.headers.get("user-agent")
 
         # -------------------------------------------------
@@ -934,8 +1025,6 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
                 "success": True,
                 "message": "تأیید هویت با موفقیت انجام شد",
                 "redirect": "/dashboard/index.html",
-                "access_token": raw_token,
-                "token_type": "Bearer",
                 "expires_in": SESSION_EXPIRE_MINUTES * 60,
 
                 "user": {
@@ -997,7 +1086,7 @@ def resend_otp(data: ResendOTPRequest, request: Request):
 
     try:
         max_attempts, lockout_minutes = _load_security_policy(cursor)
-        client_ip = request.client.host if request.client else None
+        client_ip = _request_client_ip(request)
         user_allowed = _consume_rate_limit(cursor, "otp:resend:user", data.username, 3, lockout_minutes)
         ip_allowed = _consume_rate_limit(cursor, "otp:resend:ip", client_ip, 10, lockout_minutes)
         if not user_allowed or not ip_allowed:

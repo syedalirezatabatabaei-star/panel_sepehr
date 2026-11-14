@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -31,6 +31,24 @@ JOBS = {}
 JOBS_LOCK = threading.Lock()
 HTTP_TIMEOUT = (10, 90)
 logger = logging.getLogger(__name__)
+ 
+MAX_EXCEL_UPLOAD = 10 * 1024 * 1024
+MAX_MEDIA_UPLOAD = 64 * 1024 * 1024
+
+async def _read_limited_upload(upload, limit, label):
+    chunks, total = [], 0
+    while True:
+        chunk = await upload.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > limit:
+            raise HTTPException(413, f"حجم {label} بیش از حد مجاز است")
+        chunks.append(chunk)
+    if not total:
+        raise HTTPException(400, f"فایل {label} خالی است")
+    return b"".join(chunks)
+
 
 
 def _headers(instance_id=None, idempotency_key=None):
@@ -337,7 +355,7 @@ def _run_job(job_id, recipients, message, media_path, media_kind, delay, instanc
 
 
 @router.post("/send")
-async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""),
+async def start_send(request: Request, background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""),
                      media: UploadFile | None = File(None), delay_seconds: int = Form(0, ge=0, le=30)):
     saved = _account()
     if not saved or not saved.get("instance_id"):
@@ -350,7 +368,7 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
     excel_path = MEDIA_DIR / (job_id + "_" + Path(excel.filename).name)
     media_path = None
     try:
-        excel_path.write_bytes(await excel.read())
+        excel_path.write_bytes(await _read_limited_upload(excel, MAX_EXCEL_UPLOAD, 'Excel'))
         recipients = _load_recipients(excel_path)
         if not recipients:
             raise HTTPException(400, "هیچ شناسه معتبر و تکرارنشده روبیکا (u0...) در فایل Excel پیدا نشد")
@@ -363,7 +381,7 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
                        ".pdf": "file", ".doc": "file", ".docx": "file"}
             if suffix not in allowed:
                 raise HTTPException(400, "فرمت رسانه پشتیبانی نمی‌شود")
-            data = await media.read()
+            data = await _read_limited_upload(media, MAX_MEDIA_UPLOAD, 'رسانه')
             if not data or len(data) > 64 * 1024 * 1024:
                 raise HTTPException(400, "حجم رسانه خالی یا بیش از ۶۴ مگابایت است")
             if allowed[suffix] == "video" and len(data) > 20 * 1024 * 1024:
@@ -374,7 +392,7 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
         with JOBS_LOCK:
             JOBS[job_id] = {"job_id": job_id, "status": "queued", "total": len(recipients),
                             "processed": 0, "success": 0, "failed": 0, "unknown": 0, "progress": 0,
-                            "results": [], "created_at": datetime.now().isoformat(timespec="seconds")}
+                            "results": [], "created_at": datetime.now().isoformat(timespec="seconds"), "owner_user_id": int(request.state.user["id"])}
         thread = threading.Thread(target=_run_job, args=(job_id, recipients, message, media_path, media_kind,
                                                         int(delay_seconds), saved["instance_id"]), daemon=True)
         thread.start()
@@ -387,19 +405,19 @@ async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File
 
 
 @router.get("/send/status/{job_id}")
-def send_status(job_id: str):
+def send_status(job_id: str, request: Request):
     with JOBS_LOCK:
         job = JOBS.get(job_id)
-        if not job:
+        if not job or job.get("owner_user_id") != int(request.state.user["id"]):
             raise HTTPException(404, "شناسه ارسال پیدا نشد")
-        return {key: value for key, value in job.items() if key != "report_path"}
+        return {key: value for key, value in job.items() if key not in {"report_path", "owner_user_id"}}
 
 
 @router.get("/send/export/{job_id}")
-def export_report(job_id: str):
+def export_report(job_id: str, request: Request):
     with JOBS_LOCK:
         job = JOBS.get(job_id)
-        report = job.get("report_path") if job else None
+        report = job.get("report_path") if job and job.get("owner_user_id") == int(request.state.user["id"]) else None
     if not report or not Path(report).exists():
         raise HTTPException(404, "گزارش هنوز آماده نیست")
     return FileResponse(report, filename=Path(report).name,
