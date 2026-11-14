@@ -350,7 +350,7 @@ def _run_job(job_id, phone, recipients, message, media_path, media_type, delay):
 
 
 @router.post("/send")
-async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""), media: UploadFile | None = File(None), delay_seconds: int = Form(0, ge=0, le=30), request: Request):
+async def start_send(request: Request, background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""), media: UploadFile | None = File(None), delay_seconds: int = Form(0, ge=0, le=30)):
     saved = _account()
     if not saved or not saved.get("phone"):
         raise HTTPException(401, "ابتدا وارد حساب ایتا شوید")
