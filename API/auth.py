@@ -346,12 +346,10 @@ def register(data: RegisterRequest):
 
 @router.post("/login")
 def login(data: LoginRequest, request: Request):
-    """Authenticate with username/password and create a session directly (OTP disabled)."""
+
     db = get_connection()
     cursor = db.cursor(dictionary=True)
-    login_lock_name = "panel-login-" + hashlib.sha256(
-        str(data.username).strip().lower().encode("utf-8")
-    ).hexdigest()[:48]
+    login_lock_name = "panel-login-" + hashlib.sha256(str(data.username).strip().lower().encode("utf-8")).hexdigest()[:48]
     login_lock_acquired = False
 
     try:
@@ -361,14 +359,13 @@ def login(data: LoginRequest, request: Request):
         if not login_lock_acquired:
             return JSONResponse(
                 status_code=429,
-                content={"success": False, "message": "درخواست ورود قبلی هنوز در حال پردازش است؛ لطفاً کمی صبر کنید."},
+                content={"success": False, "message": "درخواست ورود قبلی هنوز در حال پردازش است؛ لطفاً تا دریافت پاسخ صبر کنید."},
                 headers={"Retry-After": "2", "Cache-Control": "no-store"},
             )
 
         max_attempts, lockout_minutes = _load_security_policy(cursor)
         client_ip = _request_client_ip(request)
         user_agent = request.headers.get("user-agent")
-
         if _login_is_locked(cursor, data.username, lockout_minutes):
             db.commit()
             return JSONResponse(
@@ -377,135 +374,298 @@ def login(data: LoginRequest, request: Request):
                 headers={"Retry-After": str(lockout_minutes * 60), "Cache-Control": "no-store"},
             )
 
+        # -------------------------------------------------
+        # Find user
+        # -------------------------------------------------
+
         cursor.execute(
             """
-            SELECT id, first_name, last_name, username, password_hash,
-                   organizational_position, access_level, is_active
+            SELECT
+                id,
+                first_name,
+                last_name,
+                username,
+                password_hash,
+                organizational_position,
+                access_level,
+                is_active
             FROM users
             WHERE username = %s
             LIMIT 1
             """,
-            (data.username,),
+            (data.username,)
         )
+
         user = cursor.fetchone()
 
-        if not user or user["is_active"] != 1:
-            _record_failed_login(
-                cursor, data.username, client_ip, user_agent,
-                "نام کاربری یا رمز عبور اشتباه است",
-                user["id"] if user else None,
-            )
+        # -------------------------------------------------
+        # User not found
+        # -------------------------------------------------
+
+        if not user:
+            _record_failed_login(cursor, data.username, client_ip, user_agent, "نام کاربری یا رمز عبور اشتباه است")
+            _record_failed_login_attempt(cursor, data.username, max_attempts, lockout_minutes)
+            db.commit()
+            return {
+                "success": False,
+                "message": "نام کاربری یا رمز عبور اشتباه است"
+            }
+
+        # -------------------------------------------------
+        # Check active
+        # -------------------------------------------------
+
+        if user["is_active"] != 1:
+            _record_failed_login(cursor, data.username, client_ip, user_agent, "حساب کاربری غیرفعال است", user["id"])
             _record_failed_login_attempt(cursor, data.username, max_attempts, lockout_minutes)
             db.commit()
             return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
 
+        # -------------------------------------------------
+        # Check password
+        # -------------------------------------------------
+
         try:
-            password_valid = pwd_context.verify(data.password, user["password_hash"])
+
+            password_valid = pwd_context.verify(
+                data.password,
+                user["password_hash"]
+            )
+
         except Exception:
             logger.exception("Password hash verification failed")
             raise HTTPException(status_code=503, detail="سرویس احراز هویت موقتاً در دسترس نیست")
 
         if not password_valid:
-            _record_failed_login(
-                cursor, user["username"], client_ip, user_agent,
-                "رمز عبور اشتباه", user["id"],
-            )
+            _record_failed_login(cursor, user["username"], client_ip, user_agent, "رمز عبور اشتباه", user["id"])
             _record_failed_login_attempt(cursor, user["username"], max_attempts, lockout_minutes)
             db.commit()
             return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
 
-        # Keep the existing account-link eligibility rule; only the external OTP
-        # dependency is removed from the authentication path.
+        _clear_rate_limit(cursor, "login:username", data.username)
+
+        # -------------------------------------------------
+        # Find Bale account
+        # -------------------------------------------------
+
         cursor.execute(
             """
-            SELECT bale_user_id, bale_first_name, bale_last_name, is_active
+            SELECT
+                bale_user_id,
+                bale_first_name,
+                bale_last_name,
+                is_active
             FROM bale_accounts
             WHERE user_id = %s
             LIMIT 1
             """,
-            (user["id"],),
+            (user["id"],)
         )
+
         bale_account = cursor.fetchone()
+
         if not bale_account or bale_account["is_active"] != 1:
-            _record_failed_login(
-                cursor, user["username"], client_ip, user_agent,
-                "حساب بله فعال نیست", user["id"],
-            )
+            _record_failed_login(cursor, user["username"], client_ip, user_agent, "حساب بله فعال نیست", user["id"])
             _record_failed_login_attempt(cursor, user["username"], max_attempts, lockout_minutes)
             db.commit()
             return {"success": False, "message": "نام کاربری یا رمز عبور اشتباه است"}
 
-        # Create a normal server-side session; OTP/n8n is not called.
-        raw_token = secrets.token_urlsafe(64)
-        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
-            minutes=SESSION_EXPIRE_MINUTES
-        )
+        # -------------------------------------------------
+        # Client information
+        # -------------------------------------------------
 
-        cursor.execute(
-            """
-            UPDATE login_sessions
-            SET is_active = 0
-            WHERE user_id = %s AND is_active = 1
-            """,
-            (user["id"],),
-        )
-        cursor.execute(
-            """
-            INSERT INTO login_sessions
-                (user_id, session_token_hash, ip_address, user_agent, is_active, expires_at)
-            VALUES (%s, %s, %s, %s, 1, %s)
-            """,
-            (user["id"], token_hash, client_ip, user_agent, expires_at),
-        )
+        client_ip = _request_client_ip(request)
+        user_agent = request.headers.get("user-agent")
+
+        # -------------------------------------------------
+        # Create Login Log
+        # -------------------------------------------------
 
         cursor.execute(
             """
             INSERT INTO login_logs
-                (user_id, username, login_status, otp_status, ip_address, user_agent, failure_reason)
-            VALUES (%s, %s, 'success', 'success', %s, %s, NULL)
+            (
+                user_id,
+                username,
+                login_status,
+                otp_status,
+                ip_address,
+                user_agent,
+                failure_reason
+            )
+            VALUES
+            (%s, %s, 'success', 'pending', %s, %s, NULL)
             """,
-            (user["id"], user["username"], client_ip, user_agent),
+            (
+                user["id"],
+                user["username"],
+                client_ip,
+                user_agent
+            )
         )
 
-        _clear_rate_limit(cursor, "login:username", user["username"])
         db.commit()
 
-        response = JSONResponse(
-            content={
-                "success": True,
-                "message": "ورود با موفقیت انجام شد",
-                "redirect": "/dashboard/index.html",
-                "expires_in": SESSION_EXPIRE_MINUTES * 60,
-                "user": {
-                    "id": user["id"],
-                    "username": user["username"],
-                    "first_name": user["first_name"],
-                    "last_name": user["last_name"],
-                    "organizational_position": user["organizational_position"],
-                    "access_level": user["access_level"],
-                    "is_active": user["is_active"],
-                    "permissions": get_user_permissions(user["id"]),
-                },
-                "bale_account": {
-                    "bale_user_id": bale_account["bale_user_id"],
-                    "bale_first_name": bale_account["bale_first_name"],
-                    "bale_last_name": bale_account["bale_last_name"],
-                },
+        # -------------------------------------------------
+        # Prepare N8N data
+        # -------------------------------------------------
+
+        webhook_data = {
+            "username": user["username"],
+            "bale_user_id": bale_account["bale_user_id"],
+            "first_name": (
+                bale_account["bale_first_name"]
+                or user["first_name"]
+            ),
+            "last_name": (
+                bale_account["bale_last_name"]
+                or user["last_name"]
+            )
+        }
+
+        logger.info("OTP delivery requested for an authenticated account")
+
+        # -------------------------------------------------
+        # Send OTP
+        # -------------------------------------------------
+
+        try:
+
+            webhook_response = requests.post(
+                N8N_TOKEN_WEBHOOK,
+                json=webhook_data,
+                timeout=15
+            )
+
+        except requests.RequestException as e:
+
+            print("N8N CONNECTION ERROR:", str(e))
+
+            cursor.execute(
+                """
+                UPDATE login_logs
+                SET
+                    otp_status = 'failed',
+                    failure_reason = %s
+                WHERE
+                    user_id = %s
+                    AND username = %s
+                    AND login_status = 'success'
+                    AND otp_status = 'pending'
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (
+                    "ارتباط با سرویس OTP برقرار نشد",
+                    user["id"],
+                    user["username"]
+                )
+            )
+
+            db.commit()
+
+            return {
+                "success": False,
+                "message": "ارتباط با سرویس ارسال OTP برقرار نشد"
+            }
+
+        # -------------------------------------------------
+        # N8N HTTP error
+        # -------------------------------------------------
+
+        if not 200 <= webhook_response.status_code < 300:
+
+            logger.warning("OTP provider returned HTTP %s", webhook_response.status_code)
+
+            cursor.execute(
+                """
+                UPDATE login_logs
+                SET
+                    otp_status = 'failed',
+                    failure_reason = %s
+                WHERE
+                    user_id = %s
+                    AND username = %s
+                    AND login_status = 'success'
+                    AND otp_status = 'pending'
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (
+                    "خطا از سرویس OTP",
+                    user["id"],
+                    user["username"]
+                )
+            )
+
+            db.commit()
+
+            return {
+                "success": False,
+                "message": "خطا در ارسال کد تایید"
+            }
+
+        # -------------------------------------------------
+        # Parse N8N response
+        # -------------------------------------------------
+
+        try:
+
+            n8n_data = webhook_response.json()
+
+        except Exception:
+
+            logger.warning("OTP provider returned a non-JSON response")
+
+            return {
+                "success": False,
+                "message": "پاسخ نامعتبر از سرویس OTP"
+            }
+
+        logger.info("OTP delivery provider returned a response")
+
+        # -------------------------------------------------
+        # Request ID
+        # -------------------------------------------------
+
+        request_id = n8n_data.get("request_id")
+
+        if not request_id:
+
+            return {
+                "success": False,
+                "message": "شناسه درخواست OTP دریافت نشد"
+            }
+
+        # -------------------------------------------------
+        # Final login response
+        # -------------------------------------------------
+
+        return {
+            "success": True,
+            "message": "کد تایید ارسال شد",
+
+            "request_id": request_id,
+
+            "user": {
+                "id": user["id"],
+                "username": user["username"],
+                "first_name": user["first_name"],
+                "last_name": user["last_name"],
+                "organizational_position": user[
+                    "organizational_position"
+                ],
+                "access_level": user["access_level"],
+                "is_active": user["is_active"],
+                "permissions": get_user_permissions(user["id"])
             },
-            headers={"Cache-Control": "no-store"},
-        )
-        response.set_cookie(
-            key="session_token",
-            value=raw_token,
-            httponly=True,
-            secure=os.getenv("COOKIE_SECURE", "true").strip().lower() in {"1", "true", "yes"},
-            samesite="lax",
-            max_age=SESSION_EXPIRE_MINUTES * 60,
-            path="/",
-        )
-        logger.info("Password login succeeded; server-side session created (OTP disabled)")
-        return response
+
+            "bale_account": {
+                "bale_user_id": bale_account["bale_user_id"],
+                "bale_first_name": bale_account["bale_first_name"],
+                "bale_last_name": bale_account["bale_last_name"]
+            }
+        }
 
     except HTTPException:
         db.rollback()
@@ -514,6 +674,7 @@ def login(data: LoginRequest, request: Request):
         db.rollback()
         logger.exception("Login request failed")
         raise HTTPException(status_code=503, detail="سرویس احراز هویت موقتاً در دسترس نیست")
+
     finally:
         # A failed MySQL statement can leave an unread result on the cursor.
         # Cleanup must never mask the original authentication/database error.
