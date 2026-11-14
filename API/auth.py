@@ -1025,8 +1025,6 @@ def verify_otp(data: VerifyOTPRequest, request: Request):
                 "success": True,
                 "message": "تأیید هویت با موفقیت انجام شد",
                 "redirect": "/dashboard/index.html",
-                "access_token": raw_token,
-                "token_type": "Bearer",
                 "expires_in": SESSION_EXPIRE_MINUTES * 60,
 
                 "user": {
