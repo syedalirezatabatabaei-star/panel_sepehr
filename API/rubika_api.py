@@ -355,8 +355,8 @@ def _run_job(job_id, recipients, message, media_path, media_kind, delay, instanc
 
 
 @router.post("/send")
-async def start_send(background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""),
-                     media: UploadFile | None = File(None), delay_seconds: int = Form(0, ge=0, le=30), request: Request):
+async def start_send(request: Request, background_tasks: BackgroundTasks, excel: UploadFile = File(...), message: str = Form(""),
+                     media: UploadFile | None = File(None), delay_seconds: int = Form(0, ge=0, le=30)):
     saved = _account()
     if not saved or not saved.get("instance_id"):
         raise HTTPException(401, "ابتدا حساب روبیکا را متصل کنید")
