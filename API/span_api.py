@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -634,7 +634,7 @@ def _run_job(job_id, targets, message, media_path, media_type, delay):
 @router.post("/{provider_name}/send")
 async def start_send(provider_name: str, excel: UploadFile = File(...), message: str = Form(""),
                      media: UploadFile | None = File(None), media_type: str = Form("text"),
-                     delay_seconds: int = Form(0, ge=0, le=30)):
+                     delay_seconds: int = Form(0, ge=0, le=30), request: Request):
     p = provider(provider_name)
     instance_id = _instance(p)
     if not _status(p)["exists"]:
@@ -674,6 +674,7 @@ async def start_send(provider_name: str, excel: UploadFile = File(...), message:
             "status": "queued", "phase": "در صف انتظار", "total": len(targets),
             "processed": 0, "success": 0, "failed": 0, "unknown": 0,
             "progress": 0, "results": [], "created_at": datetime.now().isoformat(timespec="seconds"),
+            "owner_user_id": int(request.state.user["id"]),
         }
         JOBS[job_id] = job
         _save_job(job)
@@ -689,19 +690,19 @@ async def start_send(provider_name: str, excel: UploadFile = File(...), message:
 
 
 @router.get("/{provider_name}/send/status/{job_id}")
-def send_status(provider_name: str, job_id: str):
+def send_status(provider_name: str, job_id: str, request: Request):
     p = provider(provider_name)
     job = _get_job(job_id)
-    if not job or job.get("provider") != p:
+    if not job or job.get("provider") != p or job.get("owner_user_id") != int(request.state.user["id"]):
         raise HTTPException(404, "شناسه ارسال پیدا نشد")
-    return {key: value for key, value in job.items() if key not in {"report_path", "instance_id"}}
+    return {key: value for key, value in job.items() if key not in {"report_path", "instance_id", "owner_user_id"}}
 
 
 @router.get("/{provider_name}/send/export/{job_id}")
-def export_report(provider_name: str, job_id: str):
+def export_report(provider_name: str, job_id: str, request: Request):
     p = provider(provider_name)
     job = _get_job(job_id)
-    if not job or job.get("provider") != p or not job.get("report_path"):
+    if not job or job.get("provider") != p or job.get("owner_user_id") != int(request.state.user["id"]) or not job.get("report_path"):
         raise HTTPException(404, "گزارش هنوز آماده نیست")
     path = Path(job["report_path"])
     if not path.is_file() or path.parent != REPORTS:
