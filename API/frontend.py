@@ -58,6 +58,10 @@ async def protect_dashboard_files(request: Request, call_next):
             return RedirectResponse("/login/index.html", status_code=302)
 
     response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if path == "/dashboard" or path.startswith("/dashboard/"):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
