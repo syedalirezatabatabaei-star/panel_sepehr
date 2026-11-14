@@ -515,13 +515,22 @@ def login(data: LoginRequest, request: Request):
         logger.exception("Login request failed")
         raise HTTPException(status_code=503, detail="سرویس احراز هویت موقتاً در دسترس نیست")
     finally:
+        # A failed MySQL statement can leave an unread result on the cursor.
+        # Cleanup must never mask the original authentication/database error.
         if login_lock_acquired:
             try:
                 cursor.execute("SELECT RELEASE_LOCK(%s)", (login_lock_name,))
+                cursor.fetchone()
             except Exception:
                 logger.exception("Could not release login serialization lock")
-        cursor.close()
-        db.close()
+        try:
+            cursor.close()
+        except Exception:
+            logger.exception("Could not close login cursor cleanly")
+        try:
+            db.close()
+        except Exception:
+            logger.exception("Could not close login database connection cleanly")
 
 
 # =========================================================
